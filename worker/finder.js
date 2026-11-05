@@ -1,26 +1,13 @@
 // The gift finder: a brief in, a short list of real, in-stock gifts out.
 //
-//   1. the brief is checked for a judge or court employee (gift rules, not a shopping problem)
-//   2. the AI turns the brief into a few product searches
-//   3. Channel3 runs them: real products, real retailers, live price and stock
-//   4. the AI picks the best few FROM THOSE RESULTS ONLY and says why
+//   1. the AI turns the brief into a few product searches
+//   2. Channel3 runs them: real products, real retailers, live price and stock
+//   3. the AI picks the best few FROM THOSE RESULTS ONLY and says why
 // The model never invents a product, a price or a link: anything it names that Channel3 did not
 // return is dropped, and if the model fails the shopper still gets the in-budget results.
 
 const C3 = "https://api.trychannel3.com";
 const clip = (s, n) => String(s ?? "").slice(0, n);
-
-// ---------- 1. judges and court staff ----------
-const COURT = /\b(judge|justice|magistrate|surrogate|hearing officer|law clerk|court clerk|clerk of (?:the )?court|chambers|court (?:officer|attorney|employee|staff)|referee)\b/i;
-export const COURT_NOTE =
-  "Judges and court staff are restricted by judicial-conduct rules from accepting gifts, especially from " +
-  "lawyers and parties who appear before them. In New York see the Rules Governing Judicial Conduct, " +
-  "22 NYCRR Part 100. A handwritten note is always allowed; check the rules before sending anything more.";
-export function courtCheck(brief) {
-  const text = [brief.recipient, brief.relationship, brief.occasion, brief.notes].filter(Boolean).join(" ");
-  const m = text.match(COURT);
-  return m ? { flagged: true, matched: m[0], note: COURT_NOTE } : { flagged: false };
-}
 
 // ---------- the brief ----------
 export function validateBrief(b) {
@@ -166,15 +153,13 @@ export function fallbackPicks(cards, n = 6) {
 
 // The whole run. `ai(system, user)` returns parsed JSON or throws; `search(query)` returns products.
 export async function findGifts(brief, { ai, search, planSystem = PLAN_SYSTEM }) {
-  const court = courtCheck(brief);
-  if (court.flagged) return { court, plan: [], picks: [] };
   let plan = [];
   try { plan = parsePlan(await ai(planSystem, planPrompt(brief))); } catch { plan = []; }
   if (!plan.length) plan = fallbackPlan(brief);
   const results = await Promise.all(plan.map(s => search(s.query).then(ps => ps.map(p => toCard(p, brief.budget_cents))).catch(() => [])));
   // Mixed across searches, then junk and duplicates out.
   const cards = mergeCards([interleave(results.map(l => l.filter(Boolean)))]);
-  if (!cards.length) return { court, plan, picks: [], more: [], empty: true };
+  if (!cards.length) return { plan, picks: [], more: [], empty: true };
   let picks = [], also = null;
   try {
     const j = await ai(PICK_SYSTEM, pickPrompt(brief, cards));
@@ -185,7 +170,7 @@ export async function findGifts(brief, { ai, search, planSystem = PLAN_SYSTEM })
   const shown = new Set(top.map(p => p.product_id));
   // The rest of the grid: what the model vouched for as a gift, or (model down) what survived the junk filter.
   const more = (also || cards).filter(c => !shown.has(c.product_id)).slice(0, 18);
-  return { court, plan, picks: top, more, ai_picked: picks.length > 0 };
+  return { plan, picks: top, more, ai_picked: picks.length > 0 };
 }
 
 // Round-robin across searches so the grid mixes kinds of gift instead of 12 coffee sets in a row.

@@ -12,7 +12,6 @@
 - The store opens on a grid of real, in-stock gifts for its niche, live from thousands of retailers through [Channel3](https://trychannel3.com).
 - Questions sit *between* the products ("What's the occasion?", "Who's it for?", "Budget?"). Each tap re-ranks the grid. The AI's picks move to the front with a one-line reason.
 - **Group gift:** start a pool on any product and share the link. Everyone chips in with **PayPal Checkout**, and the money goes **straight to the organizer's PayPal**. The site never holds it.
-- Lawyer Gifts knows that judges and court staff are restricted from accepting gifts. It shows the rule (in New York, 22 NYCRR Part 100) instead of a shopping list.
 
 **For store owners:**
 - Say who the store is for ("nurses and the patients who thank them"). The AI drafts the name, address, tagline, occasions, search guidance and color, and you can edit any of it.
@@ -40,7 +39,7 @@ Cloudflare Workers + D1 + static assets. No framework, no build step.
 ```
 worker/
   worker.js        routes: store resolution by host, finder, browse, pools, store publishing
-  finder.js        court check, AI search plan, Channel3 search, cards, AI picks, front-page grid
+  finder.js        AI search plan, Channel3 search, cards, AI picks, front-page grid
   pools.js         group gifts: validation, PayPal order, capture → tally
   stores.js        AI store draft, slugs, subscription body/status, host routing
   paypal-core.js   OAuth token (with stale-token recovery), REST wrapper, webhook verify

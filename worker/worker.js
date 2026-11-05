@@ -1,6 +1,6 @@
 // Gift Finder — API worker. Static pages (finder, pool page) are served from ./public.
 import { paypalFetch, link } from "./paypal-core.js";
-import { validateBrief, findGifts, browseGifts, channel3Search, courtCheck, toCard, mergeCards } from "./finder.js";
+import { validateBrief, findGifts, browseGifts, channel3Search, toCard, mergeCards } from "./finder.js";
 import { validatePool, contributionError, buildContributionOrder, readCapture, applyCapture, publicPool } from "./pools.js";
 import { ROOT, DRAFT_SYSTEM, parseDraft, validateStore, storePlanSystem, subscriptionBody, storeStatusFor, hostKey, publicStore, darkEnough } from "./stores.js";
 import { authorizeUrl, paypalWebBase, parseUserinfo, ownsStore, validateSettings, validateItem, shelves, withoutHidden } from "./owners.js";
@@ -190,9 +190,7 @@ export default {
         if (!store || store.status !== "active") return J({ error: "This store isn't open." }, 404);
         const v = validateBrief(await readJson(request));
         if (v.error) return J({ error: v.error }, 400);
-        const court = courtCheck(v.brief); // gift rules first: nothing is searched for a judge
-        if (court.flagged) return J({ court, plan: [], picks: [] });
-        if (!env.CHANNEL3_API_KEY) return J({ error: "Product search is not configured yet." }, 503);
+       if (!env.CHANNEL3_API_KEY) return J({ error: "Product search is not configured yet." }, 503);
         const cfg = JSON.parse(store.config_json);
         const planSystem = cfg.house ? undefined : storePlanSystem({ ...cfg, name: store.name, niche: store.niche });
         const r = await findGifts(v.brief, { ai: aiFor(env), search: q => channel3Search(env, q, v.brief), planSystem });

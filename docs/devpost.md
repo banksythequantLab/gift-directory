@@ -10,7 +10,7 @@ I'm a New York attorney. Clients want to thank their lawyer, firms want to thank
 - The store opens on a grid of real, in-stock gifts for its niche, pulled live from thousands of retailers through Channel3.
 - Questions appear *between* the products: occasion, who it's for, budget, your relationship, what they love. Each tap re-ranks the grid. The AI's picks move to the front with a one-line reason written for that person.
 - **Group gift:** start a pool on any product and share one link. Each person chips in through PayPal Checkout, and the money goes straight to the organizer's PayPal account. A live progress bar and a "who's in" list update with each payment.
-- Lawyer Gifts knows that judges and court staff are restricted from accepting gifts. Choose "for a judge or clerk" and it shows the rule (22 NYCRR Part 100 in New York) instead of a shopping list.
+- A search bar for when you already know what you want, and store owners pin their own shelves (Lawyer Gifts opens on a "Scales of Justice" shelf).
 
 **Running a store:**
 - Type who your store is for. The AI drafts the whole store (name, web address, tagline, occasions, search guidance, color) and you edit anything with a live preview.

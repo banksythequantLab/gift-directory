@@ -1,18 +1,11 @@
-// The gift finder without the network: the court check, the plan, the cards, the picks.
-import { courtCheck, validateBrief, parsePlan, fallbackPlan, searchBody, toCard, mergeCards, parsePicks,
+// The gift finder without the network: the plan, the cards, the picks.
+import { validateBrief, parsePlan, fallbackPlan, searchBody, toCard, mergeCards, parsePicks,
          fallbackPicks, findGifts, channel3Search } from "../finder.js";
 
 let passed = 0, failed = 0;
 const ok = (n, c, d = "") => { c ? passed++ : (failed++, console.log(`FAIL  ${n}${d ? "  — " + d : ""}`)); };
 const eq = (n, a, b) => ok(n, a === b, `got ${JSON.stringify(a)}, wanted ${JSON.stringify(b)}`);
 
-// ---------- judges and court staff ----------
-eq("a judge is flagged", courtCheck({ recipient: "Judge Ramos" }).flagged, true);
-eq("so is a law clerk", courtCheck({ recipient: "my old law clerk" }).flagged, true);
-eq("and chambers staff", courtCheck({ relationship: "someone in chambers" }).flagged, true);
-eq("the 'For a judge or clerk' occasion is flagged", courtCheck({ recipient: "lawyers", occasion: "For a judge or clerk" }).flagged, true);
-eq("a litigator is not", courtCheck({ recipient: "my litigator", occasion: "won my case" }).flagged, false);
-eq("'judgment' is not a judge", courtCheck({ notes: "got a great judgment for us" }).flagged, false);
 
 // ---------- the brief ----------
 ok("a brief needs someone or something", validateBrief({ budget_cents: 10000 }).error);
@@ -70,9 +63,9 @@ eq("fallback picks lead with the best-priced", fallbackPicks(cards)[0].product_i
 {
   const brief = validateBrief({ recipient: "Judge Ramos", occasion: "retirement", budget_cents: 20000 }).brief;
   let searched = false;
-  const r = await findGifts(brief, { ai: async () => ({}), search: async () => { searched = true; return []; } });
-  eq("a judge gets the rules, not a shopping list", r.court.flagged, true);
-  eq("and nothing is searched", searched, false);
+  const r = await findGifts(brief, { ai: async () => ({}), search: async () => { searched = true; return [prod("j", [off(90)])]; } });
+  eq("a judge's retirement gets gifts like anyone's", searched, true);
+  eq("with something to show", r.picks.length, 1);
 }
 {
   const brief = validateBrief({ recipient: "new associate", budget_cents: 10000 }).brief;

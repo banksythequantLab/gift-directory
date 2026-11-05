@@ -165,8 +165,7 @@ async function refresh() {
     const j = await r.json();
     if (my !== seq) return;                       // a newer answer is already on its way
     if (!r.ok) throw new Error(j.error || "Something went wrong");
-    if (j.court && j.court.flagged) { items = []; $("#notice").innerHTML = `<div class="note" style="margin-bottom:12px"><b>Before you shop:</b> ${esc(j.court.note)}</div>`; }
-    else { items = [...(j.picks || []), ...(j.more || [])]; aiPicked = !!j.ai_picked; $("#notice").innerHTML = ""; }
+    items = [...(j.picks || []), ...(j.more || [])]; aiPicked = !!j.ai_picked; $("#notice").innerHTML = "";
   } catch (err) { if (my === seq) $("#notice").innerHTML = `<p class="err">${esc(err.message)}</p>`; }
   finally { if (my === seq) { $("#grid").classList.remove("busy"); render(); } }
 }
