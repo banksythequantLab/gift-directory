@@ -3,7 +3,8 @@ import { paypalFetch, link } from "./paypal-core.js";
 import { validateBrief, findGifts, browseGifts, channel3Search, toCard, mergeCards } from "./finder.js";
 import { validatePool, contributionError, buildContributionOrder, readCapture, applyCapture, publicPool } from "./pools.js";
 import { ROOT, DRAFT_SYSTEM, parseDraft, validateStore, storePlanSystem, subscriptionBody, storeStatusFor, hostKey, publicStore, darkEnough } from "./stores.js";
-import { PAGES, pageBySlug, GUIDE_SYSTEM, guidePrompt, parseGuide, pageBrief, renderGuide, renderHub, related, sitemap, adSlot, configureAds } from "./seo.js";
+import { PAGES, pageBySlug, GUIDE_SYSTEM, guidePrompt, parseGuide, pageBrief, renderGuide, renderHub, related, sitemap, adSlot, configureAds, diversify } from "./seo.js";
+import { LEGAL_SLUGS, renderLegal } from "./legal.js";
 import { authorizeUrl, paypalWebBase, parseUserinfo, ownsStore, validateSettings, validateItem, shelves, withoutHidden } from "./owners.js";
 
 const now = () => new Date().toISOString();
@@ -48,7 +49,7 @@ async function buildGuide(db, env, p, { cardsOnly = false } = {}) {
   else { guide = parseGuide(await ai(GUIDE_SYSTEM, guidePrompt(p)).catch(() => null), p); if (!guide) return { ok: false, error: "the model gave no usable guide" }; }
   const brief = pageBrief(p);
   const r = await findGifts(brief, { ai, search: q => channel3Search(env, q, brief) });
-  const cards = [...(r.picks || []), ...(r.more || [])].slice(0, 16);
+  const cards = diversify([...(r.picks || []), ...(r.more || [])]).slice(0, 16);
   if (cards.length < 4) return { ok: false, error: `only ${cards.length} products found` };
   const t = now();
   await db.prepare("INSERT INTO seo_pages (slug,guide_json,cards_json,updated_at,created_at) VALUES (?,?,?,?,?) " +
@@ -168,6 +169,12 @@ export default {
       }
       // IndexNow ownership file (Bing, Yandex and others): the key is public by design.
       if (env.INDEXNOW_KEY && url.pathname === `/${env.INDEXNOW_KEY}.txt`) return new Response(env.INDEXNOW_KEY, { headers: { "content-type": "text/plain" } });
+      // ---------- About, Contact, Privacy, Terms ----------
+      if (parts.length === 1 && LEGAL_SLUGS.includes(parts[0])) {
+        if (url.hostname !== ROOT && !isWorkersDev(url.hostname)) return Response.redirect(`https://${ROOT}/${parts[0]}`, 301);
+        configureAds(env);
+        return new Response(renderLegal(parts[0]), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=3600" } });
+      }
       // ---------- gift guides, sitemap, robots (the platform's own address) ----------
       if (parts[0] === "gifts" || url.pathname === "/sitemap.xml" || url.pathname === "/robots.txt") {
         if (url.hostname !== ROOT && !isWorkersDev(url.hostname)) return Response.redirect(`https://${ROOT}${url.pathname}`, 301);
@@ -178,7 +185,7 @@ export default {
         const rows = (await db.prepare("SELECT slug, updated_at FROM seo_pages").all()).results;
         if (url.pathname === "/sitemap.xml") {
           const stores = (await db.prepare("SELECT slug, updated_at FROM stores WHERE status='active'").all()).results;
-          return new Response(sitemap([{ loc: `https://${ROOT}/` }, { loc: `https://${ROOT}/gifts` },
+          return new Response(sitemap([{ loc: `https://${ROOT}/` }, { loc: `https://${ROOT}/gifts` }, ...LEGAL_SLUGS.map(s => ({ loc: `https://${ROOT}/${s}` })),
             ...rows.map(r => ({ loc: `https://${ROOT}/gifts/${r.slug}`, lastmod: r.updated_at })),
             ...stores.map(s => ({ loc: `https://${s.slug}.${ROOT}/`, lastmod: s.updated_at }))]), { headers: { "content-type": "application/xml" } });
         }

@@ -42,6 +42,38 @@ export const PAGES = [
   // holidays
   P("what-to-bring-to-thanksgiving-not-food", "What to bring to Thanksgiving if you're told not to bring food", "the Thanksgiving host", "Thanksgiving dinner, as a guest who was told not to bring food", 60,
     { topic: "Holidays", notes: "a host or hostess gift that is NOT food: candles, table linens, serving pieces, a houseplant or lasting flowers, wine or bar accessories, after-dinner games, keepsakes; answer the question directly and include etiquette (don't expect it to be used that night)" }),
+  P("thanksgiving-hostess-gifts-under-25", "Thanksgiving hostess gifts under $25", "the Thanksgiving host", "Thanksgiving", 25, { topic: "Holidays", notes: "small non-food host gift" }),
+  P("friendsgiving-host-gifts", "Friendsgiving host gifts", "a friend hosting Friendsgiving", "Friendsgiving", 40, { topic: "Holidays", notes: "casual, fun, not food" }),
+  P("hanukkah-gifts-for-adults", "Hanukkah gifts for adults", "an adult who celebrates Hanukkah", "Hanukkah", 75, { topic: "Holidays", notes: "tasteful Hanukkah or everyday gifts; menorah, dreidel sets, home items" }),
+  P("christmas-gifts-for-teens", "Christmas gifts for teens", "a teenager", "Christmas", 75, { topic: "Holidays" }),
+  P("christmas-gifts-under-20", "Christmas gifts under $20", "anyone on my list", "Christmas", 20, { topic: "Holidays" }),
+  P("christmas-gifts-under-10", "Christmas gifts under $10", "anyone on my list", "Christmas", 10, { topic: "Holidays" }),
+  P("last-minute-christmas-gifts", "Last-minute Christmas gifts", "anyone on my list", "Christmas, needed fast", 75, { topic: "Holidays", notes: "widely in stock at big retailers" }),
+  P("christmas-gifts-for-neighbors", "Christmas gifts for neighbors", "my neighbors", "Christmas", 25, { topic: "Holidays", notes: "not food" }),
+  P("christmas-gifts-for-mail-carrier", "Christmas gifts for your mail carrier", "our mail carrier", "Christmas thank you", 25, { topic: "Holidays", notes: "practical for someone outdoors all day; not cash" }),
+  P("christmas-gifts-for-babysitter", "Christmas gifts for the babysitter", "our babysitter", "Christmas thank you", 50, { topic: "Holidays" }),
+  P("christmas-gifts-for-in-laws", "Christmas gifts for in-laws", "my in-laws", "Christmas", 100, { topic: "Holidays" }),
+  P("christmas-gifts-for-couples", "Christmas gifts for couples", "a couple", "Christmas", 100, { topic: "Holidays", notes: "something they share" }),
+  P("new-years-eve-party-host-gifts", "New Year's Eve party host gifts", "the New Year's Eve party host", "New Year's Eve", 50, { topic: "Holidays", notes: "champagne accessories, games, not food" }),
+  // life events
+  P("housewarming-gifts", "Housewarming gifts that aren't boring", "a friend who just moved", "housewarming", 75, { topic: "Life events" }),
+  P("gifts-for-new-homeowners", "Gifts for new homeowners", "new homeowners", "first home", 100, { topic: "Life events" }),
+  P("gifts-for-new-parents", "Gifts for new parents (not the baby)", "new parents", "new baby", 75, { topic: "Life events", notes: "for the parents themselves: comfort, sleep, self-care" }),
+  P("sympathy-gifts", "Thoughtful sympathy gifts", "someone who lost a loved one", "sympathy", 75, { topic: "Life events", notes: "gentle, comforting, not flowers" }),
+  P("get-well-soon-gifts", "Get well soon gifts", "someone recovering", "get well", 60, { topic: "Life events", notes: "comfort, distraction, cozy" }),
+  P("graduation-gifts-for-college-grads", "Graduation gifts for college grads", "a college graduate", "graduation", 100, { topic: "Life events" }),
+  P("wedding-gifts-off-the-registry", "Wedding gifts off the registry", "a couple getting married", "wedding", 150, { topic: "Life events", notes: "meaningful, lasting" }),
+  P("group-wedding-gifts-from-coworkers", "Group wedding gifts from coworkers", "a coworker who is getting married, from the team", "wedding", 250, { topic: "Life events" }),
+  // professions
+  P("gifts-for-teachers-under-25", "Gifts for teachers under $25", "a teacher", "Christmas", 25, { topic: "Professions" }),
+  P("gifts-for-accountants", "Gifts for accountants", "an accountant", "Christmas", 100, { topic: "Professions", notes: "busy season survival, desk" }),
+  P("gifts-for-realtors", "Gifts for realtors", "a real estate agent", "thank you", 100, { topic: "Professions" }),
+  P("gifts-for-dentists", "Gifts for dentists", "a dentist", "Christmas", 100, { topic: "Professions" }),
+  P("gifts-for-pharmacists", "Gifts for pharmacists", "a pharmacist", "Christmas", 75, { topic: "Professions" }),
+  P("gifts-for-firefighters", "Gifts for firefighters", "a firefighter", "Christmas", 75, { topic: "Professions" }),
+  P("gifts-for-police-officers", "Gifts for police officers", "a police officer", "Christmas", 75, { topic: "Professions" }),
+  P("gifts-for-engineers", "Gifts for engineers", "an engineer", "Christmas", 100, { topic: "Professions", notes: "clever, well-made, desk or gadgets" }),
+  P("gifts-for-pilots", "Gifts for pilots", "a pilot", "Christmas", 100, { topic: "Professions" }),
   // family & interests
   P("christmas-gifts-for-dad-who-has-everything", "Christmas gifts for a dad who has everything", "my dad, who has everything", "Christmas", 150, { topic: "Family & interests" }),
   P("christmas-gifts-for-mom-who-wants-nothing", "Christmas gifts for a mom who says she wants nothing", "my mom", "Christmas", 150, { topic: "Family & interests" }),
@@ -52,6 +84,15 @@ export const PAGES = [
   P("stocking-stuffers-for-adults", "Stocking stuffers for adults", "an adult", "Christmas stocking", 30, { topic: "Family & interests" }),
 ];
 export const pageBySlug = slug => PAGES.find(p => p.slug === slug) || null;
+
+// No page should be seven candles: at most `cap` products of one kind, in the order they came.
+const KINDS = /\b(candles?|mugs?|bowls?|pens?|blankets?|throws?|journals?|notebooks?|clocks?|tumblers?|portfolios?|padfolios?|boards?|glass(?:es)?|decanters?|socks|necklaces?|bracelets?|wall art|prints?|baskets?|tote|bags?|wallets?|frames?|plants?|games?|ornaments?)\b/i;
+// "Candles" and "Candle" are one kind ("es" only goes for glasses-type words).
+const singular = w => /(ss|x|ch|sh)es$/.test(w) ? w.slice(0, -2) : /[^s]s$/.test(w) ? w.slice(0, -1) : w;
+export function diversify(cards, cap = 3) {
+  const n = {};
+  return cards.filter(c => { const m = KINDS.exec(c.title || ""); if (!m) return true; const k = singular(m[1].toLowerCase()); n[k] = (n[k] || 0) + 1; return n[k] <= cap; });
+}
 
 // The guide text: written once per page by the model, checked, stored.
 export const GUIDE_SYSTEM =
@@ -97,7 +138,7 @@ export function adSlot(env) {
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${client}" crossorigin="anonymous"></script>
 <script>(adsbygoogle = window.adsbygoogle || []).push({});</script></aside>`;
 }
-const shell = (title, meta, canonical, body, jsonld = [], ad = "") => `<!doctype html><html lang="en"><head><meta charset="utf-8">
+export const shell = (title, meta, canonical, body, jsonld = [], ad = "") => `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">${ADS_CLIENT ? `<meta name="google-adsense-account" content="${ADS_CLIENT}">` : ""}<title>${esc(title)}</title>
 <meta name="description" content="${esc(meta)}"><link rel="canonical" href="${esc(canonical)}">
 <meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(meta)}"><meta property="og:url" content="${esc(canonical)}"><meta property="og:type" content="website">
@@ -108,7 +149,7 @@ ${jsonld.map(j => `<script type="application/ld+json">${JSON.stringify(j).replac
 .rel{display:flex;flex-wrap:wrap;gap:8px}.rel a{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;font-size:.88rem;text-decoration:none;color:var(--ink)}</style>
 </head><body><div class="wrap">${body}
 ${ad}
-<footer><a href="/">gift.directory</a> · <a href="/gifts">All gift guides</a> · Prices and stock come live from retailers through Channel3 and may change; links go to the retailer.</footer></div></body></html>`;
+<footer><a href="/">gift.directory</a> · <a href="/gifts">All gift guides</a> · <a href="https://gift.directory/about">About</a> · <a href="https://gift.directory/contact">Contact</a> · <a href="https://gift.directory/privacy">Privacy</a> · <a href="https://gift.directory/terms">Terms</a><br>Prices and stock come live from retailers through Channel3 and may change; links go to the retailer. We may earn a commission when you buy through these links.</footer></div></body></html>`;
 
 export function renderGuide(p, row, related, storeUrl, ad = "") {
   const g = JSON.parse(row.guide_json), cards = JSON.parse(row.cards_json || "[]");

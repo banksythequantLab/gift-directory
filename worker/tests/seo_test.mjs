@@ -24,5 +24,14 @@ ok("and after the FAQ", adAt > faqAt);
 ok("just above the footer", adAt < footAt);
 eq("without ids the page has no ad code at all", renderGuide(p, row, [], null, "").includes("adsbygoogle"), false);
 
+{
+  const { diversify } = await import("../seo.js");
+  const t = s => ({ title: s });
+  const out = diversify(["Myla Candle", "Peony Candle", "Oudh Candle", "Triple Scented Candles", "Cheese Board", "Serving Bowl", "Lagos Bowl"].map(t));
+  eq("at most three candles on a page", out.filter(c => /candle/i.test(c.title)).length, 3);
+  eq("other kinds kept", out.length, 6);
+  eq("items of no known kind are never dropped", diversify(["A", "B", "C", "D"].map(t)).length, 4);
+}
+
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
