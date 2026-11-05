@@ -3,7 +3,7 @@ import { paypalFetch, link } from "./paypal-core.js";
 import { validateBrief, findGifts, browseGifts, channel3Search, toCard, mergeCards } from "./finder.js";
 import { validatePool, contributionError, buildContributionOrder, readCapture, applyCapture, publicPool } from "./pools.js";
 import { ROOT, DRAFT_SYSTEM, parseDraft, validateStore, storePlanSystem, subscriptionBody, storeStatusFor, hostKey, publicStore, darkEnough } from "./stores.js";
-import { PAGES, pageBySlug, GUIDE_SYSTEM, guidePrompt, parseGuide, pageBrief, renderGuide, renderHub, related, sitemap, adSlot, configureAds, diversify } from "./seo.js";
+import { PAGES, pageBySlug, GUIDE_SYSTEM, guidePrompt, parseGuide, pageBrief, renderGuide, renderHub, related, sitemap, adSlot, configureAds, diversify, allowed } from "./seo.js";
 import { LEGAL_SLUGS, renderLegal } from "./legal.js";
 import { authorizeUrl, paypalWebBase, parseUserinfo, ownsStore, validateSettings, validateItem, shelves, withoutHidden } from "./owners.js";
 
@@ -49,7 +49,7 @@ async function buildGuide(db, env, p, { cardsOnly = false } = {}) {
   else { guide = parseGuide(await ai(GUIDE_SYSTEM, guidePrompt(p)).catch(() => null), p); if (!guide) return { ok: false, error: "the model gave no usable guide" }; }
   const brief = pageBrief(p);
   const r = await findGifts(brief, { ai, search: q => channel3Search(env, q, brief) });
-  const cards = diversify([...(r.picks || []), ...(r.more || [])]).slice(0, 16);
+  const cards = diversify([...(r.picks || []), ...(r.more || [])].filter(c => allowed(p, c)), p.cap || 3).slice(0, 16);
   if (cards.length < 4) return { ok: false, error: `only ${cards.length} products found` };
   const t = now();
   await db.prepare("INSERT INTO seo_pages (slug,guide_json,cards_json,updated_at,created_at) VALUES (?,?,?,?,?) " +

@@ -70,8 +70,23 @@ export const PAGES = [
   P("gifts-for-realtors", "Gifts for realtors", "a real estate agent", "thank you", 100, { topic: "Professions" }),
   P("gifts-for-dentists", "Gifts for dentists", "a dentist", "Christmas", 100, { topic: "Professions" }),
   P("gifts-for-pharmacists", "Gifts for pharmacists", "a pharmacist", "Christmas", 75, { topic: "Professions" }),
-  P("gifts-for-firefighters", "Gifts for firefighters", "a firefighter", "Christmas", 75, { topic: "Professions" }),
-  P("gifts-for-police-officers", "Gifts for police officers", "a police officer", "Christmas", 75, { topic: "Professions" }),
+  P("gifts-for-firefighters", "Gifts for firefighters", "a firefighter", "Christmas", 75, { topic: "Professions", cap: 2,
+    notes: "things a firefighter uses on and off shift: a bright rechargeable flashlight or headlamp, an insulated tumbler, a boot dryer, a firehouse cookbook or kitchen gear for the station, fire-department themed keepsakes (the Maltese cross firefighter emblem, not religious crosses), recovery and comfort items after long shifts; at most one flask; no generic wallets",
+    exclude: ["USMC", "Marine Corps", "U.S. Army", "US Army", "U.S. Navy", "US Navy", "Air Force", "Space Race", "Flowery", "Cross Wall Art"] }),
+  P("gifts-for-police-officers", "Gifts for police officers", "a police officer", "Christmas", 75, { topic: "Professions", cap: 2,
+    notes: "practical for patrol shifts and long hours: a reliable flashlight, an insulated travel mug or tumbler, a duty-bag or car organizer, comfortable socks or insoles for long hours on their feet, thin blue line or police-themed keepsakes, a shadow box or badge display; nothing military-branch specific",
+    exclude: ["USMC", "Marine Corps", "U.S. Army", "US Army", "U.S. Navy", "US Navy", "Air Force", "Space Race", "Espresso", "Coffee Press"] }),
+  P("gifts-for-soldiers", "Gifts for soldiers", "a soldier serving in the military", "Christmas", 75, { topic: "Professions", cap: 2,
+    notes: "useful in the barracks or on deployment and easy to ship: a rugged watch, a compact rechargeable headlamp, a quality multitool, moisture-wicking boot socks, a portable power bank, a travel hygiene kit, a lightweight blanket or pillow, a photo keepsake from home; no weapons or knives",
+    exclude: ["knife", "knives", "dagger", "holster", "gun "] }),
+  P("gifts-for-emts", "Gifts for EMTs and paramedics", "an EMT or paramedic", "Christmas", 75, { topic: "Professions", cap: 2,
+    notes: "for long ambulance shifts: a quality stethoscope, trauma shears, a medical penlight, a watch with a second hand for taking vitals, compression socks, an insulated tumbler, a pocket organizer or EMS duty bag, comfort and recovery after 24-hour shifts; no trinkets or decor",
+    exclude: ["Trinket", "Treasure Box", "Keepsake Box", "Beaded"] }),
+  P("gifts-for-lifeguards", "Gifts for lifeguards", "a lifeguard", "Christmas or end of the season", 60, { topic: "Professions", cap: 2,
+    notes: "for long days on the stand: a lifeguard whistle and lanyard, polarized sunglasses, a reef-safe sunscreen or SPF lip balm set, a big insulated water bottle, a quick-dry towel, a wide-brim hat, a waterproof phone pouch, a dry bag" }),
+  P("gifts-for-computer-geeks", "Gifts for computer geeks", "someone who loves computers and tech", "Christmas", 100, { topic: "Professions", cap: 2,
+    notes: "for a computer enthusiast or programmer: a mechanical keyboard, a nice mouse or desk mat, a USB-C hub or dock, a portable SSD, smart home gadgets, a programming or hacker-humor desk toy, a Raspberry Pi or electronics kit, a cable organizer, a monitor light bar; finished consumer products, not bare components",
+    exclude: ["ROHS", "HAT, BOARD", "Evaluation Kit"] }),
   P("gifts-for-engineers", "Gifts for engineers", "an engineer", "Christmas", 100, { topic: "Professions", notes: "clever, well-made, desk or gadgets" }),
   P("gifts-for-pilots", "Gifts for pilots", "a pilot", "Christmas", 100, { topic: "Professions" }),
   // family & interests
@@ -86,12 +101,20 @@ export const PAGES = [
 export const pageBySlug = slug => PAGES.find(p => p.slug === slug) || null;
 
 // No page should be seven candles: at most `cap` products of one kind, in the order they came.
-const KINDS = /\b(candles?|mugs?|bowls?|pens?|blankets?|throws?|journals?|notebooks?|clocks?|tumblers?|portfolios?|padfolios?|boards?|glass(?:es)?|decanters?|socks|necklaces?|bracelets?|wall art|prints?|baskets?|tote|bags?|wallets?|frames?|plants?|games?|ornaments?)\b/i;
+const KINDS = /\b(candles?|mugs?|bowls?|pens?|blankets?|throws?|journals?|notebooks?|clocks?|tumblers?|portfolios?|padfolios?|boards?|glass(?:es)?|decanters?|socks|necklaces?|bracelets?|wall art|prints?|baskets?|tote|bags?|wallets?|frames?|plants?|games?|ornaments?|flasks?|flashlights?|coins?|dryers?|power banks?|power paks?|headlamps?|keyboards?|ssds?|sunglasses|bottles?|towels?|shears|light bars?|massagers?|massage|sunscreens?|suncare|watch(?:es)?)\b/i;
 // "Candles" and "Candle" are one kind ("es" only goes for glasses-type words).
 const singular = w => /(ss|x|ch|sh)es$/.test(w) ? w.slice(0, -2) : /[^s]s$/.test(w) ? w.slice(0, -1) : w;
 export function diversify(cards, cap = 3) {
   const n = {};
-  return cards.filter(c => { const m = KINDS.exec(c.title || ""); if (!m) return true; const k = singular(m[1].toLowerCase()); n[k] = (n[k] || 0) + 1; return n[k] <= cap; });
+  // Known kinds first; otherwise the title's last word ("Rugged Power Bank" -> bank), so four power banks can't fill a page either.
+  const kindOf = t => { const m = KINDS.exec(t); if (m) return singular(m[1].toLowerCase()); const w = (t.toLowerCase().match(/[a-z]{3,}/g) || []).pop(); return w ? singular(w) : null; };
+  return cards.filter(c => { const k = kindOf(c.title || ""); if (!k) return true; n[k] = (n[k] || 0) + 1; return n[k] <= cap; });
+}
+// Per-page safety net: drop products whose title contains a phrase the page must not show
+// (e.g. a Marine Corps coin on the police page). Case-insensitive substring match.
+export function allowed(p, c) {
+  const t = String((c && c.title) || "").toLowerCase();
+  return !(p.exclude || []).some(w => t.includes(String(w).toLowerCase()));
 }
 
 // The guide text: written once per page by the model, checked, stored.
