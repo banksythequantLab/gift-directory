@@ -3,6 +3,7 @@ import { paypalFetch, link } from "./paypal-core.js";
 import { validateBrief, findGifts, browseGifts, channel3Search, toCard, mergeCards } from "./finder.js";
 import { validatePool, contributionError, buildContributionOrder, readCapture, applyCapture, publicPool } from "./pools.js";
 import { ROOT, DRAFT_SYSTEM, parseDraft, validateStore, storePlanSystem, subscriptionBody, storeStatusFor, hostKey, publicStore, darkEnough } from "./stores.js";
+import { PAGES, pageBySlug, GUIDE_SYSTEM, guidePrompt, parseGuide, pageBrief, renderGuide, renderHub, related, sitemap } from "./seo.js";
 import { authorizeUrl, paypalWebBase, parseUserinfo, ownsStore, validateSettings, validateItem, shelves, withoutHidden } from "./owners.js";
 
 const now = () => new Date().toISOString();
@@ -36,6 +37,25 @@ const faviconSvg = accent => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0
   `<rect x="29" y="22" width="6" height="30" fill="#b08d57"/>` +
   `<ellipse cx="25" cy="17" rx="5" ry="4" fill="none" stroke="#b08d57" stroke-width="4"/>` +
   `<ellipse cx="39" cy="17" rx="5" ry="4" fill="none" stroke="#b08d57" stroke-width="4"/></svg>`;
+
+// ---------- gift guides ----------
+// The guide text is written once; the products are found the same way a store's finder finds them.
+async function buildGuide(db, env, p, { cardsOnly = false } = {}) {
+  const ai = aiFor(env);
+  let guide = null;
+  const old = await db.prepare("SELECT guide_json FROM seo_pages WHERE slug=?").bind(p.slug).first();
+  if (cardsOnly && old) guide = JSON.parse(old.guide_json);
+  else { guide = parseGuide(await ai(GUIDE_SYSTEM, guidePrompt(p)).catch(() => null), p); if (!guide) return { ok: false, error: "the model gave no usable guide" }; }
+  const brief = pageBrief(p);
+  const r = await findGifts(brief, { ai, search: q => channel3Search(env, q, brief) });
+  const cards = [...(r.picks || []), ...(r.more || [])].slice(0, 16);
+  if (cards.length < 4) return { ok: false, error: `only ${cards.length} products found` };
+  const t = now();
+  await db.prepare("INSERT INTO seo_pages (slug,guide_json,cards_json,updated_at,created_at) VALUES (?,?,?,?,?) " +
+    "ON CONFLICT(slug) DO UPDATE SET guide_json=excluded.guide_json, cards_json=excluded.cards_json, updated_at=excluded.updated_at")
+    .bind(p.slug, JSON.stringify(guide), JSON.stringify(cards), t, t).run();
+  return { ok: true, slug: p.slug, products: cards.length, with_reasons: cards.filter(c => c.reason).length, faq: guide.faq.length };
+}
 
 // ---------- owners: sessions, Log in with PayPal ----------
 function cookieVal(request, name) {
@@ -127,7 +147,7 @@ async function resolveStore(db, env, url, request) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const parts = url.pathname.split("/").filter(Boolean);
     const m = request.method;
@@ -140,6 +160,34 @@ export default {
         let accent = "#1f3a5f";
         try { const a = store && JSON.parse(store.config_json).accent; if (/^#[0-9a-fA-F]{6}$/.test(a || "")) accent = a; } catch {}
         return new Response(faviconSvg(accent), { headers: { "content-type": "image/svg+xml", "cache-control": "public, max-age=86400" } });
+      }
+      // ---------- gift guides, sitemap, robots (the platform's own address) ----------
+      if (parts[0] === "gifts" || url.pathname === "/sitemap.xml" || url.pathname === "/robots.txt") {
+        if (url.hostname !== ROOT && !isWorkersDev(url.hostname)) return Response.redirect(`https://${ROOT}${url.pathname}`, 301);
+        const html = (b, st = 200) => new Response(b, { status: st, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=3600" } });
+        if (url.pathname === "/robots.txt")
+          return new Response(`User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin\nDisallow: /login\n\nSitemap: https://${ROOT}/sitemap.xml\n`, { headers: { "content-type": "text/plain" } });
+        const rows = (await db.prepare("SELECT slug, updated_at FROM seo_pages").all()).results;
+        if (url.pathname === "/sitemap.xml") {
+          const stores = (await db.prepare("SELECT slug, updated_at FROM stores WHERE status='active'").all()).results;
+          return new Response(sitemap([{ loc: `https://${ROOT}/` }, { loc: `https://${ROOT}/gifts` },
+            ...rows.map(r => ({ loc: `https://${ROOT}/gifts/${r.slug}`, lastmod: r.updated_at })),
+            ...stores.map(s => ({ loc: `https://${s.slug}.${ROOT}/`, lastmod: s.updated_at }))]), { headers: { "content-type": "application/xml" } });
+        }
+        if (!parts[1]) return html(renderHub(new Set(rows.map(r => r.slug))));
+        const p = pageBySlug(parts[1]);
+        const row = p && await db.prepare("SELECT * FROM seo_pages WHERE slug=?").bind(p.slug).first();
+        if (!row) return html(`<!doctype html><title>Not found</title><p>No such guide. <a href="/gifts">All gift guides</a></p>`, 404);
+        // Keep prices and stock fresh without making a visitor (or a crawler) wait for it.
+        if (ctx && Date.now() - Date.parse(row.updated_at) > 3 * 864e5) ctx.waitUntil(buildGuide(db, env, p, { cardsOnly: true }).catch(() => {}));
+        const st = p.store && await db.prepare("SELECT slug FROM stores WHERE slug=? AND status='active'").bind(p.store).first();
+        return html(renderGuide(p, row, related(p).filter(r => rows.some(x => x.slug === r.slug)), st ? `https://${st.slug}.${ROOT}/` : null));
+      }
+      // Builds a guide page. Not public: needs the build token.
+      if (url.pathname.startsWith("/api/seo/build/") && m === "POST") {
+        if (!env.BUILD_TOKEN || request.headers.get("x-build-token") !== env.BUILD_TOKEN) return J({ error: "not allowed" }, 403);
+        const p = pageBySlug(parts[3]); if (!p) return J({ error: "unknown page" }, 404);
+        return J(await buildGuide(db, env, p, { cardsOnly: url.searchParams.get("cards") === "1" }));
       }
       if (parts[0] !== "api") {
         // Ask for bare names ("/pool", not "/pool.html"): the asset server answers .html with a 307
