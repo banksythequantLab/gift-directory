@@ -27,7 +27,7 @@
 <div class="answers" id="bar"></div>
 <div id="notice"></div>
 <div class="grid" id="grid"></div>
-<footer>Prices and stock come live from retailers through Channel3; we link you to the store to buy. Group gifts are paid through PayPal, straight to the organizer.</footer>
+<footer><div id="fstore" style="margin-bottom:8px"></div>Prices and stock come live from retailers through Channel3; we link you to the store to buy. Group gifts are paid through PayPal, straight to the organizer.</footer>
 </div>
 
 <dialog id="dlg"><form method="dialog" class="card" id="pf">
@@ -69,6 +69,7 @@ const nextQ = () => QUESTIONS().find(q => brief[q.key] == null && !skipped.has(q
     return;
   }
   store = s; document.title = s.name; $("#sname").textContent = s.name; $("#stag").textContent = s.tagline || "";
+  $("#fstore").innerHTML = `<b style="color:var(--ink);font-size:.95rem">${esc(s.name)}</b><br>${esc(s.tagline || "")}`;
   if (s.accent) document.documentElement.style.setProperty("--accent", s.accent);
   if (new URLSearchParams(location.search).get("welcome")) $("#welcome").style.display = "";
   $("#grid").innerHTML = Array.from({ length: 8 }, () => `<div class="skel"></div>`).join("");
