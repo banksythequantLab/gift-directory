@@ -3,7 +3,7 @@ import { paypalFetch, link } from "./paypal-core.js";
 import { validateBrief, findGifts, browseGifts, channel3Search, toCard, mergeCards } from "./finder.js";
 import { validatePool, contributionError, buildContributionOrder, readCapture, applyCapture, publicPool } from "./pools.js";
 import { ROOT, DRAFT_SYSTEM, parseDraft, validateStore, storePlanSystem, subscriptionBody, storeStatusFor, hostKey, publicStore, darkEnough } from "./stores.js";
-import { PAGES, pageBySlug, GUIDE_SYSTEM, guidePrompt, parseGuide, pageBrief, renderGuide, renderHub, related, sitemap, adSlot } from "./seo.js";
+import { PAGES, pageBySlug, GUIDE_SYSTEM, guidePrompt, parseGuide, pageBrief, renderGuide, renderHub, related, sitemap, adSlot, configureAds } from "./seo.js";
 import { authorizeUrl, paypalWebBase, parseUserinfo, ownsStore, validateSettings, validateItem, shelves, withoutHidden } from "./owners.js";
 
 const now = () => new Date().toISOString();
@@ -171,6 +171,7 @@ export default {
       // ---------- gift guides, sitemap, robots (the platform's own address) ----------
       if (parts[0] === "gifts" || url.pathname === "/sitemap.xml" || url.pathname === "/robots.txt") {
         if (url.hostname !== ROOT && !isWorkersDev(url.hostname)) return Response.redirect(`https://${ROOT}${url.pathname}`, 301);
+        configureAds(env);
         const html = (b, st = 200) => new Response(b, { status: st, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=3600" } });
         if (url.pathname === "/robots.txt")
           return new Response(`User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin\nDisallow: /login\n\nSitemap: https://${ROOT}/sitemap.xml\n`, { headers: { "content-type": "text/plain" } });

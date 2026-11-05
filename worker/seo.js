@@ -86,6 +86,9 @@ ${c.reason ? `<p class="why">${esc(c.reason)}</p>` : `<p class="why"></p>`}
 }
 // The one ad slot: bottom of the page, after everything a reader came for. Never in the header, and the
 // ad script itself loads down here too. Empty until real AdSense ids are configured.
+// The AdSense publisher id, set once per request by the worker (ownership tag only; no ad code in <head>).
+let ADS_CLIENT = "";
+export function configureAds(env) { ADS_CLIENT = /^ca-pub-\d{10,20}$/.test((env && env.ADSENSE_CLIENT) || "") ? env.ADSENSE_CLIENT : ""; }
 export function adSlot(env) {
   const client = env && env.ADSENSE_CLIENT, slot = env && env.ADSENSE_SLOT;
   if (!/^ca-pub-\d{10,20}$/.test(client || "") || !/^\d{6,15}$/.test(slot || "")) return "";
@@ -95,7 +98,7 @@ export function adSlot(env) {
 <script>(adsbygoogle = window.adsbygoogle || []).push({});</script></aside>`;
 }
 const shell = (title, meta, canonical, body, jsonld = [], ad = "") => `<!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">${ADS_CLIENT ? `<meta name="google-adsense-account" content="${ADS_CLIENT}">` : ""}<title>${esc(title)}</title>
 <meta name="description" content="${esc(meta)}"><link rel="canonical" href="${esc(canonical)}">
 <meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(meta)}"><meta property="og:url" content="${esc(canonical)}"><meta property="og:type" content="website">
 <link rel="stylesheet" href="/style.css"><link rel="icon" href="/favicon.ico" sizes="any"><link rel="icon" href="/favicon.svg" type="image/svg+xml">
