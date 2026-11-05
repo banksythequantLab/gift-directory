@@ -48,6 +48,11 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const money = c => "$" + (c / 100).toLocaleString("en-US", { minimumFractionDigits: c % 100 ? 2 : 0, maximumFractionDigits: 2 });
 
+// A store's emblem beside its name. Scales of justice for Lawyer Gifts: a drawn, generic symbol.
+const EMBLEMS = { scales: `<svg viewBox="0 0 64 64" width="44" height="44" aria-label="Scales of justice" role="img" style="vertical-align:-8px;margin-right:10px;color:var(--accent)" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M32 8v44M22 56h20M26 52h12"/><circle cx="32" cy="8" r="2.4" fill="currentColor"/>
+  <path d="M12 16h40"/><path d="M12 16 5 34M12 16l7 18M52 16l-7 18M52 16l7 18"/>
+  <path d="M4 34c0 5 4 8 8 8s8-3 8-8zM44 34c0 5 4 8 8 8s8-3 8-8z" fill="#b08d57" fill-opacity=".25"/></svg>` };
 let store = null, browse = [], items = [], aiPicked = false, chosen = null, seq = 0, shelves = [], query = "";
 const byId = new Map();   // every card on screen, for the Group gift button
 const brief = {};          // occasion, recipient, relationship, budget_cents, notes
@@ -73,6 +78,7 @@ const nextQ = () => QUESTIONS().find(q => brief[q.key] == null && !skipped.has(q
     return;
   }
   store = s; document.title = s.name; $("#sname").textContent = s.name; $("#stag").textContent = s.tagline || "";
+  if (EMBLEMS[s.emblem]) $("#sname").insertAdjacentHTML("afterbegin", EMBLEMS[s.emblem]);
   $("#fstore").innerHTML = `<b style="color:var(--ink);font-size:.95rem">${esc(s.name)}</b><br>${esc(s.tagline || "")}`;
   if (s.accent) document.documentElement.style.setProperty("--accent", s.accent);
   if (new URLSearchParams(location.search).get("welcome")) $("#welcome").style.display = "";

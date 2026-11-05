@@ -103,5 +103,5 @@ export function hostKey(host, root = ROOT) {
 export function publicStore(s) {
   const cfg = JSON.parse(s.config_json);
   return { slug: s.slug, name: s.name, tagline: s.tagline, niche: s.niche, status: s.status,
-           occasions: cfg.occasions, recipient_examples: cfg.recipient_examples, accent: cfg.accent };
+           occasions: cfg.occasions, recipient_examples: cfg.recipient_examples, accent: cfg.accent, emblem: cfg.emblem || null };
 }

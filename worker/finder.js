@@ -41,7 +41,8 @@ export function validateBrief(b) {
 export const PLAN_SYSTEM =
   "You are a gift concierge for lawyers, law firms and the people who thank them. Turn the brief into " +
   "3 to 5 short product searches for an online catalog of new retail products. Prefer specific, giftable, " +
-  "well-made items (desk, pens, leather goods, books, framed art, bar and coffee, experiences in a box). " +
+  "well-made items (scales of justice and other law-themed desk decor, fountain pens, leather goods, books, " +
+  "desk clocks, bar and coffee, experiences in a box). No generic inspirational-quote or home-decor signs. " +
   "Avoid novelty gag gifts unless asked. Never search for work supplies, uniforms, ID or badge accessories, " +
   "consumables or anything usually sold in bulk. Answer only JSON: " +
   '{"searches":[{"query":"2-6 words","why":"one short phrase"}]}';
@@ -134,7 +135,9 @@ export const GATE_SYSTEM =
   "You curate a gift store. From the list of products, return the ids of those a thoughtful person would be " +
   "glad to give or receive as a gift. Drop office or work supplies, ID and badge accessories, multi-packs and bulk " +
   "items, craft blanks, printing services, generic items with no gift appeal, and anything tied to a particular " +
-  "sports team, school or fandom (nobody asked for one). Answer only JSON: {\"keep\":[\"id\", ...]}";
+  "sports team, school or fandom (nobody asked for one). Keep only what suits the store's audience: generic " +
+  "inspirational-quote or home-decor signs, and anything you would not give someone in that line of work, go. " +
+  "Answer only JSON: {\"keep\":[\"id\", ...]}";
 export function parseIds(j, key, cards) {
   const ids = new Set((j && Array.isArray(j[key]) ? j[key] : []).map(String));
   return cards.filter(c => ids.has(c.product_id));
@@ -196,15 +199,17 @@ export function interleave(lists) {
 // The store's front page: no brief yet, just a good spread for its niche. No picking step.
 // The budget is modest on purpose: search starts at a fifth of it, and a high floor is what let bulk packs
 // of cheap items (and nothing else at that price) fill the page.
-export async function browseGifts(niche, { ai, search, planSystem = PLAN_SYSTEM, budget_cents = 15000 }) {
+export async function browseGifts(niche, { ai, search, planSystem = PLAN_SYSTEM, budget_cents = 15000, queries = null }) {
   const brief = { recipient: niche, occasion: "", relationship: "", notes: "a broad spread of the best gifts", budget_cents };
   let plan = [];
-  try { plan = parsePlan(await ai(planSystem, planPrompt(brief) + "\nGive 5 searches covering different kinds of gift.")); } catch { plan = []; }
+  // A store can fix its own front-page searches (the house store does); otherwise the AI plans them.
+  if (Array.isArray(queries) && queries.length) plan = queries.slice(0, 8).map(q => ({ query: clip(String(q).trim(), 60), why: "store's own" })).filter(s => s.query.length >= 2);
+  else try { plan = parsePlan(await ai(planSystem, planPrompt(brief) + "\nGive 5 searches covering different kinds of gift.")); } catch { plan = []; }
   if (!plan.length) plan = fallbackPlan(brief);
   const results = await Promise.all(plan.map(s => search(s.query, brief).then(ps => ps.map(p => toCard(p, budget_cents)).filter(Boolean)).catch(() => [])));
   const cards = mergeCards([interleave(results)]);
   // A second look by the model: real gifts only. If it fails, the junk filter's result stands.
   let kept = null;
-  try { const k = parseIds(await ai(GATE_SYSTEM, cards.map(c => `${c.product_id} | ${c.title} | $${(c.price_cents / 100).toFixed(2)}`).join("\n")), "keep", cards); if (k.length >= 6) kept = k; } catch {}
+  try { const k = parseIds(await ai(GATE_SYSTEM, `The store is for: ${niche}\n\n` + cards.map(c => `${c.product_id} | ${c.title} | $${(c.price_cents / 100).toFixed(2)}`).join("\n")), "keep", cards); if (k.length >= 6) kept = k; } catch {}
   return { plan, cards: (kept || cards).slice(0, 24), gated: !!kept };
 }

@@ -179,7 +179,7 @@ export default {
         if (!env.CHANNEL3_API_KEY) return J({ cards: [] });
         const cfg = JSON.parse(store.config_json);
         const planSystem = cfg.house ? undefined : storePlanSystem({ ...cfg, name: store.name, niche: store.niche });
-        const r = await browseGifts(store.niche, { ai: aiFor(env), search: (q, b) => channel3Search(env, q, b), planSystem });
+        const r = await browseGifts(store.niche, { ai: aiFor(env), search: (q, b) => channel3Search(env, q, b), planSystem, queries: cfg.browse_searches });
         if (r.cards.length) await db.prepare("INSERT INTO browse_cache (store_id,cards_json,created_at) VALUES (?,?,?) ON CONFLICT(store_id) DO UPDATE SET cards_json=excluded.cards_json, created_at=excluded.created_at")
           .bind(store.id, JSON.stringify(r.cards), now()).run();
         return J({ cards: withoutHidden(r.cards, items), cached: false });
