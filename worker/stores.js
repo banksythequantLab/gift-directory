@@ -69,7 +69,9 @@ export function storePlanSystem(cfg) {
   return `You are the gift concierge for "${cfg.name}", a store for ${cfg.niche}. ` +
     (cfg.search_guidance ? cfg.search_guidance + " " : "") + (cfg.avoid ? "Avoid: " + cfg.avoid + " " : "") +
     "Turn the brief into 3 to 5 short product searches for an online catalog of new retail products. " +
-    "Prefer specific, giftable, well-made items. Answer only JSON: " + '{"searches":[{"query":"2-6 words","why":"one short phrase"}]}';
+    "Prefer specific, giftable, well-made items. Never search for work supplies, uniforms, ID or badge accessories, " +
+    "consumables or anything usually sold in bulk, even if the niche uses them at work: a gift is personal. " +
+    "Answer only JSON: " + '{"searches":[{"query":"2-6 words","why":"one short phrase"}]}';
 }
 
 // ---------- PayPal subscription ----------

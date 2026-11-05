@@ -29,7 +29,7 @@ ok("weddings get wedding defaults", /wedding/.test(fallbackPlan({ occasion: "wed
 
 const body = searchBody("fountain pen", { budget_cents: 20000 });
 eq("search is capped at the budget", body.filters.price.max_price, 200);
-eq("and starts at a quarter of it", body.filters.price.min_price, 50);
+eq("and starts at a fifth of it", body.filters.price.min_price, 40);
 eq("in stock only", body.filters.availability[0], "InStock");
 
 // ---------- cards ----------
@@ -99,7 +99,7 @@ eq("fallback picks lead with the best-priced", fallbackPicks(cards)[0].product_i
   const r = await browseGifts("nurses", { ai: async () => ({ searches: [{ query: "self care kit" }, { query: "insulated tumbler" }] }),
     search: async (q, b) => { seen.push(b.budget_cents); return [prod("p-" + q, [off(40)])]; } });
   eq("the front page runs the AI's searches", r.cards.length, 2);
-  eq("with a default budget", seen[0], 25000);
+  eq("with a modest default budget (a high floor let bulk packs in)", seen[0], 15000);
   const r2 = await browseGifts("nurses", { ai: async () => { throw new Error("down"); }, search: async q => [prod("f-" + q, [off(40)])] });
   ok("and still fills with the model down", r2.cards.length > 0);
   const brief = validateBrief({ recipient: "my nurse", budget_cents: 10000 }).brief;
@@ -108,6 +108,30 @@ eq("fallback picks lead with the best-priced", fallbackPicks(cards)[0].product_i
   eq("find returns the picks", f.picks[0].product_id, "p-aa");
   eq("and the rest for the grid, without repeating the picks", f.more.some(x => x.product_id === "p-aa"), false);
   eq("all of the rest", f.more.length, 3);
+}
+
+// ---------- junk, duplicates, and the model's gift check (from the live Nurse Gifts page, Nov 5) ----------
+{
+  const { isJunk, mergeCards, parseIds, browseGifts, findGifts: fg } = await import("../finder.js");
+  const t = title => ({ product_id: title, title });
+  for (const bad of ["Round Badge Reel with Slide Clip", "STANLEY Healthcare badge reel (pack of 20)", "16 Sets Bulk Employee Appreciation Notebook And Pen Set",
+    "Cricut 15oz. White Ceramic Mug Blanks", "Custom Printed Full-color Jumbo Size Postcards", "Teacher Appreciation Gift Handout Kit"])
+    eq(`junk: ${bad}`, isJunk(t(bad)), true);
+  for (const good of ["Sending a BIG Hug Luxury Gift Spa Set", "Recognition Nurse Snow Globe", "Self-Care Essentials Skincare Gift Set",
+    "Lamy 2000 Fountain Pen", "Personalized Initial Mug", "AOIZGMY Self Care Gifts for Women 11 Piece Set"])
+    eq(`a gift: ${good}`, isJunk(t(good)), false);
+  eq("the same product under two ids appears once", mergeCards([[{ ...t("Self Care Spa Gift Set"), product_id: "x1" }, { ...t("Self Care Spa Gift Set"), product_id: "x2" }]]).length, 1);
+  eq("ids the model didn't return are dropped", parseIds({ keep: ["a"] }, "keep", [t("a"), t("b")]).length, 1);
+  const prods = ["Spa Set", "Snow Globe", "Badge Reel", "Tote", "Mug", "Candle", "Blanket", "Book"].map(n => prod(n.toLowerCase(), [off(40)], { title: n }));
+  const gated = await browseGifts("nurses", { search: async () => prods,
+    ai: async s => s.startsWith("You curate") ? { keep: ["spa set", "snow globe", "tote", "mug", "candle", "blanket"] } : { searches: [{ query: "gifts" }] } });
+  eq("the front page keeps only what the model calls a gift", gated.cards.length, 6);
+  eq("and says it was checked", gated.gated, true);
+  eq("the badge reel never reaches the model's list", gated.cards.some(c => c.product_id === "badge reel"), false);
+  const brief = validateBrief({ recipient: "my nurse", budget_cents: 10000 }).brief;
+  const f = await fg(brief, { search: async () => prods,
+    ai: async s => s.includes("concierge") ? { searches: [{ query: "gifts" }] } : { picks: [{ id: "spa set", reason: "r" }], also: ["mug", "candle"] } });
+  eq("below the picks, only what the model vouched for", f.more.map(c => c.product_id).join(","), "mug,candle");
 }
 
 console.log(`${passed} passed, ${failed} failed`);
