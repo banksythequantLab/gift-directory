@@ -14,7 +14,7 @@
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/*", "/g/*", "/", "/new", "/favicon.svg"]
+    "run_worker_first": ["/api/*", "/g/*", "/", "/new", "/favicon.svg", "/login", "/admin"]
   },
   "d1_databases": [
     { "binding": "DB", "database_name": "gift-finder", "database_id": "12f8f349-a2dc-4cca-a902-64fe661588c2" }

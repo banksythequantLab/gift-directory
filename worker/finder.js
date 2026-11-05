@@ -71,7 +71,8 @@ export function searchBody(query, brief) {
   return {
     query, limit: 12,
     config: { country: "US", currency: "USD", language: "en" },
-    filters: { price: { min_price: Math.max(5, Math.round(brief.budget_cents * 0.2) / 100), max_price: brief.budget_cents / 100 },
+    // A typed search (min_cents given) sets its own floor; AI-planned searches start at a fifth of the budget.
+    filters: { price: { min_price: brief.min_cents != null ? brief.min_cents / 100 : Math.max(5, Math.round(brief.budget_cents * 0.2) / 100), max_price: brief.budget_cents / 100 },
                availability: ["InStock"] },
   };
 }

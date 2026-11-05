@@ -24,8 +24,10 @@
 <header class="top"><h1 id="sname">&nbsp;</h1><span class="tag" id="stag"></span></header>
 <div id="closed" class="card" style="display:none"></div>
 <div id="welcome" class="note" style="display:none;margin-bottom:14px"><b>Your store is live.</b> Share this address with your people.</div>
+<form id="sf" style="display:none;gap:8px;margin:2px 0 10px"><input id="q" type="search" placeholder="Search gifts — e.g. fountain pen, spa set, coffee" maxlength="80" style="flex:1"><button class="btn">Search</button></form>
 <div class="answers" id="bar"></div>
 <div id="notice"></div>
+<div id="shelves"></div>
 <div class="grid" id="grid"></div>
 <footer><div id="fstore" style="margin-bottom:8px"></div>Prices and stock come live from retailers through Channel3; we link you to the store to buy. Group gifts are paid through PayPal, straight to the organizer.
 <div style="margin-top:8px"><a href="https://gift.directory/">Start your own gift store on gift.directory →</a></div></footer>
@@ -46,7 +48,8 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const money = c => "$" + (c / 100).toLocaleString("en-US", { minimumFractionDigits: c % 100 ? 2 : 0, maximumFractionDigits: 2 });
 
-let store = null, browse = [], items = [], aiPicked = false, chosen = null, seq = 0;
+let store = null, browse = [], items = [], aiPicked = false, chosen = null, seq = 0, shelves = [], query = "";
+const byId = new Map();   // every card on screen, for the Group gift button
 const brief = {};          // occasion, recipient, relationship, budget_cents, notes
 const skipped = new Set();
 
@@ -73,19 +76,22 @@ const nextQ = () => QUESTIONS().find(q => brief[q.key] == null && !skipped.has(q
   $("#fstore").innerHTML = `<b style="color:var(--ink);font-size:.95rem">${esc(s.name)}</b><br>${esc(s.tagline || "")}`;
   if (s.accent) document.documentElement.style.setProperty("--accent", s.accent);
   if (new URLSearchParams(location.search).get("welcome")) $("#welcome").style.display = "";
+  if (s.can_edit) $("#stag").insertAdjacentHTML("afterend", ` <a class="btn sec" style="padding:6px 12px;font-size:.85rem;margin-left:auto" href="https://gift.directory/admin?store=${encodeURIComponent(s.slug)}">Edit this store</a>`);
+  shelves = s.shelves || []; $("#sf").style.display = "flex";
   $("#grid").innerHTML = Array.from({ length: 8 }, () => `<div class="skel"></div>`).join("");
   const b = await fetch("/api/browse").then(r => r.json()).catch(() => ({ cards: [] }));
   browse = b.cards || []; items = browse; render();
 })();
 
-function card(p, i) {
+function card(p) {
+  byId.set(p.product_id, p);
   return `<div class="card gift">
     ${p.image ? `<img src="${esc(p.image)}" alt="" loading="lazy">` : `<div style="aspect-ratio:1;background:#f3f3f3;border-radius:10px"></div>`}
     <h3>${esc(p.title)}</h3><div class="muted" style="font-size:.82rem">${esc(p.brand || "")}${p.brand ? " · " : ""}${esc(p.merchant)}</div>
     <div class="price">${money(p.price_cents)}${p.was_cents && p.was_cents > p.price_cents ? `<span class="was">${money(p.was_cents)}</span>` : ""}</div>
     ${p.reason ? `<span class="badge">Picked for you</span><div class="why">${esc(p.reason)}</div>` : `<div class="why"></div>`}
     <div class="acts"><a class="btn sec" href="${esc(p.url)}" target="_blank" rel="noopener sponsored">View</a>
-    <button class="btn gold" data-pool="${i}">Group gift</button></div></div>`;
+    <button class="btn gold" data-pool="${esc(p.product_id)}">Group gift</button></div></div>`;
 }
 function qcard(q) {
   const chips = (q.chips || []).map(c => Array.isArray(c) ? c : [c, c])
@@ -99,8 +105,12 @@ function render() {
   // Answers so far, as removable pills.
   $("#bar").innerHTML = QUESTIONS().filter(q => brief[q.key] != null).map(q =>
     `<span class="pill">${esc(label(q.key, brief[q.key]))}<button data-rm="${q.key}" aria-label="Remove">×</button></span>`).join("");
-  const q = nextQ();
-  const cells = items.map((p, i) => card(p, i));
+  // The owner's shelves sit above the grid until the shopper searches or answers something.
+  const plain = !query && !Object.keys(brief).length;
+  $("#shelves").innerHTML = plain ? shelves.map(s => `<h2 style="font-family:Georgia,serif;margin:18px 0 0">${esc(s.title)}</h2>
+    <div class="grid">${s.cards.map(card).join("")}</div>`).join("") + (shelves.length ? `<h2 style="font-family:Georgia,serif;margin:22px 0 0">More gifts</h2>` : "") : "";
+  const q = query ? null : nextQ();
+  const cells = items.map(card);
   if (q) cells.splice(Math.min(3, cells.length), 0, qcard(q));   // the next question sits a few items in
   if (!items.length) cells.push(`<div class="card muted">Nothing in stock matched yet. Try another answer or a higher budget.</div>`);
   $("#grid").innerHTML = cells.join("");
@@ -110,13 +120,33 @@ $("#grid").addEventListener("click", e => {
   const chip = e.target.closest(".q .chip");
   if (chip) { const k = chip.dataset.k; answer(k, k === "budget_cents" ? +chip.dataset.v : chip.dataset.v); return; }
   const sk = e.target.closest("[data-skip]"); if (sk) { skipped.add(sk.dataset.skip); render(); return; }
-  const pb = e.target.closest("[data-pool]"); if (pb) openPool(items[+pb.dataset.pool]);
+  const pb = e.target.closest("[data-pool]"); if (pb) openPool(byId.get(pb.dataset.pool));
 });
+$("#shelves").addEventListener("click", e => { const pb = e.target.closest("[data-pool]"); if (pb) openPool(byId.get(pb.dataset.pool)); });
+
+// The search bar: straight to the catalog, no questions. Clearing it goes back to the store.
+$("#sf").onsubmit = async e => {
+  e.preventDefault();
+  query = $("#q").value.trim();
+  if (!query) { clearSearch(); return; }
+  const my = ++seq; render(); $("#grid").classList.add("busy");
+  $("#notice").innerHTML = `<p class="muted" style="margin:4px 0 10px">Searching for “${esc(query)}”…</p>`;
+  try {
+    const r = await fetch(`/api/search?q=${encodeURIComponent(query)}`); const j = await r.json();
+    if (my !== seq) return;
+    if (!r.ok) throw new Error(j.error || "Search failed");
+    items = j.cards || [];
+    $("#notice").innerHTML = `<p style="margin:4px 0 10px"><b>${items.length} result${items.length === 1 ? "" : "s"} for “${esc(query)}”</b> · <a href="#" id="clr">Clear search</a></p>`;
+  } catch (err) { if (my === seq) $("#notice").innerHTML = `<p class="err">${esc(err.message)}</p>`; }
+  finally { if (my === seq) { $("#grid").classList.remove("busy"); render(); } }
+};
+$("#notice").addEventListener("click", e => { if (e.target.id === "clr") { e.preventDefault(); clearSearch(); } });
+function clearSearch() { query = ""; $("#q").value = ""; seq++; $("#grid").classList.remove("busy"); refresh(); }
 $("#grid").addEventListener("submit", e => { const f = e.target.closest(".qt"); if (!f) return; e.preventDefault();
   const v = f.querySelector("input").value.trim(); if (v) answer(f.dataset.k, v); });
 $("#bar").addEventListener("click", e => { const b = e.target.closest("[data-rm]"); if (!b) return; delete brief[b.dataset.rm]; skipped.delete(b.dataset.rm); refresh(); });
 
-function answer(k, v) { brief[k] = v; refresh(); }
+function answer(k, v) { query = ""; $("#q").value = ""; brief[k] = v; refresh(); }
 async function refresh() {
   const answered = Object.keys(brief).length;
   if (!answered) { items = browse; aiPicked = false; $("#notice").innerHTML = ""; render(); return; }

@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Your store — gift.directory</title><link rel="stylesheet" href="/style.css"><link rel="icon" href="/favicon.ico" sizes="any"><link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<style>
+  .wrap { max-width:1180px; }
+  .tabs { display:flex; gap:6px; margin:14px 0; flex-wrap:wrap; }
+  .tabs button { border:1px solid var(--line); background:#fff; border-radius:999px; padding:8px 16px; font:inherit; font-weight:600; cursor:pointer; }
+  .tabs button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .mini { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px; margin-top:10px; }
+  .mini .card { padding:10px; display:flex; flex-direction:column; gap:6px; }
+  .mini img { width:100%; aspect-ratio:1; object-fit:contain; background:#fff; border:1px solid var(--line); border-radius:8px; }
+  .mini .t { font-weight:600; font-size:.88rem; line-height:1.25; }
+  .mini .acts { display:flex; gap:6px; flex-wrap:wrap; margin-top:auto; }
+  .sm { padding:6px 10px !important; font-size:.82rem !important; }
+  .tag2 { font-size:.72rem; font-weight:700; text-transform:uppercase; color:var(--accent); }
+  table { width:100%; border-collapse:collapse; } td, th { text-align:left; padding:8px 6px; border-bottom:1px solid var(--line); font-size:.92rem; }
+  .top2 { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+</style></head>
+<body><div class="wrap">
+<div class="top2"><h1 style="font-family:Georgia,serif;margin:0">Your gift store</h1><span class="muted" id="who"></span><span style="margin-left:auto" id="acts"></span></div>
+<div id="msg" style="margin-top:10px"></div>
+<div id="app"></div>
+<footer><a href="/">gift.directory</a> · Log in with PayPal keeps your store tied to the PayPal account that pays for it.</footer>
+</div>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const money = c => c == null ? "" : "$" + (c / 100).toLocaleString("en-US", { minimumFractionDigits: c % 100 ? 2 : 0, maximumFractionDigits: 2 });
+const api = async (path, opt = {}) => { const r = await fetch("/api/admin" + path, { headers: { "content-type": "application/json" }, ...opt }); const j = await r.json().catch(() => ({})); if (!r.ok) throw Object.assign(new Error(j.error || "Something went wrong"), { status: r.status }); return j; };
+const q = new URLSearchParams(location.search);
+let me = null, cur = null, tab = "curate", results = [];
+
+if (q.get("login") === "failed") $("#msg").innerHTML = `<p class="err">PayPal login didn't complete. Try again.</p>`;
+
+(async () => {
+  try { me = await api("/me"); }
+  catch (e) {
+    $("#app").innerHTML = `<div class="card" style="max-width:520px;margin-top:20px"><h2 style="margin-top:0">Log in to manage your store</h2>
+      <p class="muted">Use the PayPal account that pays for your store's subscription.</p>
+      <a class="btn" href="/login" style="background:#0070ba">Log in with PayPal</a></div>`;
+    return;
+  }
+  $("#who").textContent = me.user.name || me.user.emails[0] || "";
+  $("#acts").innerHTML = `<button class="btn sec sm" id="out">Log out</button>`;
+  $("#out").onclick = async () => { await fetch("/api/auth/logout", { method: "POST" }); location.href = "/admin"; };
+  if (!me.stores.length) { $("#app").innerHTML = `<div class="card" style="margin-top:16px"><p>No store is linked to this PayPal account yet.</p><a class="btn" href="/">Start a gift store</a></div>`; return; }
+  const want = q.get("store");
+  await open((me.stores.find(s => s.slug === want) || me.stores[0]).id);
+})();
+
+async function open(id) {
+  const d = await api(`/stores/${id}`); cur = d;
+  document.documentElement.style.setProperty("--accent", d.store.accent || "#1f3a5f");
+  draw();
+}
+const pinned = () => cur.items.filter(i => i.status === "pinned");
+const hidden = () => cur.items.filter(i => i.status === "hidden");
+const state = pid => (cur.items.find(i => i.product_id === pid) || {}).status;
+const collections = () => [...new Set(pinned().map(i => i.collection).filter(Boolean))];
+
+function mini(c, extra = "") {
+  const st = state(c.product_id);
+  return `<div class="card">${c.image ? `<img src="${esc(c.image)}" alt="" loading="lazy">` : ""}
+    <div class="t">${esc(c.title)}</div><div class="muted" style="font-size:.8rem">${money(c.price_cents)} · ${esc(c.merchant)}</div>
+    ${st ? `<span class="tag2">${st === "pinned" ? "Pinned" : "Hidden"}</span>` : ""}${extra}
+    <div class="acts">
+      ${st === "pinned" ? `<button class="btn sec sm" data-act="unpin" data-id="${esc(c.product_id)}">Unpin</button>` : `<button class="btn sm" data-act="pin" data-id="${esc(c.product_id)}">Pin</button>`}
+      ${st === "hidden" ? `<button class="btn sec sm" data-act="unhide" data-id="${esc(c.product_id)}">Unhide</button>` : `<button class="btn sec sm" data-act="hide" data-id="${esc(c.product_id)}">Hide</button>`}
+    </div></div>`;
+}
+
+function draw() {
+  const s = cur.store;
+  const pick = me.stores.length > 1 ? `<select id="pick" style="width:auto">${me.stores.map(x => `<option value="${x.id}"${x.id === s.id ? " selected" : ""}>${esc(x.name)}</option>`).join("")}</select>` : "";
+  $("#app").innerHTML = `<div class="card" style="margin-top:12px;display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+      <div><b style="font-size:1.15rem">${esc(s.name)}</b> <span class="pill" style="background:var(--accent);color:#fff;border-radius:999px;padding:2px 10px;font-size:.78rem">${esc(s.status)}</span><br>
+      <a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.url)}</a></div><div style="margin-left:auto">${pick}</div></div>
+    <div class="tabs">${[["curate", "Curate"], ["settings", "Settings"], ["activity", "Activity & billing"]].map(([k, l]) => `<button data-tab="${k}" class="${tab === k ? "on" : ""}">${l}</button>`).join("")}</div>
+    <div id="pane"></div>`;
+  if ($("#pick")) $("#pick").onchange = e => open(e.target.value);
+  document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { tab = b.dataset.tab; draw(); });
+  ({ curate, settings, activity })[tab]();
+}
+
+// ---------- Curate ----------
+function curate() {
+  const shelves = {}; for (const i of pinned()) (shelves[i.collection || "Our picks"] ||= []).push(i.card);
+  $("#pane").innerHTML = `
+    <div class="card"><b>Find products to pin</b>
+      <form id="as" style="display:flex;gap:8px;margin-top:8px"><input id="aq" placeholder="Search the catalog — e.g. stethoscope charm, cashmere throw" maxlength="80"><button class="btn">Search</button></form>
+      <div class="muted" style="font-size:.85rem;margin-top:6px">Pin puts a product on your store's shelves. Pick a collection to group it (or leave blank for "Our picks").</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px"><label style="margin:0">Pin into</label>
+        <input id="coll" list="colls" placeholder="Our picks" style="max-width:260px"><datalist id="colls">${collections().map(c => `<option value="${esc(c)}">`).join("")}</datalist></div>
+      <div class="mini" id="res">${results.map(c => mini(c)).join("")}</div></div>
+    <h2 style="font-family:Georgia,serif">Your shelves</h2>
+    ${Object.keys(shelves).length ? Object.entries(shelves).map(([t, cs]) => `<h3 style="margin:14px 0 0">${esc(t)} <span class="muted" style="font-weight:400">(${cs.length})</span></h3><div class="mini">${cs.map(c => mini(c)).join("")}</div>`).join("")
+      : `<p class="muted">Nothing pinned yet. Search above and pin your favorites — they show first on your store.</p>`}
+    <h2 style="font-family:Georgia,serif">On your front page now</h2>
+    <p class="muted" style="margin-top:-6px">What shoppers see before they answer anything. Hide anything that doesn't belong.</p>
+    <div class="mini">${cur.front.map(c => mini(c)).join("") || `<p class="muted">The front page builds itself on the first visit.</p>`}</div>
+    ${hidden().length ? `<h2 style="font-family:Georgia,serif">Hidden</h2><div class="mini">${hidden().map(i => mini(i.card)).join("")}</div>` : ""}`;
+  $("#as").onsubmit = async e => {
+    e.preventDefault(); const v = $("#aq").value.trim(); if (v.length < 2) return;
+    $("#res").innerHTML = `<p class="muted">Searching…</p>`;
+    try { results = (await api(`/stores/${cur.store.id}/search?q=${encodeURIComponent(v)}`)).cards; $("#res").innerHTML = results.map(c => mini(c)).join("") || `<p class="muted">Nothing found.</p>`; }
+    catch (err) { $("#res").innerHTML = `<p class="err">${esc(err.message)}</p>`; }
+  };
+}
+$("#app").addEventListener("click", async e => {
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const pid = b.dataset.id;
+  const card = [...results, ...cur.front, ...cur.items.map(i => i.card)].find(c => c.product_id === pid);
+  b.disabled = true;
+  try {
+    if (b.dataset.act === "pin") await api(`/stores/${cur.store.id}/items`, { method: "PUT", body: JSON.stringify({ status: "pinned", collection: ($("#coll") || {}).value || null, card }) });
+    else if (b.dataset.act === "hide") await api(`/stores/${cur.store.id}/items`, { method: "PUT", body: JSON.stringify({ status: "hidden", card }) });
+    else await api(`/stores/${cur.store.id}/items/${encodeURIComponent(pid)}`, { method: "DELETE" });
+    const keepQ = ($("#aq") || {}).value, keepC = ($("#coll") || {}).value;
+    await open(cur.store.id);
+    if ($("#aq")) $("#aq").value = keepQ || ""; if ($("#coll")) $("#coll").value = keepC || "";
+  } catch (err) { b.disabled = false; $("#msg").innerHTML = `<p class="err">${esc(err.message)}</p>`; }
+});
+
+// ---------- Settings ----------
+function settings() {
+  const s = cur.store;
+  $("#pane").innerHTML = `<form class="card" id="sf" style="max-width:760px">
+    <div class="row"><div><label>Store name</label><input id="s_name" maxlength="40" value="${esc(s.name)}"></div>
+      <div><label>Color</label><input id="s_accent" type="color" value="${esc(s.accent || "#1f3a5f")}" style="height:44px;padding:4px"></div></div>
+    <label>Tagline</label><input id="s_tag" maxlength="90" value="${esc(s.tagline || "")}">
+    <label>Occasions (comma-separated)</label><textarea id="s_occ">${esc(s.occasions.join(", "))}</textarea>
+    <label>"Who's it for?" examples (comma-separated, up to 3)</label><input id="s_rec" value="${esc(s.recipient_examples.join(", "))}">
+    ${s.house ? `<p class="muted">This is a house store with a hand-tuned search prompt.</p>` : `
+    <label>What the AI should look for</label><textarea id="s_guide" maxlength="300">${esc(s.search_guidance)}</textarea>
+    <label>What the AI should avoid</label><input id="s_avoid" maxlength="200" value="${esc(s.avoid)}">`}
+    <div class="err" id="serr"></div>
+    <button class="btn" style="margin-top:12px">Save</button> <span class="ok" id="sok"></span></form>`;
+  $("#sf").onsubmit = async e => {
+    e.preventDefault(); $("#serr").textContent = ""; $("#sok").textContent = "";
+    const list = v => v.split(",").map(x => x.trim()).filter(Boolean);
+    try {
+      await api(`/stores/${cur.store.id}/settings`, { method: "PUT", body: JSON.stringify({ name: $("#s_name").value, tagline: $("#s_tag").value, accent: $("#s_accent").value,
+        occasions: list($("#s_occ").value), recipient_examples: list($("#s_rec").value),
+        search_guidance: $("#s_guide") ? $("#s_guide").value : cur.store.search_guidance, avoid: $("#s_avoid") ? $("#s_avoid").value : cur.store.avoid }) });
+      await open(cur.store.id); tab = "settings"; draw(); $("#sok").textContent = "Saved — your front page will rebuild with the new settings.";
+    } catch (err) { $("#serr").textContent = err.message; }
+  };
+}
+
+// ---------- Activity & billing ----------
+function activity() {
+  const sub = cur.subscription, raised = cur.pools.reduce((a, p) => a + p.raised_cents, 0);
+  $("#pane").innerHTML = `<div class="row">
+    <div class="card"><b>Subscription</b><p style="margin:6px 0">${cur.store.house ? "House store — no subscription." : `PayPal status: <b>${esc(sub.status || "—")}</b>${sub.id ? `<br><span class="muted">${esc(sub.id)}</span>` : ""}`}</p>
+      ${sub.id ? `<a class="btn sec sm" href="${esc(sub.manage_url)}" target="_blank" rel="noopener">Manage in PayPal</a>` : ""}</div>
+    <div class="card"><b>At a glance</b><p style="margin:6px 0">${cur.searches} AI gift searches · ${cur.pools.length} group gifts · ${money(raised)} raised through PayPal</p></div></div>
+    <h2 style="font-family:Georgia,serif">Group gifts</h2>
+    ${cur.pools.length ? `<table><tr><th>Gift</th><th>Raised</th><th>Status</th><th>Started</th></tr>${cur.pools.map(p => `<tr><td><a href="${esc(cur.store.url.replace(/\/(\?.*)?$/, ""))}/g/${esc(p.id)}" target="_blank" rel="noopener">${esc(p.title)}</a></td><td>${money(p.raised_cents)} of ${money(p.target_cents)}</td><td>${esc(p.status)}</td><td>${esc(String(p.created_at).slice(0, 10))}</td></tr>`).join("")}</table>`
+      : `<p class="muted">No group gifts yet.</p>`}`;
+}
+</script>
+</body></html>
