@@ -116,7 +116,8 @@ export const PICK_SYSTEM =
   "would read. Then list the ids of the OTHER products that are still a good, giftable choice for this brief " +
   "in \"also\"; leave out anything that is not a real gift (office or work supplies, multi-packs, consumables, " +
   "craft materials, generic items with no gift appeal, sports-team or fandom items the brief didn't ask for). " +
-  'Answer only JSON: {"picks":[{"id":"...","reason":"..."}],"also":["id", ...]}';
+  "Copy each pick's product title exactly into \"title\" so the reason stays with the right product. " +
+  'Answer only JSON: {"picks":[{"id":"...","title":"...","reason":"..."}],"also":["id", ...]}';
 // The front page has no brief: the model only sorts gifts from non-gifts.
 export const GATE_SYSTEM =
   "You curate a gift store. From the list of products, return the ids of those a thoughtful person would be " +
@@ -138,13 +139,34 @@ export function parsePicks(j, cards) {
   const byId = new Map(cards.map(c => [c.product_id, c]));
   const out = [], seen = new Set();
   for (const p of (j && Array.isArray(j.picks) ? j.picks : [])) {
-    const c = p && byId.get(String(p.id));
+    let c = p && byId.get(String(p.id));
+    let reason = clip((p && p.reason) || "", 240) || null;
+    // The model copies the title it was writing about. If that title is a different product than the id,
+    // the reason belongs to the product it names (a "fountain pen" reason once landed on a desk clock);
+    // if it names nothing on the list, the gift stays and the reason goes.
+    if (p && p.title) {
+      const best = closestCard(String(p.title), cards);
+      if (best && best.score >= 0.6) c = best.card;
+      else reason = null;
+    }
     if (!c || seen.has(c.product_id)) continue;            // invented or repeated: dropped
     seen.add(c.product_id);
-    out.push({ ...c, reason: clip(p.reason || "", 240) || null });
+    out.push({ ...c, reason });
     if (out.length === 6) break;
   }
   return out;
+}
+const words = s => new Set(String(s || "").toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length >= 3));
+// Share of a card's title words that appear in the copied title.
+export function closestCard(title, cards) {
+  const t = words(title); let best = null;
+  for (const card of cards) {
+    const w = words(card.title); if (!w.size) continue;
+    let hit = 0; for (const x of w) if (t.has(x)) hit++;
+    const score = hit / w.size;
+    if (!best || score > best.score) best = { card, score };
+  }
+  return best;
 }
 // No model, or nothing usable from it: the best-priced spread of what Channel3 returned.
 export function fallbackPicks(cards, n = 6) {

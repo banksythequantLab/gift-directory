@@ -103,6 +103,21 @@ eq("fallback picks lead with the best-priced", fallbackPicks(cards)[0].product_i
   eq("all of the rest", f.more.length, 3);
 }
 
+// ---------- a reason stays with its product (live, Nov 5: a fountain-pen reason landed on a desk clock) ----------
+{
+  const cs = [{ product_id: "clock", title: "Wooden Desk Clock", price_cents: 11500 }, { product_id: "pen", title: "Handmade Wood and Brass Fountain Pen", price_cents: 9000 },
+              { product_id: "journal", title: "Executive Leather Journal", price_cents: 16499 }];
+  const mixed = parsePicks({ picks: [{ id: "clock", title: "Handmade Wood and Brass Fountain Pen", reason: "A writing instrument as refined as his sense of justice." }] }, cs);
+  eq("a reason written about the pen goes with the pen", mixed[0].product_id, "pen");
+  eq("keeping its words", mixed[0].reason, "A writing instrument as refined as his sense of justice.");
+  const right = parsePicks({ picks: [{ id: "journal", title: "Executive Leather Journal", reason: "For memories." }] }, cs);
+  eq("a matching title changes nothing", right[0].product_id, "journal");
+  const lost = parsePicks({ picks: [{ id: "clock", title: "Crystal Whiskey Decanter", reason: "For his bar." }] }, cs);
+  eq("a title that names nothing on the list keeps the gift", lost[0].product_id, "clock");
+  eq("but drops the reason", lost[0].reason, null);
+  eq("no title copied: as before", parsePicks({ picks: [{ id: "clock", reason: "Tick." }] }, cs)[0].reason, "Tick.");
+}
+
 // ---------- junk, duplicates, and the model's gift check (from the live Nurse Gifts page, Nov 5) ----------
 {
   const { isJunk, mergeCards, parseIds, browseGifts, findGifts: fg } = await import("../finder.js");
