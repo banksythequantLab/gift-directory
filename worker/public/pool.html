@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Group gift — Lawyer Gifts</title><link rel="stylesheet" href="/style.css"></head>
+<body><div class="wrap">
+<header class="top"><h1><a href="/" id="sname" style="color:inherit;text-decoration:none">&nbsp;</a></h1><span class="tag">Group gift</span></header>
+<div id="msg"></div>
+<div id="pool" class="card"><p class="muted">Loading…</p></div>
+<footer>Contributions are paid through PayPal directly to the organizer. This site never holds the money.</footer>
+</div>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const money = c => "$" + (c / 100).toLocaleString("en-US", { minimumFractionDigits: c % 100 ? 2 : 0, maximumFractionDigits: 2 });
+const id = location.pathname.split("/")[2];
+const q = new URLSearchParams(location.search);
+let manage = null; try { manage = localStorage.getItem("manage:" + id); } catch {}
+fetch("/api/store").then(r => r.json()).then(s => {
+  $("#sname").textContent = s.name || "gift.directory";
+  if (s.name) document.title = `Group gift — ${s.name}`;
+  if (s.accent) document.documentElement.style.setProperty("--accent", s.accent);
+}).catch(() => { $("#sname").textContent = "gift.directory"; });
+
+if (q.get("paid") === "1") $("#msg").innerHTML = `<p class="ok">Thank you — your contribution went through.</p>`;
+else if (q.get("paid") === "0") $("#msg").innerHTML = `<p class="err">PayPal didn't complete that payment. You were not charged.</p>`;
+else if (q.get("cancelled")) $("#msg").innerHTML = `<p class="muted">Payment cancelled — you were not charged.</p>`;
+else if (q.get("new")) $("#msg").innerHTML = `<div class="note" style="margin-bottom:14px"><b>Your group gift is live.</b> Share this link: <input readonly value="${esc(location.origin + "/g/" + id)}" onclick="this.select()" style="margin-top:6px"></div>`;
+
+async function load() {
+  const r = await fetch(`/api/pools/${encodeURIComponent(id)}`);
+  if (!r.ok) { $("#pool").innerHTML = `<p class="err">This gift doesn't exist.</p>`; return; }
+  const p = await r.json();
+  const left = Math.max(0, p.target_cents - p.raised_cents), pct = Math.min(100, Math.round(100 * p.raised_cents / p.target_cents));
+  const open = p.status === "open";
+  $("#pool").innerHTML = `<div class="row" style="align-items:start">
+    <div>${p.product.image ? `<img src="${esc(p.product.image)}" alt="" style="width:100%;aspect-ratio:1;object-fit:contain;border:1px solid var(--line);border-radius:10px;background:#fff">` : ""}</div>
+    <div><h2 style="font-family:Georgia,serif;margin:0 0 4px">${esc(p.title)}</h2>
+      <div class="muted">Organized by ${esc(p.organizer_name)}</div>
+      <p style="margin:12px 0 4px"><b>${esc(p.product.title)}</b></p>
+      <a href="${esc(p.product.url)}" target="_blank" rel="noopener sponsored" class="muted">See it at ${esc(p.product.merchant || "the store")}</a>
+      <div style="margin:16px 0 6px;display:flex;justify-content:space-between"><b>${money(p.raised_cents)} raised</b><span class="muted">of ${money(p.target_cents)}</span></div>
+      <div class="bar"><i style="width:${pct}%"></i></div>
+      ${open ? `<form id="cf" style="margin-top:14px">
+        <label for="amt">Your share</label>
+        <div class="chips" id="amts">${[1000, 2500, 5000].filter(a => a <= left).map(a => `<button type="button" class="chip" data-a="${a}">${money(a)}</button>`).join("")}
+          <button type="button" class="chip" data-a="${left}">The rest (${money(left)})</button></div>
+        <input id="amt" type="number" min="1" max="${left / 100}" step="1" placeholder="Amount in dollars" style="margin-top:8px" required>
+        <label for="nm">Your name</label><input id="nm" maxlength="60">
+        <label for="ms">A note for them (optional)</label><textarea id="ms" maxlength="280"></textarea>
+        <label style="font-weight:400"><input type="checkbox" id="anon" style="width:auto"> Don't show my name</label>
+        <div class="err" id="cerr"></div>
+        <button class="btn" id="cgo" style="margin-top:10px">Chip in with PayPal</button></form>`
+      : `<p class="ok" style="margin-top:14px">${p.status === "funded" ? `Fully funded! ${esc(p.organizer_name)} will order the gift.` : "This group gift is closed."}</p>
+         ${manage && p.status === "funded" ? `<a class="btn gold" href="${esc(p.product.url)}" target="_blank" rel="noopener sponsored">Buy it now at ${esc(p.product.merchant || "the store")}</a>` : ""}`}
+    </div></div>
+    ${manage && p.unclaimed_cents ? `<div class="note" style="margin-top:16px"><b>${money(p.unclaimed_cents)} is waiting for you to claim.</b> PayPal is holding it because your email doesn't have a PayPal account yet. Sign up or add this email at <a href="https://www.paypal.com" target="_blank" rel="noopener">paypal.com</a> within 30 days or it goes back to the contributors.</div>` : ""}
+    <h3 style="margin-top:22px">Who's in (${p.contributors.length})</h3>
+    ${p.contributors.length ? p.contributors.map(c => `<div style="padding:8px 0;border-top:1px solid var(--line)"><b>${esc(c.name)}</b>${c.message ? `<div>${esc(c.message)}</div>` : ""}</div>`).join("") : `<p class="muted">Be the first.</p>`}
+    ${manage && p.status !== "closed" ? `<p style="margin-top:18px"><button class="btn sec" id="close">Close this gift</button> <span class="muted">Only you see this.</span></p>` : ""}`;
+  if (open) {
+    $("#amts").onclick = e => { const b = e.target.closest(".chip"); if (b) $("#amt").value = (+b.dataset.a / 100); };
+    $("#cf").onsubmit = async e => {
+      e.preventDefault(); $("#cgo").disabled = true; $("#cerr").textContent = "";
+      try {
+        const r = await fetch(`/api/pools/${encodeURIComponent(id)}/contribute`, { method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ amount_cents: Math.round(+$("#amt").value * 100), name: $("#nm").value, message: $("#ms").value, hide_name: $("#anon").checked }) });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || "Couldn't start the payment");
+        location.href = j.url;
+      } catch (err) { $("#cerr").textContent = err.message; $("#cgo").disabled = false; }
+    };
+  }
+  const cb = $("#close");
+  if (cb) cb.onclick = async () => { const r = await fetch(`/api/pools/${encodeURIComponent(id)}/close`, { method: "POST", headers: { "x-manage-token": manage } }); if (r.ok) load(); };
+}
+load();
+</script>
+</body></html>

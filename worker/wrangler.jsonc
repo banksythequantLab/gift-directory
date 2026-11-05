@@ -1,0 +1,28 @@
+{
+  "name": "gift-finder",
+  "main": "worker.js",
+  "compatibility_date": "2026-09-01",
+  // gift.directory: the platform at the apex, each store at <slug>.gift.directory (wildcard route,
+  // needs a proxied wildcard DNS record), Lawyer Gifts also at gifts.nota.lawyer.
+  // workers.dev kept for testing (?store=<slug> picks a store there).
+  "workers_dev": true,
+  "routes": [
+    { "pattern": "gifts.nota.lawyer", "custom_domain": true },
+    { "pattern": "gift.directory", "custom_domain": true },
+    { "pattern": "*.gift.directory/*", "zone_name": "gift.directory" }
+  ],
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*", "/g/*", "/", "/new"]
+  },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "gift-finder", "database_id": "12f8f349-a2dc-4cca-a902-64fe661588c2" }
+  ],
+  "vars": {
+    "PAYPAL_ENV": "sandbox",
+    "PAYPAL_PLAN_ID": "P-10T383300X8815800NLWMZCY",
+    "TEXT_MODEL": "Qwen/Qwen3-235B-A22B-Instruct-2507"
+  }
+  // Secrets (wrangler secret put): PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, CHANNEL3_API_KEY, NEBIUS_API_KEY
+}

@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>gift.directory — launch an AI gift store</title><link rel="stylesheet" href="/style.css">
+<style>
+  .hero h1 { font-family:Georgia,serif; font-size:2.3rem; margin:0 0 6px; }
+  .steps { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:18px 0 22px; }
+  @media (max-width:640px) { .steps { grid-template-columns:1fr; } }
+  .steps .card b { display:block; margin-bottom:2px; }
+  .preview { border:1px solid var(--line); border-radius:14px; overflow:hidden; background:#fff; }
+  .preview .bar2 { padding:14px 16px; color:#fff; }
+  .preview .bar2 .n { font-family:Georgia,serif; font-size:1.3rem; font-weight:700; }
+  .preview .body { padding:14px 16px; }
+  .addr { display:flex; align-items:center; gap:6px; }
+  .addr input { flex:1; }
+</style></head>
+<body><div class="wrap">
+<div class="hero"><h1>gift.directory</h1>
+  <p class="muted" style="font-size:1.1rem;margin:0">Launch an AI gift store for your people in two minutes. Real products, live prices, group gifts through PayPal.</p></div>
+<div class="steps">
+  <div class="card"><b>1. Say who it's for</b><span class="muted">Nurses, golfers, new parents, your book club…</span></div>
+  <div class="card"><b>2. AI drafts the store</b><span class="muted">Name, address, occasions and look. Change anything.</span></div>
+  <div class="card"><b>3. Publish with PayPal</b><span class="muted">$19/month. Live at yourname.gift.directory.</span></div>
+</div>
+<div id="msg"></div>
+
+<form id="s1" class="card">
+  <label for="niche">Who is your gift store for?</label>
+  <input id="niche" maxlength="120" placeholder="Nurses and the patients who want to thank them" required>
+  <div style="margin-top:14px"><button class="btn" id="draftBtn">Draft my store</button> <span class="muted" id="st1"></span></div>
+  <p class="muted" style="margin:12px 0 0;font-size:.9rem">See one running: <a href="https://gifts.nota.lawyer/">Lawyer Gifts</a></p>
+</form>
+
+<form id="s2" class="card" style="display:none;margin-top:14px">
+  <div class="row" style="align-items:start">
+    <div>
+      <label for="name">Store name</label><input id="name" maxlength="40" required>
+      <label for="slug">Address</label><div class="addr"><input id="slug" maxlength="30" required><span class="muted">.gift.directory</span></div>
+      <label for="tagline">Tagline</label><input id="tagline" maxlength="90">
+      <label for="occs">Occasions (comma-separated)</label><textarea id="occs"></textarea>
+      <label for="accent">Color</label><input id="accent" type="color" style="height:44px;padding:4px">
+    </div>
+    <div>
+      <label>Preview</label>
+      <div class="preview"><div class="bar2" id="pvBar"><div class="n" id="pvName"></div><div id="pvTag" style="opacity:.9;font-size:.9rem"></div></div>
+        <div class="body"><div class="chips" id="pvOccs"></div><div class="muted" style="margin-top:10px;font-size:.88rem" id="pvAddr"></div></div></div>
+      <label for="email">Your email</label><input id="email" type="email" required placeholder="Receipts and your store's private link">
+      <div class="err" id="err2"></div>
+      <button class="btn gold" id="pubBtn" style="margin-top:14px;width:100%">Publish — $19/month with PayPal</button>
+      <p class="muted" style="font-size:.82rem">Cancel any time in PayPal; the store goes offline when the subscription ends.</p>
+    </div>
+  </div>
+</form>
+<footer>Products and prices come live from thousands of retailers through Channel3. Each store gets the AI gift finder and PayPal group gifts.</footer>
+</div>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const q = new URLSearchParams(location.search);
+let draft = null, niche = "";
+if (q.get("cancelled")) $("#msg").innerHTML = `<p class="muted">Subscription cancelled at PayPal — nothing was charged and your store wasn't published.</p>`;
+if (q.get("pending")) $("#msg").innerHTML = `<p class="muted">PayPal hasn't confirmed the subscription yet. Give it a minute and reload your store's address.</p>`;
+
+$("#s1").onsubmit = async e => {
+  e.preventDefault(); $("#draftBtn").disabled = true; $("#st1").textContent = "Designing your store…";
+  try {
+    const r = await fetch("/api/stores/draft", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ niche: $("#niche").value }) });
+    const j = await r.json(); if (!r.ok) throw new Error(j.error || "Couldn't draft it");
+    niche = j.niche; draft = j.draft;
+    $("#name").value = draft.name; $("#slug").value = draft.slug; $("#tagline").value = draft.tagline;
+    $("#occs").value = draft.occasions.join(", "); $("#accent").value = draft.accent;
+    $("#s2").style.display = ""; preview(); $("#s2").scrollIntoView({ behavior: "smooth" });
+  } catch (err) { $("#st1").textContent = err.message; }
+  finally { $("#draftBtn").disabled = false; if ($("#st1").textContent === "Designing your store…") $("#st1").textContent = ""; }
+};
+const occs = () => $("#occs").value.split(",").map(s => s.trim()).filter(Boolean).slice(0, 10);
+function preview() {
+  $("#pvBar").style.background = $("#accent").value; $("#pvName").textContent = $("#name").value; $("#pvTag").textContent = $("#tagline").value;
+  $("#pvOccs").innerHTML = occs().map(o => `<span class="chip">${esc(o)}</span>`).join("");
+  $("#pvAddr").textContent = `${$("#slug").value || "yourname"}.gift.directory`;
+}
+["name", "slug", "tagline", "occs", "accent"].forEach(i => $("#" + i).addEventListener("input", preview));
+
+$("#s2").onsubmit = async e => {
+  e.preventDefault(); $("#pubBtn").disabled = true; $("#err2").textContent = "";
+  try {
+    const body = { niche, owner_email: $("#email").value, draft: { ...draft, name: $("#name").value, slug: $("#slug").value,
+      tagline: $("#tagline").value, occasions: occs(), accent: $("#accent").value } };
+    const r = await fetch("/api/stores", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    const j = await r.json(); if (!r.ok) throw new Error(j.error || "Couldn't publish");
+    try { localStorage.setItem("store:" + j.slug, j.manage_token); } catch {}
+    location.href = j.approve_url;
+  } catch (err) { $("#err2").textContent = err.message; $("#pubBtn").disabled = false; }
+};
+</script>
+</body></html>

@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gift store</title><link rel="stylesheet" href="/style.css">
+<style>
+  .wrap { max-width:1180px; }
+  .answers { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:4px 0 6px; min-height:34px; }
+  .pill { background:var(--accent); color:#fff; border-radius:999px; padding:5px 10px 5px 12px; font-size:.86rem; display:inline-flex; gap:6px; align-items:center; }
+  .pill button { background:none; border:0; color:#fff; cursor:pointer; font-size:1rem; line-height:1; padding:0; }
+  .grid { grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); }
+  .q { background:var(--accent); color:#fff; border:0; display:flex; flex-direction:column; justify-content:center; }
+  .q h3 { margin:0 0 4px; font-family:Georgia,serif; font-size:1.25rem; }
+  .q .sub { opacity:.85; font-size:.88rem; margin-bottom:10px; }
+  .q .chip { background:rgba(255,255,255,.14); color:#fff; border-color:rgba(255,255,255,.35); }
+  .q .chip:hover { background:rgba(255,255,255,.28); }
+  .q input { background:#fff; color:var(--ink); }
+  .q .skip { color:#fff; opacity:.75; font-size:.82rem; margin-top:10px; background:none; border:0; cursor:pointer; text-decoration:underline; align-self:flex-start; padding:0; }
+  .gift .why { font-style:italic; color:#374151; }
+  .badge { display:inline-block; font-size:.72rem; font-weight:700; letter-spacing:.3px; color:var(--accent); text-transform:uppercase; margin-top:6px; }
+  .busy { opacity:.45; pointer-events:none; transition:opacity .2s; }
+  .skel { background:linear-gradient(90deg,#eee,#f6f6f6,#eee); background-size:200% 100%; animation:sh 1.2s infinite; border-radius:14px; min-height:330px; }
+  @keyframes sh { to { background-position:-200% 0; } }
+</style></head>
+<body><div class="wrap">
+<header class="top"><h1 id="sname">&nbsp;</h1><span class="tag" id="stag"></span></header>
+<div id="closed" class="card" style="display:none"></div>
+<div id="welcome" class="note" style="display:none;margin-bottom:14px"><b>Your store is live.</b> Share this address with your people.</div>
+<div class="answers" id="bar"></div>
+<div id="notice"></div>
+<div class="grid" id="grid"></div>
+<footer>Prices and stock come live from retailers through Channel3; we link you to the store to buy. Group gifts are paid through PayPal, straight to the organizer.</footer>
+</div>
+
+<dialog id="dlg"><form method="dialog" class="card" id="pf">
+  <h3 style="margin:0 0 4px">Start a group gift</h3>
+  <div class="muted" id="pgift"></div>
+  <label for="ptitle">Gift title</label><input id="ptitle" required placeholder="For Maria — made partner">
+  <label for="pname">Your name</label><input id="pname" required>
+  <label for="pemail">Your PayPal email (contributions go here)</label><input id="pemail" type="email" required>
+  <div class="err" id="perr"></div>
+  <div style="margin-top:14px;display:flex;gap:8px"><button class="btn" id="pgo" value="go">Create the share link</button><button class="btn sec" value="cancel" formnovalidate>Cancel</button></div>
+</form></dialog>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const money = c => "$" + (c / 100).toLocaleString("en-US", { minimumFractionDigits: c % 100 ? 2 : 0, maximumFractionDigits: 2 });
+
+let store = null, browse = [], items = [], aiPicked = false, chosen = null, seq = 0;
+const brief = {};          // occasion, recipient, relationship, budget_cents, notes
+const skipped = new Set();
+
+// The questions, asked one at a time between products. Each answer re-ranks the grid.
+const QUESTIONS = () => [
+  { key: "occasion", title: "What's the occasion?", sub: "We'll lean the picks toward it.", chips: store.occasions },
+  { key: "recipient", title: "Who's it for?", sub: "Pick one or type your own.", chips: store.recipient_examples, text: "Someone else…" },
+  { key: "budget_cents", title: "What's your budget?", sub: "Up to…", chips: [["$50", 5000], ["$100", 10000], ["$200", 20000], ["$500", 50000], ["$1,000", 100000]] },
+  { key: "relationship", title: "You are their…", sub: "Client, colleague, family — it changes the tone.", chips: ["Client", "Colleague", "Boss", "Friend", "Family"] },
+  { key: "notes", title: "Anything they love?", sub: "Coffee, golf, old maps, bourbon…", text: "Their interests…" },
+];
+const label = (k, v) => k === "budget_cents" ? "Up to " + money(v) : String(v);
+const nextQ = () => QUESTIONS().find(q => brief[q.key] == null && !skipped.has(q.key) && (q.chips?.length || q.text));
+
+(async () => {
+  const r = await fetch("/api/store"); const s = await r.json().catch(() => ({}));
+  if (s.platform) { location.replace("/"); return; }
+  if (!r.ok || s.status !== "active") {
+    $("#sname").textContent = s.name || "gift.directory"; $("#closed").style.display = "";
+    $("#closed").innerHTML = r.ok ? `<p><b>${esc(s.name)}</b> isn't open right now.</p>` : `<p>There's no store at this address yet. <a href="https://gift.directory/new">Start one on gift.directory →</a></p>`;
+    return;
+  }
+  store = s; document.title = s.name; $("#sname").textContent = s.name; $("#stag").textContent = s.tagline || "";
+  if (s.accent) document.documentElement.style.setProperty("--accent", s.accent);
+  if (new URLSearchParams(location.search).get("welcome")) $("#welcome").style.display = "";
+  $("#grid").innerHTML = Array.from({ length: 8 }, () => `<div class="skel"></div>`).join("");
+  const b = await fetch("/api/browse").then(r => r.json()).catch(() => ({ cards: [] }));
+  browse = b.cards || []; items = browse; render();
+})();
+
+function card(p, i) {
+  return `<div class="card gift">
+    ${p.image ? `<img src="${esc(p.image)}" alt="" loading="lazy">` : `<div style="aspect-ratio:1;background:#f3f3f3;border-radius:10px"></div>`}
+    <h3>${esc(p.title)}</h3><div class="muted" style="font-size:.82rem">${esc(p.brand || "")}${p.brand ? " · " : ""}${esc(p.merchant)}</div>
+    <div class="price">${money(p.price_cents)}${p.was_cents && p.was_cents > p.price_cents ? `<span class="was">${money(p.was_cents)}</span>` : ""}</div>
+    ${p.reason ? `<span class="badge">Picked for you</span><div class="why">${esc(p.reason)}</div>` : `<div class="why"></div>`}
+    <div class="acts"><a class="btn sec" href="${esc(p.url)}" target="_blank" rel="noopener sponsored">View</a>
+    <button class="btn gold" data-pool="${i}">Group gift</button></div></div>`;
+}
+function qcard(q) {
+  const chips = (q.chips || []).map(c => Array.isArray(c) ? c : [c, c])
+    .map(([l, v]) => `<button type="button" class="chip" data-k="${q.key}" data-v="${esc(v)}">${esc(l)}</button>`).join("");
+  return `<div class="card q"><h3>${esc(q.title)}</h3><div class="sub">${esc(q.sub)}</div>
+    <div class="chips">${chips}</div>
+    ${q.text ? `<form class="qt" data-k="${q.key}" style="display:flex;gap:6px;margin-top:10px"><input placeholder="${esc(q.text)}" maxlength="120"><button class="btn sec" style="padding:8px 12px">Go</button></form>` : ""}
+    <button type="button" class="skip" data-skip="${q.key}">Skip</button></div>`;
+}
+function render() {
+  // Answers so far, as removable pills.
+  $("#bar").innerHTML = QUESTIONS().filter(q => brief[q.key] != null).map(q =>
+    `<span class="pill">${esc(label(q.key, brief[q.key]))}<button data-rm="${q.key}" aria-label="Remove">×</button></span>`).join("");
+  const q = nextQ();
+  const cells = items.map((p, i) => card(p, i));
+  if (q) cells.splice(Math.min(3, cells.length), 0, qcard(q));   // the next question sits a few items in
+  if (!items.length) cells.push(`<div class="card muted">Nothing in stock matched yet. Try another answer or a higher budget.</div>`);
+  $("#grid").innerHTML = cells.join("");
+}
+
+$("#grid").addEventListener("click", e => {
+  const chip = e.target.closest(".q .chip");
+  if (chip) { const k = chip.dataset.k; answer(k, k === "budget_cents" ? +chip.dataset.v : chip.dataset.v); return; }
+  const sk = e.target.closest("[data-skip]"); if (sk) { skipped.add(sk.dataset.skip); render(); return; }
+  const pb = e.target.closest("[data-pool]"); if (pb) openPool(items[+pb.dataset.pool]);
+});
+$("#grid").addEventListener("submit", e => { const f = e.target.closest(".qt"); if (!f) return; e.preventDefault();
+  const v = f.querySelector("input").value.trim(); if (v) answer(f.dataset.k, v); });
+$("#bar").addEventListener("click", e => { const b = e.target.closest("[data-rm]"); if (!b) return; delete brief[b.dataset.rm]; skipped.delete(b.dataset.rm); refresh(); });
+
+function answer(k, v) { brief[k] = v; refresh(); }
+async function refresh() {
+  const answered = Object.keys(brief).length;
+  if (!answered) { items = browse; aiPicked = false; $("#notice").innerHTML = ""; render(); return; }
+  const my = ++seq;
+  render(); $("#grid").classList.add("busy");
+  $("#notice").innerHTML = `<p class="muted" style="margin:4px 0 10px">Finding gifts for this…</p>`;
+  try {
+    const r = await fetch("/api/find", { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...brief, recipient: brief.recipient || store.niche, budget_cents: brief.budget_cents || 20000 }) });
+    const j = await r.json();
+    if (my !== seq) return;                       // a newer answer is already on its way
+    if (!r.ok) throw new Error(j.error || "Something went wrong");
+    if (j.court && j.court.flagged) { items = []; $("#notice").innerHTML = `<div class="note" style="margin-bottom:12px"><b>Before you shop:</b> ${esc(j.court.note)}</div>`; }
+    else { items = [...(j.picks || []), ...(j.more || [])]; aiPicked = !!j.ai_picked; $("#notice").innerHTML = ""; }
+  } catch (err) { if (my === seq) $("#notice").innerHTML = `<p class="err">${esc(err.message)}</p>`; }
+  finally { if (my === seq) { $("#grid").classList.remove("busy"); render(); } }
+}
+
+function openPool(p) {
+  chosen = p; $("#pgift").textContent = `${p.title} · ${money(p.price_cents)}`; $("#perr").textContent = "";
+  if (!$("#ptitle").value) $("#ptitle").value = `For ${brief.recipient || "them"}${brief.occasion ? " — " + String(brief.occasion).toLowerCase() : ""}`;
+  $("#dlg").showModal();
+}
+$("#pf").onsubmit = async e => {
+  if (e.submitter && e.submitter.value === "cancel") return;
+  e.preventDefault(); $("#pgo").disabled = true; $("#perr").textContent = "";
+  try {
+    const r = await fetch("/api/pools", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
+      title: $("#ptitle").value, occasion: brief.occasion || null, organizer_name: $("#pname").value, organizer_email: $("#pemail").value,
+      product: { title: chosen.title, url: chosen.url, image: chosen.image, merchant: chosen.merchant, price_cents: chosen.price_cents, product_id: chosen.product_id } }) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || "Couldn't create it");
+    try { localStorage.setItem("manage:" + j.id, j.manage_token); } catch {}
+    location.href = `/g/${j.id}?new=1`;
+  } catch (err) { $("#perr").textContent = err.message; $("#pgo").disabled = false; }
+};
+</script>
+</body></html>
