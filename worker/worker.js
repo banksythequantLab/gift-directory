@@ -28,6 +28,14 @@ function aiFor(env) {
   };
 }
 
+// Gift box on a rounded square, 64-unit grid (scripts/make-favicon.py draws the same for the .ico).
+const faviconSvg = accent => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">` +
+  `<rect width="64" height="64" rx="14" fill="${accent}"/>` +
+  `<rect x="13" y="30" width="38" height="22" rx="3" fill="#fff"/><rect x="10" y="22" width="44" height="9" rx="3" fill="#fff"/>` +
+  `<rect x="29" y="22" width="6" height="30" fill="#b08d57"/>` +
+  `<ellipse cx="25" cy="17" rx="5" ry="4" fill="none" stroke="#b08d57" stroke-width="4"/>` +
+  `<ellipse cx="39" cy="17" rx="5" ry="4" fill="none" stroke="#b08d57" stroke-width="4"/></svg>`;
+
 // ---------- stores ----------
 const isWorkersDev = h => h.endsWith(".workers.dev");
 // A store's address. On workers.dev (testing, before DNS) stores are picked with ?store=<slug>.
@@ -80,6 +88,12 @@ export default {
     try {
       const { store, platform, setCookie } = await resolveStore(db, env, url, request);
       const page = path => withCookie(env.ASSETS.fetch(new Request(new URL(path, url), request)), setCookie);
+      // The tab icon, in the store's own color (the platform's navy elsewhere). Same drawing as favicon.ico.
+      if (url.pathname === "/favicon.svg") {
+        let accent = "#1f3a5f";
+        try { const a = store && JSON.parse(store.config_json).accent; if (/^#[0-9a-fA-F]{6}$/.test(a || "")) accent = a; } catch {}
+        return new Response(faviconSvg(accent), { headers: { "content-type": "image/svg+xml", "cache-control": "public, max-age=86400" } });
+      }
       if (parts[0] !== "api") {
         // Ask for bare names ("/pool", not "/pool.html"): the asset server answers .html with a 307
         // to the bare name, and that redirect reached the browser and threw away /g/<id>.
