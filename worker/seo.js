@@ -84,7 +84,17 @@ function card(c) {
 ${c.reason ? `<p class="why">${esc(c.reason)}</p>` : `<p class="why"></p>`}
 <div class="acts"><a class="btn sec" href="${esc(c.url)}" target="_blank" rel="noopener sponsored nofollow">View at ${esc(c.merchant)}</a></div></article>`;
 }
-const shell = (title, meta, canonical, body, jsonld = []) => `<!doctype html><html lang="en"><head><meta charset="utf-8">
+// The one ad slot: bottom of the page, after everything a reader came for. Never in the header, and the
+// ad script itself loads down here too. Empty until real AdSense ids are configured.
+export function adSlot(env) {
+  const client = env && env.ADSENSE_CLIENT, slot = env && env.ADSENSE_SLOT;
+  if (!/^ca-pub-\d{10,20}$/.test(client || "") || !/^\d{6,15}$/.test(slot || "")) return "";
+  return `<aside aria-label="Advertisement" style="margin:30px 0 6px"><div class="muted" style="font-size:.72rem;letter-spacing:.4px;text-transform:uppercase">Advertisement</div>
+<ins class="adsbygoogle" style="display:block" data-ad-client="${client}" data-ad-slot="${slot}" data-ad-format="auto" data-full-width-responsive="true"></ins>
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${client}" crossorigin="anonymous"></script>
+<script>(adsbygoogle = window.adsbygoogle || []).push({});</script></aside>`;
+}
+const shell = (title, meta, canonical, body, jsonld = [], ad = "") => `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
 <meta name="description" content="${esc(meta)}"><link rel="canonical" href="${esc(canonical)}">
 <meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(meta)}"><meta property="og:url" content="${esc(canonical)}"><meta property="og:type" content="website">
@@ -94,9 +104,10 @@ ${jsonld.map(j => `<script type="application/ld+json">${JSON.stringify(j).replac
 .gift .why{font-style:italic;color:#374151}.cta{background:var(--accent);color:#fff;border-radius:14px;padding:18px;margin:22px 0}.cta a{color:#fff;font-weight:700}
 .rel{display:flex;flex-wrap:wrap;gap:8px}.rel a{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;font-size:.88rem;text-decoration:none;color:var(--ink)}</style>
 </head><body><div class="wrap">${body}
+${ad}
 <footer><a href="/">gift.directory</a> · <a href="/gifts">All gift guides</a> · Prices and stock come live from retailers through Channel3 and may change; links go to the retailer.</footer></div></body></html>`;
 
-export function renderGuide(p, row, related, storeUrl) {
+export function renderGuide(p, row, related, storeUrl, ad = "") {
   const g = JSON.parse(row.guide_json), cards = JSON.parse(row.cards_json || "[]");
   const url = `${ROOT}/gifts/${p.slug}`, updated = String(row.updated_at).slice(0, 10);
   const title = `${p.keyword} (${new Date(row.updated_at).getUTCFullYear()}) — real gifts in stock | gift.directory`;
@@ -115,13 +126,13 @@ ${g.faq.length ? `<h2 style="font-family:Georgia,serif">Questions people ask</h2
     ...(g.faq.length ? [{ "@context": "https://schema.org", "@type": "FAQPage", mainEntity: g.faq.map(f => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })) }] : []),
     { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [{ "@type": "ListItem", position: 1, name: "Gift guides", item: `${ROOT}/gifts` }, { "@type": "ListItem", position: 2, name: p.keyword, item: url }] },
   ];
-  return shell(title, g.meta, url, body, ld);
+  return shell(title, g.meta, url, body, ld, ad);
 }
-export function renderHub(built) {
+export function renderHub(built, ad = "") {
   const byTopic = {}; for (const p of PAGES) if (built.has(p.slug)) (byTopic[p.topic] ||= []).push(p);
   const body = `<h1 style="font-family:Georgia,serif">Gift guides</h1><p class="muted">Real, in-stock gifts picked by AI for the people on your list — with live prices, and group gifts paid through PayPal.</p>
 ${Object.entries(byTopic).map(([t, ps]) => `<h2 style="font-family:Georgia,serif">${esc(t)}</h2><nav class="rel">${ps.map(p => `<a href="/gifts/${p.slug}">${esc(p.keyword)}</a>`).join("")}</nav>`).join("")}`;
-  return shell("Gift guides — real gifts in stock, picked by AI | gift.directory", "Christmas and year-round gift guides for lawyers, nurses, coworkers, family and more: real, in-stock gifts with live prices, picked by AI.", `${ROOT}/gifts`, body);
+  return shell("Gift guides — real gifts in stock, picked by AI | gift.directory", "Christmas and year-round gift guides for lawyers, nurses, coworkers, family and more: real, in-stock gifts with live prices, picked by AI.", `${ROOT}/gifts`, body, [], ad);
 }
 export function related(p, n = 8) {
   const same = PAGES.filter(x => x.topic === p.topic && x.slug !== p.slug), other = PAGES.filter(x => x.topic !== p.topic);

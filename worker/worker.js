@@ -3,7 +3,7 @@ import { paypalFetch, link } from "./paypal-core.js";
 import { validateBrief, findGifts, browseGifts, channel3Search, toCard, mergeCards } from "./finder.js";
 import { validatePool, contributionError, buildContributionOrder, readCapture, applyCapture, publicPool } from "./pools.js";
 import { ROOT, DRAFT_SYSTEM, parseDraft, validateStore, storePlanSystem, subscriptionBody, storeStatusFor, hostKey, publicStore, darkEnough } from "./stores.js";
-import { PAGES, pageBySlug, GUIDE_SYSTEM, guidePrompt, parseGuide, pageBrief, renderGuide, renderHub, related, sitemap } from "./seo.js";
+import { PAGES, pageBySlug, GUIDE_SYSTEM, guidePrompt, parseGuide, pageBrief, renderGuide, renderHub, related, sitemap, adSlot } from "./seo.js";
 import { authorizeUrl, paypalWebBase, parseUserinfo, ownsStore, validateSettings, validateItem, shelves, withoutHidden } from "./owners.js";
 
 const now = () => new Date().toISOString();
@@ -161,6 +161,11 @@ export default {
         try { const a = store && JSON.parse(store.config_json).accent; if (/^#[0-9a-fA-F]{6}$/.test(a || "")) accent = a; } catch {}
         return new Response(faviconSvg(accent), { headers: { "content-type": "image/svg+xml", "cache-control": "public, max-age=86400" } });
       }
+      // ads.txt: who may sell ads on gift.directory (required by AdSense). Only once a real publisher id is set.
+      if (url.pathname === "/ads.txt") {
+        const pub = /^ca-(pub-\d{10,20})$/.exec(env.ADSENSE_CLIENT || "");
+        return pub ? new Response(`google.com, ${pub[1]}, DIRECT, f08c47fec0942fa0\n`, { headers: { "content-type": "text/plain" } }) : new Response("", { status: 404 });
+      }
       // IndexNow ownership file (Bing, Yandex and others): the key is public by design.
       if (env.INDEXNOW_KEY && url.pathname === `/${env.INDEXNOW_KEY}.txt`) return new Response(env.INDEXNOW_KEY, { headers: { "content-type": "text/plain" } });
       // ---------- gift guides, sitemap, robots (the platform's own address) ----------
@@ -176,14 +181,14 @@ export default {
             ...rows.map(r => ({ loc: `https://${ROOT}/gifts/${r.slug}`, lastmod: r.updated_at })),
             ...stores.map(s => ({ loc: `https://${s.slug}.${ROOT}/`, lastmod: s.updated_at }))]), { headers: { "content-type": "application/xml" } });
         }
-        if (!parts[1]) return html(renderHub(new Set(rows.map(r => r.slug))));
+        if (!parts[1]) return html(renderHub(new Set(rows.map(r => r.slug)), adSlot(env)));
         const p = pageBySlug(parts[1]);
         const row = p && await db.prepare("SELECT * FROM seo_pages WHERE slug=?").bind(p.slug).first();
         if (!row) return html(`<!doctype html><title>Not found</title><p>No such guide. <a href="/gifts">All gift guides</a></p>`, 404);
         // Keep prices and stock fresh without making a visitor (or a crawler) wait for it.
         if (ctx && Date.now() - Date.parse(row.updated_at) > 3 * 864e5) ctx.waitUntil(buildGuide(db, env, p, { cardsOnly: true }).catch(() => {}));
         const st = p.store && await db.prepare("SELECT slug FROM stores WHERE slug=? AND status='active'").bind(p.store).first();
-        return html(renderGuide(p, row, related(p).filter(r => rows.some(x => x.slug === r.slug)), st ? `https://${st.slug}.${ROOT}/` : null));
+        return html(renderGuide(p, row, related(p).filter(r => rows.some(x => x.slug === r.slug)), st ? `https://${st.slug}.${ROOT}/` : null, adSlot(env)));
       }
       // Builds a guide page. Not public: needs the build token.
       if (url.pathname.startsWith("/api/seo/build/") && m === "POST") {
