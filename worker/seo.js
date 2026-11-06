@@ -49,6 +49,51 @@ const ANNIVERSARY_PAGES = ANNIVERSARIES.map(([y, trad, modern, budget, tradSlots
       notes: `the ${ordinal(y)} anniversary: the traditional gift is ${trad}; the modern gift is ${modern}. Explain both themes and give creative ideas for each; the first four products follow the traditional theme, the last four the modern one` });
 });
 
+// Team fan pages: one per NFL, MLB, NBA and NHL team. Every product must name the team (`require`), so a
+// Giants page never shows the other Giants. Nicknames two teams share use the full name in slug and filter.
+const TEAMS = {
+  NFL: ["Arizona Cardinals", "Atlanta Falcons", "Baltimore Ravens", "Buffalo Bills", "Carolina Panthers", "Chicago Bears", "Cincinnati Bengals", "Cleveland Browns",
+    "Dallas Cowboys", "Denver Broncos", "Detroit Lions", "Green Bay Packers", "Houston Texans", "Indianapolis Colts", "Jacksonville Jaguars", "Kansas City Chiefs",
+    "Las Vegas Raiders", "Los Angeles Chargers", "Los Angeles Rams", "Miami Dolphins", "Minnesota Vikings", "New England Patriots", "New Orleans Saints", "New York Giants",
+    "New York Jets", "Philadelphia Eagles", "Pittsburgh Steelers", "San Francisco 49ers", "Seattle Seahawks", "Tampa Bay Buccaneers", "Tennessee Titans", "Washington Commanders"],
+  MLB: ["Arizona Diamondbacks", "Atlanta Braves", "Baltimore Orioles", "Boston Red Sox", "Chicago Cubs", "Chicago White Sox", "Cincinnati Reds", "Cleveland Guardians",
+    "Colorado Rockies", "Detroit Tigers", "Houston Astros", "Kansas City Royals", "Los Angeles Angels", "Los Angeles Dodgers", "Miami Marlins", "Milwaukee Brewers",
+    "Minnesota Twins", "New York Mets", "New York Yankees", "Athletics", "Philadelphia Phillies", "Pittsburgh Pirates", "San Diego Padres", "San Francisco Giants",
+    "Seattle Mariners", "St. Louis Cardinals", "Tampa Bay Rays", "Texas Rangers", "Toronto Blue Jays", "Washington Nationals"],
+  NBA: ["Atlanta Hawks", "Boston Celtics", "Brooklyn Nets", "Charlotte Hornets", "Chicago Bulls", "Cleveland Cavaliers", "Dallas Mavericks", "Denver Nuggets",
+    "Detroit Pistons", "Golden State Warriors", "Houston Rockets", "Indiana Pacers", "LA Clippers", "Los Angeles Lakers", "Memphis Grizzlies", "Miami Heat",
+    "Milwaukee Bucks", "Minnesota Timberwolves", "New Orleans Pelicans", "New York Knicks", "Oklahoma City Thunder", "Orlando Magic", "Philadelphia 76ers", "Phoenix Suns",
+    "Portland Trail Blazers", "Sacramento Kings", "San Antonio Spurs", "Toronto Raptors", "Utah Jazz", "Washington Wizards"],
+  NHL: ["Anaheim Ducks", "Boston Bruins", "Buffalo Sabres", "Calgary Flames", "Carolina Hurricanes", "Chicago Blackhawks", "Colorado Avalanche", "Columbus Blue Jackets",
+    "Dallas Stars", "Detroit Red Wings", "Edmonton Oilers", "Florida Panthers", "Los Angeles Kings", "Minnesota Wild", "Montreal Canadiens", "Nashville Predators",
+    "New Jersey Devils", "New York Islanders", "New York Rangers", "Ottawa Senators", "Philadelphia Flyers", "Pittsburgh Penguins", "San Jose Sharks", "Seattle Kraken",
+    "St. Louis Blues", "Tampa Bay Lightning", "Toronto Maple Leafs", "Utah Mammoth", "Vancouver Canucks", "Vegas Golden Knights", "Washington Capitals", "Winnipeg Jets"],
+};
+const LEAGUE = {
+  NFL: { sport: "football", slots: ["jersey", "hoodie", "knit beanie", "throw blanket", "coffee mug", "Christmas ornament", "wall sign"] },
+  MLB: { sport: "baseball", slots: ["jersey", "fitted cap", "hoodie", "throw blanket", "coffee mug", "Christmas ornament", "wall sign"] },
+  NBA: { sport: "basketball", slots: ["jersey", "hoodie", "snapback hat", "throw blanket", "coffee mug", "Christmas ornament", "mini basketball"] },
+  NHL: { sport: "hockey", slots: ["jersey", "hoodie", "knit beanie", "throw blanket", "coffee mug", "Christmas ornament", "wall sign"] },
+};
+// The team's short name: the last word, or the last two for names like "Red Sox", "Blue Jays", "Maple Leafs".
+const TWO_WORD = ["Red Sox", "White Sox", "Blue Jays", "Trail Blazers", "Maple Leafs", "Red Wings", "Blue Jackets", "Golden Knights"];
+export const teamNick = full => TWO_WORD.find(t => full.endsWith(" " + t)) || full.split(" ").pop();
+const slugify = s => s.toLowerCase().replace(/\./g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+const ALL_TEAMS = Object.values(TEAMS).flat();
+const SHARED_NICK = new Set(ALL_TEAMS.map(teamNick).filter((n, i, a) => a.indexOf(n) !== i));
+// Many nicknames are ordinary words (Heat, Jazz, Chargers, Penguins, Athletics), so pages and the product
+// filter use the full team name; "St." and "LA"/"Los Angeles" spellings both count.
+const teamSpellings = full => [...new Set([full, full.replace("St. ", "St "), full.replace(/^LA /, "Los Angeles "), full.replace(/^Los Angeles (Clippers)$/, "LA $1")])];
+export const TEAM_PAGES = Object.entries(TEAMS).flatMap(([lg, teams]) => teams.map(full => {
+  const nick = teamNick(full);
+  return P(`gifts-for-${slugify(full)}-fans`, `Gifts for ${full} fans`, `a ${full} fan`, "Christmas", 100, {
+    topic: `${lg} fans`, count: 7, minCount: 5, team: { league: lg, full, nick, shared: SHARED_NICK.has(nick) },
+    slots: LEAGUE[lg].slots.map(s => `${full} ${s}`),
+    require: teamSpellings(full),
+    exclude: ["gift card", "replica toy gun", "for dogs", "pet "],
+    notes: `officially licensed ${full} gear for a ${LEAGUE[lg].sport} fan; every product must be ${full} merchandise` });
+}));
+
 // Holiday long-tail first. `store` links the page into a gift.directory store (and its group gifts).
 export const PAGES = [
   // lawyers & law
@@ -231,6 +276,7 @@ export const PAGES = [
     notes: "a carry-on packing cube set, a scratch-off world map, a travel pillow, a leather passport holder, a toiletry bag, a weekender bag, a travel journal" }),
   // anniversaries by year
   ...ANNIVERSARY_PAGES,
+  ...TEAM_PAGES,
   // family & interests
   P("christmas-gifts-for-boyfriend", "Christmas gifts for your boyfriend", "my boyfriend", "Christmas", 100, { topic: "Family & interests", cap: 2, exclude: NICHE_NOVELTY,
     notes: "thoughtful gifts he will use: a quality wallet or watch, a cozy hoodie or pullover, headphones, a grooming set, a personalized keepsake, barware, a gadget; no novelty joke gifts" }),
@@ -396,7 +442,8 @@ export function diversify(cards, cap = 3) {
 // (e.g. a Marine Corps coin on the police page). Case-insensitive substring match.
 export function allowed(p, c) {
   const t = String((c && c.title) || "").toLowerCase();
-  return !(p.exclude || []).some(w => t.includes(String(w).toLowerCase()));
+  if ((p.exclude || []).some(w => t.includes(String(w).toLowerCase()))) return false;
+  return !p.require || p.require.some(w => t.includes(String(w).toLowerCase()));
 }
 
 // The guide text: written once per page by the model, checked, stored.

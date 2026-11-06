@@ -83,6 +83,17 @@ eq("without ids the page has no ad code at all", renderGuide(p, row, [], null, "
   eq("gamers page drops PC case fans", allowed(pageBySlug("gifts-for-gamers"), { title: "NZXT F280 RGB CORE RF-U28HF-W1 RGB LED Single-Frame RGB Fan Unit" }), false);
   eq("gaming pages drop gift cards", allowed(pageBySlug("gifts-for-ps5-players"), { title: "PlayStation Store Gift Card $50" }), false);
   eq("football page drops baseball", allowed(pageBySlug("gifts-for-football-fans"), { title: "St. Louis Cardinals Park Stadium Throw Blanket" }), false);
+  {
+    const { TEAM_PAGES } = await import("../seo.js");
+    eq("one fan page per team in the four leagues", TEAM_PAGES.length, 124);
+    eq("pages use the full team name", !!pageBySlug("gifts-for-new-york-giants-fans") && !!pageBySlug("gifts-for-san-francisco-giants-fans") && !!pageBySlug("gifts-for-st-louis-cardinals-fans"), true);
+    eq("Yankees page keeps Yankees gear", allowed(pageBySlug("gifts-for-new-york-yankees-fans"), { title: "New York Yankees Fleece Throw Blanket" }), true);
+    eq("Yankees page drops Mets gear", allowed(pageBySlug("gifts-for-new-york-yankees-fans"), { title: "New York Mets Fleece Throw Blanket" }), false);
+    eq("NY Giants page drops SF Giants", allowed(pageBySlug("gifts-for-new-york-giants-fans"), { title: "San Francisco Giants Logo Mug" }), false);
+    eq("Heat page drops heated blankets", allowed(pageBySlug("gifts-for-miami-heat-fans"), { title: "Sunbeam Heated Throw Blanket" }), false);
+    eq("St Louis spelled without the dot still counts", allowed(pageBySlug("gifts-for-st-louis-blues-fans"), { title: "St Louis Blues Knit Beanie" }), true);
+    eq("Chargers page drops phone chargers", allowed(pageBySlug("gifts-for-los-angeles-chargers-fans"), { title: "Anker USB-C Charger 65W" }), false);
+  }
 }
 
 console.log(`${passed} passed, ${failed} failed`);
