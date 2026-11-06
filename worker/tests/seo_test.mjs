@@ -78,6 +78,10 @@ eq("without ids the page has no ad code at all", renderGuide(p, row, [], null, "
     const { groupCards } = await import("../seo.js");
     eq("cards group under their theme headings", groupCards([{ group: "Traditional: paper" }, { group: "Modern: clocks" }, { group: "Traditional: paper" }]).map(([k, v]) => k + v.length).join("|"), "Traditional: paper2|Modern: clocks1");
   }
+  eq("controller charging docks are one kind", diversify(["Controller Charging Dock", "4 in 1 Controller Charger LED Indicator Handle Grip Charging Dock", "Dual Controller Charging Station"].map(x => ({ title: x })), 1).length, 1);
+  eq("RGB light strips, kits and bars are one kind", diversify(["RGB LED Light Strip", "TUF Gaming ARGB Lighting Kit", "Gaming Light Bars"].map(x => ({ title: x })), 1).length, 1);
+  eq("gamers page drops PC case fans", allowed(pageBySlug("gifts-for-gamers"), { title: "NZXT F280 RGB CORE RF-U28HF-W1 RGB LED Single-Frame RGB Fan Unit" }), false);
+  eq("gaming pages drop gift cards", allowed(pageBySlug("gifts-for-ps5-players"), { title: "PlayStation Store Gift Card $50" }), false);
   eq("football page drops baseball", allowed(pageBySlug("gifts-for-football-fans"), { title: "St. Louis Cardinals Park Stadium Throw Blanket" }), false);
 }
 

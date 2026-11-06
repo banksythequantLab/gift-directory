@@ -7,6 +7,8 @@ const P = (slug, keyword, recipient, occasion, budget, opts = {}) => ({ slug, ke
 
 // General (not profession) pages keep profession novelty items out, e.g. a "Trust me, I'm a lawyer" candle on "gifts for her".
 const NICHE_NOVELTY = ["lawyer", "attorney", "nurse", "teacher", "doctor"];
+// Gaming pages: no gift cards or download codes, no internal PC parts.
+const GAMING_EXCLUDE = ["gift card", "digital code", "download code", "fan unit", "case fan", "rf-u", "power supply", "thermal paste", "motherboard", "replacement part"];
 
 // Anniversary gifts by year, traditional and modern themes (the common US lists). Each page searches four
 // gift ideas per theme, one product per idea, and the AI picks the best of each and says why.
@@ -149,8 +151,32 @@ export const PAGES = [
     notes: "easy to set up and use: a digital photo frame family can send photos to, a smart speaker or display for video calls, a large-print e-reader or tablet, a video doorbell, a medication reminder or pill dispenser, a tracker tag for keys; nothing complicated" }),
   P("smart-home-gifts", "Smart home gifts", "someone setting up a smart home", "Christmas", 150, { topic: "Tech", cap: 2,
     notes: "smart plugs, smart bulbs or light strips, a smart speaker or display, a video doorbell, a robot vacuum, a smart thermostat, a smart lock" }),
-  P("gifts-for-gamers", "Gifts for gamers", "a gamer", "Christmas", 100, { topic: "Tech", cap: 2,
-    notes: "a gaming headset, a controller, a mechanical keyboard or gaming mouse, a handheld console, a controller charging dock, a gaming chair cushion or desk mat, LED lighting for the setup; no game codes or gift cards" }),
+  P("gifts-for-gamers", "Gifts for gamers", "a gamer", "Christmas", 150, { topic: "Gaming", cap: 1,
+    notes: "one of each: a wireless gaming headset, an extra wireless controller, a mechanical gaming keyboard, a gaming mouse, a large desk mat, a headset stand, a controller charging dock, RGB light bars for the setup; no game codes, gift cards or PC parts",
+    exclude: GAMING_EXCLUDE }),
+  P("10-best-gifts-for-gamers", "10 best gifts for gamers", "a gamer", "Christmas", 250, { topic: "Gaming", count: 10,
+    slots: ["wireless gaming headset", "pro wireless game controller", "mechanical gaming keyboard", "wireless gaming mouse", "gaming desk mat", "handheld gaming console", "controller charging dock", "RGB smart light bars", "gaming headset stand", "portable gaming monitor"],
+    exclude: GAMING_EXCLUDE, notes: "ten different kinds of gaming gifts" }),
+  P("gifts-for-gamers-under-50", "Gifts for gamers under $50", "a gamer", "Christmas", 50, { topic: "Gaming", count: 7, minCount: 5, slots: ["wireless gaming mouse", "extended gaming desk mat", "headset stand", "controller charging dock", "controller thumb grips", "RGB LED light strip", "gaming mug"], exclude: GAMING_EXCLUDE,
+    notes: "useful under $50: a gaming mouse, a large desk mat, a headset stand, a controller charging dock, controller thumb grips, LED light strip, a cable organizer, a gaming-themed mug" }),
+  P("gifts-for-pc-gamers", "Gifts for PC gamers", "a PC gamer", "Christmas", 150, { topic: "Gaming", cap: 1, exclude: GAMING_EXCLUDE,
+    notes: "finished accessories for a PC setup: a mechanical keyboard, a high-DPI wireless mouse, a USB microphone, a monitor light bar, a large desk mat, a webcam, a headset; not internal PC parts like fans, cables or cases" }),
+  P("gifts-for-nintendo-switch-players", "Gifts for Nintendo Switch players", "someone who plays Nintendo Switch", "Christmas", 100, { topic: "Gaming", count: 6, minCount: 5, slots: ["Nintendo Switch Pro Controller", "Nintendo Switch carrying case", "Joy-Con charging dock", "microSD card for Nintendo Switch", "Joy-Con controllers", "wired gaming headset with mic for Nintendo Switch"], exclude: GAMING_EXCLUDE,
+    notes: "Switch accessories: a Pro Controller, a carrying case, a charging dock, a screen protector kit, a microSD card, extra Joy-Con controllers, a Switch-compatible headset" }),
+  P("gifts-for-ps5-players", "Gifts for PS5 players", "someone who plays PlayStation 5", "Christmas", 150, { topic: "Gaming", count: 6, minCount: 5, slots: ["DualSense wireless controller", "PS5 controller charging station", "PS5 wireless gaming headset", "PS5 controller faceplate", "NVMe SSD for PS5", "PS5 vertical stand"], exclude: GAMING_EXCLUDE,
+    notes: "PS5 accessories: a DualSense controller, a controller charging station, a PS5-compatible wireless headset, a controller skin or faceplate, an NVMe SSD for PS5 storage, a vertical stand" }),
+  P("gifts-for-xbox-players", "Gifts for Xbox players", "someone who plays Xbox", "Christmas", 150, { topic: "Gaming", count: 5, minCount: 4, slots: ["Xbox wireless controller", "Xbox rechargeable battery kit", "Xbox wireless headset", "Xbox storage expansion card", "controller stand"], exclude: GAMING_EXCLUDE,
+    notes: "Xbox accessories: an Xbox wireless controller, a rechargeable battery kit or charging dock, an Xbox-compatible headset, a storage expansion card, a controller stand" }),
+  P("gifts-for-retro-gamers", "Gifts for retro gamers", "someone who loves retro and classic video games", "Christmas", 100, { topic: "Gaming", count: 6, minCount: 5, slots: ["plug and play HDMI retro console", "handheld retro console", "arcade fight stick", "tabletop arcade cabinet", "pixel art lamp", "retro USB controller"], exclude: GAMING_EXCLUDE,
+    notes: "a retro mini console, a handheld retro console, an arcade stick, a tabletop arcade cabinet, a pixel art lamp, a retro controller for PC" }),
+  P("gifts-for-streamers", "Gifts for streamers and content creators", "someone who streams games or makes videos", "Christmas", 150, { topic: "Gaming", count: 6, minCount: 5, slots: ["USB microphone with boom arm", "streaming ring light", "Stream Deck", "1080p streaming webcam", "4K capture card", "on air sign light"], exclude: [...GAMING_EXCLUDE, "welding"],
+    notes: "a USB microphone with boom arm, a ring light or key light, a stream control deck, a 1080p webcam, a capture card, a green screen, an on-air sign light" }),
+  P("gifts-for-gamer-boyfriend", "Gifts for your gamer boyfriend", "my boyfriend, who loves video games", "Christmas", 100, { topic: "Gaming", count: 6, minCount: 5, slots: ["wireless gaming headset", "wireless game controller", "gaming hoodie", "headset stand", "gaming desk mat", "RGB LED light strip"], exclude: [...GAMING_EXCLUDE, ...NICHE_NOVELTY],
+    notes: "a wireless headset, an extra controller, a gaming hoodie, a headset stand, a desk mat, LED lights for his setup, a personalized gamer keepsake" }),
+  P("gifts-for-gamer-girlfriend", "Gifts for your gamer girlfriend", "my girlfriend, who loves video games", "Christmas", 100, { topic: "Gaming", cap: 1, exclude: [...GAMING_EXCLUDE, ...NICHE_NOVELTY],
+    notes: "a cute wireless headset, a pastel or themed controller, a cozy gaming blanket or hoodie, a cat-ear or aesthetic desk setup piece, a Switch case, LED lights" }),
+  P("gifts-for-board-game-lovers", "Gifts for board game lovers", "someone who loves board games", "Christmas", 75, { topic: "Gaming", count: 7, minCount: 5, slots: ["strategy board game", "party board game", "two-player board game for couples", "dice tower", "metal dice set", "automatic card shuffler", "board game organizer"],
+    notes: "a popular strategy or party board game, a game night table topper or dice tower, a premium dice set, a card shuffler, a board game storage organizer, a two-player game for couples" }),
   P("home-office-tech-gifts", "Home office gifts for remote workers", "someone who works from home", "Christmas", 100, { topic: "Tech", cap: 2,
     notes: "a webcam, a monitor light bar, a USB-C dock, noise-cancelling headphones, a laptop stand, a desk mat, a wireless charging pad, an under-desk walking pad if within budget" }),
   P("travel-tech-gifts", "Travel tech gifts", "someone who travels a lot", "Christmas", 100, { topic: "Tech", cap: 2,
@@ -261,10 +287,11 @@ export const PAGES = [
 export const pageBySlug = slug => PAGES.find(p => p.slug === slug) || null;
 
 // No page should be seven candles: at most `cap` products of one kind, in the order they came.
-const KINDS = /\b(candles?|mugs?|bowls?|pens?|blankets?|throws?|journals?|notebooks?|clocks?|tumblers?|portfolios?|padfolios?|boards?|glass(?:es)?|decanters?|socks|necklaces?|bracelets?|wall art|prints?|baskets?|tote|bags?|wallets?|frames?|plants?|games?|ornaments?|flasks?|flashlights?|coins?|dryers?|power banks?|power paks?|headlamps?|keyboards?|ssds?|sunglasses|bottles?|towels?|shears|light bars?|massagers?|massage|sunscreens?|suncare|watch(?:es)?|smartwatch(?:es)?|headphones?|earbuds?|hub|speakers?|projectors?|e-readers?|drones?|consoles?|cameras?|vacuums?|putting|divot|sensors?|golf balls?|jerseys?|grills?|display cases?|ereaders?|watch\d+|gloves?|binoculars?|hammocks?|sleeping pads?|stoves?|lanterns?|cups?|thermometers?|liners?|pillows?|pillowcases?|lamps?|scarf|scarves|slippers?|bookmarks?|hand creams?|trail cameras?|pruners?|kneelers?|planters?|aerators?|openers?|record players?|turntables?|kits?|multi-?tools?|robes?|cocktail sets?|shakers?|handbags?|crossbody|smokers?|smoking kits?|portraits?|gardens?|growbars?|flowerpots?|flower pots?|barware|wraps?)\b/i;
+const KINDS = /\b(candles?|mugs?|bowls?|pens?|blankets?|throws?|journals?|notebooks?|clocks?|tumblers?|portfolios?|padfolios?|boards?|glass(?:es)?|decanters?|socks|necklaces?|bracelets?|wall art|prints?|baskets?|tote|bags?|wallets?|frames?|plants?|games?|ornaments?|flasks?|flashlights?|coins?|dryers?|power banks?|power paks?|headlamps?|keyboards?|ssds?|sunglasses|bottles?|towels?|shears|light bars?|massagers?|massage|sunscreens?|suncare|watch(?:es)?|smartwatch(?:es)?|headphones?|earbuds?|hub|speakers?|projectors?|e-readers?|drones?|consoles?|cameras?|vacuums?|putting|divot|sensors?|golf balls?|jerseys?|grills?|display cases?|ereaders?|watch\d+|gloves?|binoculars?|hammocks?|sleeping pads?|stoves?|lanterns?|cups?|thermometers?|liners?|pillows?|pillowcases?|lamps?|scarf|scarves|slippers?|bookmarks?|hand creams?|trail cameras?|pruners?|kneelers?|planters?|aerators?|openers?|record players?|turntables?|kits?|multi-?tools?|robes?|cocktail sets?|shakers?|handbags?|crossbody|smokers?|smoking kits?|portraits?|gardens?|growbars?|flowerpots?|flower pots?|barware|wraps?|charging docks?|charging stations?|charger|light strips?|lighting kits?|light bars?|mouse pads?|desk mats?|mouse|mice|controllers?|headsets?|microphones?|mics?|webcams?|cushions?)\b/i;
 // Words that name the same kind of gift.
 const SAME_KIND = { throw: "blanket", shaker: "cocktail set", turntable: "record player", ereader: "ereader", smartwatch: "watch",
-  handbag: "bag", crossbody: "bag", "smoking kit": "smoker", growbar: "garden", flowerpot: "garden", "flower pot": "garden", wrap: "scarf" };
+  handbag: "bag", crossbody: "bag", "smoking kit": "smoker", growbar: "garden", flowerpot: "garden", "flower pot": "garden", wrap: "scarf",
+  "charging station": "charging dock", charger: "charging dock", "lighting kit": "light strip", "light bar": "light strip", "mouse pad": "desk mat", mice: "mouse", mic: "microphone" };
 const KINDS_ALL = new RegExp(KINDS.source, "gi");
 // "Candles" and "Candle" are one kind ("es" only goes for glasses-type words).
 const singular = w => /(ss|x|ch|sh)es$/.test(w) ? w.slice(0, -2) : /[^s]s$/.test(w) ? w.slice(0, -1) : w;
