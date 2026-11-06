@@ -22,7 +22,8 @@ I'm a New York attorney. Clients want to thank their lawyer, firms want to thank
 - **PayPal Subscriptions v1:** a catalog product and a $19/month plan, with one subscription per store linked by `custom_id`. The store's status follows PayPal's own (ACTIVE → live; SUSPENDED/CANCELLED → offline).
 - **Channel3** product search for live prices, stock and retailer links.
 - **AI (Qwen3-235B on Nebius Token Factory, about 2 s per call)** for three jobs: drafting stores, planning searches, and picking gifts. The picker may only choose products Channel3 actually returned, by ID. Anything it invents is dropped, and every price and link comes from Channel3, never from the model. If the model is down, the grid still fills.
-- 121 automated tests run against real SQLite built from the production migrations.
+- 71 server-rendered gift guides (gift.directory/gifts) built the same way: real products, AI reasons, FAQ and structured data, so each store gets found in search.
+- 194 automated tests run against real SQLite built from the production migrations.
 
 ## Challenges we ran into
 - **Paying someone who isn't us.** I tested sending contributions directly to another account's PayPal (`payee`). When the organizer's email had no PayPal account, the capture came back `PENDING / UNILATERAL`: the contributor had paid, but the money was waiting to be claimed. I changed the tally to count it and show the organizer a "claim your money" notice.
@@ -31,7 +32,7 @@ I'm a New York attorney. Clients want to thank their lawyer, firms want to thank
 
 ## Accomplishments we're proud of
 - A real end-to-end flow on the PayPal sandbox: AI-picked gift → group gift → contributions paid to the organizer → live tally, plus a paid store subscription that brought a second store (Nurse Gifts) online.
-- Stores feel tailored. The same engine gives a nurse store spa sets and badge reels and a lawyer store fountain pens and leather portfolios.
+- Stores feel tailored. The same engine gives a nurse store spa sets and comfort gifts and a lawyer store fountain pens and leather portfolios.
 
 ## What we learned
 PayPal's `payee` field plus the capture response gives you a "pay a friend" group gift with no platform custody of funds. And product-first, question-second makes for a much better shopping experience than a questionnaire.
