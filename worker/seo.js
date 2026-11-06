@@ -68,28 +68,43 @@ const TEAMS = {
     "Dallas Stars", "Detroit Red Wings", "Edmonton Oilers", "Florida Panthers", "Los Angeles Kings", "Minnesota Wild", "Montreal Canadiens", "Nashville Predators",
     "New Jersey Devils", "New York Islanders", "New York Rangers", "Ottawa Senators", "Philadelphia Flyers", "Pittsburgh Penguins", "San Jose Sharks", "Seattle Kraken",
     "St. Louis Blues", "Tampa Bay Lightning", "Toronto Maple Leafs", "Utah Mammoth", "Vancouver Canucks", "Vegas Golden Knights", "Washington Capitals", "Winnipeg Jets"],
+  WNBA: ["Atlanta Dream", "Chicago Sky", "Connecticut Sun", "Dallas Wings", "Golden State Valkyries", "Indiana Fever", "Las Vegas Aces", "Los Angeles Sparks",
+    "Minnesota Lynx", "New York Liberty", "Phoenix Mercury", "Seattle Storm", "Washington Mystics", "Portland Fire", "Toronto Tempo"],
+  // [page name, other spellings product titles use]
+  MLS: ["Atlanta United", "Austin FC", ["CF Montréal", "CF Montreal"], "Charlotte FC", "Chicago Fire", "FC Cincinnati", "Colorado Rapids", "Columbus Crew",
+    ["D.C. United", "DC United"], "FC Dallas", "Houston Dynamo", "Inter Miami", "LA Galaxy", ["LAFC", "Los Angeles FC"], "Minnesota United", "Nashville SC",
+    "New England Revolution", "New York City FC", "New York Red Bulls", "Orlando City", "Philadelphia Union", "Portland Timbers", "Real Salt Lake", "San Diego FC",
+    "San Jose Earthquakes", "Seattle Sounders", "Sporting Kansas City", ["St. Louis City SC", "St. Louis City", "St Louis City", "STL City"], "Toronto FC", "Vancouver Whitecaps"],
+  College: ["Alabama Crimson Tide", "Ohio State Buckeyes", "Michigan Wolverines", "Georgia Bulldogs", "Texas Longhorns", "LSU Tigers", "Notre Dame Fighting Irish",
+    "Penn State Nittany Lions", "Clemson Tigers", "Oklahoma Sooners", "Florida Gators", "Tennessee Volunteers", "Auburn Tigers", "Oregon Ducks", "USC Trojans",
+    "Texas A&M Aggies", "Wisconsin Badgers", "Nebraska Cornhuskers", "Iowa Hawkeyes", "Florida State Seminoles", "Miami Hurricanes", "Duke Blue Devils",
+    "North Carolina Tar Heels", "Kentucky Wildcats", "Kansas Jayhawks", "Michigan State Spartans", "Arkansas Razorbacks", "Ole Miss Rebels", "UCLA Bruins", "Virginia Tech Hokies"],
 };
 const LEAGUE = {
   NFL: { sport: "football", slots: ["jersey", "hoodie", "knit beanie", "throw blanket", "coffee mug", "Christmas ornament", "wall sign"] },
   MLB: { sport: "baseball", slots: ["jersey", "fitted cap", "hoodie", "throw blanket", "coffee mug", "Christmas ornament", "wall sign"] },
   NBA: { sport: "basketball", slots: ["jersey", "hoodie", "snapback hat", "throw blanket", "coffee mug", "Christmas ornament", "mini basketball"] },
   NHL: { sport: "hockey", slots: ["jersey", "hoodie", "knit beanie", "throw blanket", "coffee mug", "Christmas ornament", "wall sign"] },
+  WNBA: { sport: "basketball", min: 4, slots: ["jersey", "hoodie", "hat", "t-shirt", "coffee mug", "throw blanket", "mini basketball"] },
+  MLS: { sport: "soccer", min: 4, slots: ["jersey", "scarf", "hoodie", "knit beanie", "throw blanket", "coffee mug", "soccer ball"] },
+  College: { sport: "college sports", topic: "College fans", slots: ["hoodie", "football jersey", "knit beanie", "throw blanket", "coffee mug", "Christmas ornament", "wall sign"] },
 };
 // The team's short name: the last word, or the last two for names like "Red Sox", "Blue Jays", "Maple Leafs".
 const TWO_WORD = ["Red Sox", "White Sox", "Blue Jays", "Trail Blazers", "Maple Leafs", "Red Wings", "Blue Jackets", "Golden Knights"];
 export const teamNick = full => TWO_WORD.find(t => full.endsWith(" " + t)) || full.split(" ").pop();
-const slugify = s => s.toLowerCase().replace(/\./g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-const ALL_TEAMS = Object.values(TEAMS).flat();
+const slugify = s => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\./g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+const teamName = t => Array.isArray(t) ? t[0] : t;
+const ALL_TEAMS = Object.values(TEAMS).flat().map(teamName);
 const SHARED_NICK = new Set(ALL_TEAMS.map(teamNick).filter((n, i, a) => a.indexOf(n) !== i));
 // Many nicknames are ordinary words (Heat, Jazz, Chargers, Penguins, Athletics), so pages and the product
 // filter use the full team name; "St." and "LA"/"Los Angeles" spellings both count.
 const teamSpellings = full => [...new Set([full, full.replace("St. ", "St "), full.replace(/^LA /, "Los Angeles "), full.replace(/^Los Angeles (Clippers)$/, "LA $1")])];
-export const TEAM_PAGES = Object.entries(TEAMS).flatMap(([lg, teams]) => teams.map(full => {
-  const nick = teamNick(full);
+export const TEAM_PAGES = Object.entries(TEAMS).flatMap(([lg, teams]) => teams.map(t => {
+  const full = teamName(t), nick = teamNick(full), L = LEAGUE[lg];
   return P(`gifts-for-${slugify(full)}-fans`, `Gifts for ${full} fans`, `a ${full} fan`, "Christmas", 100, {
-    topic: `${lg} fans`, count: 7, minCount: 5, team: { league: lg, full, nick, shared: SHARED_NICK.has(nick) },
-    slots: LEAGUE[lg].slots.map(s => `${full} ${s}`),
-    require: teamSpellings(full),
+    topic: L.topic || `${lg} fans`, count: 7, minCount: L.min || 5, team: { league: lg, full, nick, shared: SHARED_NICK.has(nick) },
+    slots: L.slots.map(s => `${full} ${s}`),
+    require: [...new Set([...teamSpellings(full), ...(Array.isArray(t) ? t.slice(1) : [])])],
     exclude: ["gift card", "replica toy gun", "for dogs", "pet "],
     notes: `officially licensed ${full} gear for a ${LEAGUE[lg].sport} fan; every product must be ${full} merchandise` });
 }));

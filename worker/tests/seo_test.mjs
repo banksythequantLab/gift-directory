@@ -85,7 +85,10 @@ eq("without ids the page has no ad code at all", renderGuide(p, row, [], null, "
   eq("football page drops baseball", allowed(pageBySlug("gifts-for-football-fans"), { title: "St. Louis Cardinals Park Stadium Throw Blanket" }), false);
   {
     const { TEAM_PAGES } = await import("../seo.js");
-    eq("one fan page per team in the four leagues", TEAM_PAGES.length, 124);
+    eq("one fan page per team in the four leagues", TEAM_PAGES.filter(p => ["NFL", "MLB", "NBA", "NHL"].includes(p.team.league)).length, 124);
+    eq("WNBA, MLS and college pages", TEAM_PAGES.length, 199);
+    eq("MLS alias spellings count", allowed(pageBySlug("gifts-for-lafc-fans"), { title: "Los Angeles FC Club Scarf" }), true);
+    eq("accents leave the slug", !!pageBySlug("gifts-for-cf-montreal-fans"), true);
     eq("pages use the full team name", !!pageBySlug("gifts-for-new-york-giants-fans") && !!pageBySlug("gifts-for-san-francisco-giants-fans") && !!pageBySlug("gifts-for-st-louis-cardinals-fans"), true);
     eq("Yankees page keeps Yankees gear", allowed(pageBySlug("gifts-for-new-york-yankees-fans"), { title: "New York Yankees Fleece Throw Blanket" }), true);
     eq("Yankees page drops Mets gear", allowed(pageBySlug("gifts-for-new-york-yankees-fans"), { title: "New York Mets Fleece Throw Blanket" }), false);
