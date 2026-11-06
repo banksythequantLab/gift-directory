@@ -89,25 +89,62 @@ export const PAGES = [
     exclude: ["ROHS", "HAT, BOARD", "Evaluation Kit"] }),
   P("gifts-for-engineers", "Gifts for engineers", "an engineer", "Christmas", 100, { topic: "Professions", notes: "clever, well-made, desk or gadgets" }),
   P("gifts-for-pilots", "Gifts for pilots", "a pilot", "Christmas", 100, { topic: "Professions" }),
+  // tech (count: exactly that many products, or the build fails rather than publish a short "10 best" list)
+  P("10-best-high-tech-christmas-gifts", "10 best high-tech Christmas gifts", "someone who loves the latest tech", "Christmas", 300, { topic: "Tech", cap: 1, count: 10,
+    slots: ["noise cancelling wireless headphones", "smartwatch", "smart display", "portable projector", "e-reader", "camera drone", "smart ring", "handheld gaming console", "instant camera", "robot vacuum"],
+    notes: "ten standout gadgets, one of each kind: wireless noise-cancelling earbuds or headphones, a smartwatch or fitness tracker, a smart display or smart speaker, a portable projector, an e-reader, a camera drone, a smart ring, a handheld gaming console, an instant or action camera, a robot vacuum or smart home hub; no cables, cases or accessories" }),
+  P("tech-gifts-under-50", "Tech gifts under $50", "someone who likes gadgets", "Christmas", 50, { topic: "Tech", cap: 2,
+    notes: "useful gadgets under $50: Bluetooth tracker tags, a compact power bank, smart plugs, a mini Bluetooth speaker, wireless earbuds, a phone or tablet stand, an LED desk lamp with wireless charging" }),
+  P("tech-gifts-under-100", "Tech gifts under $100", "someone who likes gadgets", "Christmas", 100, { topic: "Tech", cap: 2,
+    notes: "gadgets $50-$100: wireless earbuds, a fitness tracker, a smart speaker or display, a Kindle-style e-reader, a portable SSD, a mechanical keyboard, a video doorbell, a digital photo frame" }),
+  P("tech-stocking-stuffers", "Tech stocking stuffers", "anyone who loves gadgets", "Christmas stocking", 30, { topic: "Tech", cap: 2,
+    notes: "small gadgets that fit in a stocking: Bluetooth tracker tags, a keychain power bank, a phone grip or MagSafe wallet, a mini tripod, a multi-port USB-C charger, a mini flashlight, a cable organizer" }),
+  P("tech-gifts-for-teens", "Tech gifts for teens", "a teenager", "Christmas", 100, { topic: "Tech", cap: 2,
+    notes: "what teens actually use: wireless earbuds, an instant camera, LED strip lights, a portable Bluetooth speaker, a gaming headset, a phone ring light, a mini projector" }),
+  P("tech-gifts-for-men", "Tech gifts for men", "a man who likes gadgets", "Christmas", 150, { topic: "Tech", cap: 2,
+    notes: "a smartwatch, noise-cancelling headphones, a smart grill or meat thermometer, a car phone mount with charging, a portable power station, a drone, a smart garage or home gadget" }),
+  P("tech-gifts-for-women", "Tech gifts for women", "a woman who likes gadgets", "Christmas", 150, { topic: "Tech", cap: 2,
+    notes: "a smart ring or fitness tracker, wireless earbuds, a digital photo frame, a smart mug that keeps coffee warm, an e-reader, a wireless charging stand, a hair or skincare gadget" }),
+  P("tech-gifts-for-seniors", "Tech gifts for seniors and grandparents", "a grandparent or older adult", "Christmas", 150, { topic: "Tech", cap: 2,
+    notes: "easy to set up and use: a digital photo frame family can send photos to, a smart speaker or display for video calls, a large-print e-reader or tablet, a video doorbell, a medication reminder or pill dispenser, a tracker tag for keys; nothing complicated" }),
+  P("smart-home-gifts", "Smart home gifts", "someone setting up a smart home", "Christmas", 150, { topic: "Tech", cap: 2,
+    notes: "smart plugs, smart bulbs or light strips, a smart speaker or display, a video doorbell, a robot vacuum, a smart thermostat, a smart lock" }),
+  P("gifts-for-gamers", "Gifts for gamers", "a gamer", "Christmas", 100, { topic: "Tech", cap: 2,
+    notes: "a gaming headset, a controller, a mechanical keyboard or gaming mouse, a handheld console, a controller charging dock, a gaming chair cushion or desk mat, LED lighting for the setup; no game codes or gift cards" }),
+  P("home-office-tech-gifts", "Home office gifts for remote workers", "someone who works from home", "Christmas", 100, { topic: "Tech", cap: 2,
+    notes: "a webcam, a monitor light bar, a USB-C dock, noise-cancelling headphones, a laptop stand, a desk mat, a wireless charging pad, an under-desk walking pad if within budget" }),
+  P("travel-tech-gifts", "Travel tech gifts", "someone who travels a lot", "Christmas", 100, { topic: "Tech", cap: 2,
+    notes: "a universal travel adapter, noise-cancelling headphones or earbuds, a compact power bank, Bluetooth tracker tags for luggage, a travel charging station, a portable phone stand for planes" }),
+  P("fitness-tech-gifts", "Fitness tech gifts", "someone who works out", "Christmas", 150, { topic: "Tech", cap: 2,
+    notes: "a fitness tracker or smartwatch, sport earbuds, a massage gun, a smart jump rope, a heart-rate monitor, a smart water bottle" }),
+  P("gifts-for-photographers", "Gifts for photographers", "a photographer", "Christmas", 150, { topic: "Tech", cap: 2,
+    notes: "a camera bag or sling, a tripod, SD cards or a fast card reader, a lens cleaning kit, a camera strap, portable LED lights, a portable SSD for photos" }),
+  P("kitchen-gadget-gifts", "Kitchen gadget gifts", "someone who loves to cook", "Christmas", 100, { topic: "Tech", cap: 2,
+    notes: "an air fryer, a smart meat thermometer, an immersion blender, a precision kettle, a sous vide cooker, a digital kitchen scale, an electric spice grinder" }),
   // family & interests
   P("christmas-gifts-for-dad-who-has-everything", "Christmas gifts for a dad who has everything", "my dad, who has everything", "Christmas", 150, { topic: "Family & interests" }),
   P("christmas-gifts-for-mom-who-wants-nothing", "Christmas gifts for a mom who says she wants nothing", "my mom", "Christmas", 150, { topic: "Family & interests" }),
   P("christmas-gifts-for-grandparents", "Christmas gifts for grandparents", "my grandparents", "Christmas", 100, { topic: "Family & interests" }),
   P("gifts-for-coffee-lovers-under-50", "Gifts for coffee lovers under $50", "someone who loves coffee", "Christmas", 50, { topic: "Family & interests", notes: "coffee" }),
   P("gifts-for-whiskey-lovers", "Gifts for whiskey lovers", "someone who loves whiskey", "Christmas", 150, { topic: "Family & interests", notes: "whiskey, bourbon" }),
+  P("gifts-for-football-fans", "Gifts for football fans", "a football fan", "Christmas", 150, { topic: "Family & interests", cap: 2,
+    notes: "for an NFL or college football fan: a custom jersey personalized with their name and number in their team's colors, team-logo drinkware, a stadium blanket, tailgating gear (portable grill, cooler, folding chairs), a football display case for a signed ball, a team-themed game-day apparel item; the custom personalized jersey is the headline gift; football only, not baseball or soccer",
+    exclude: ["St. Louis Cardinals", "MLB", "Baseball", "Soccer"] }),
+  P("best-gifts-for-golfers", "Best gifts for golfers", "a golfer", "Christmas", 250, { topic: "Family & interests", cap: 2,
+    notes: "gifts golfers use: a golf rangefinder or GPS watch, premium golf balls, a putting green or putting mat, a golf travel bag, a personalized divot tool or ball marker, a quality golf glove, a launch monitor or swing analyzer, a golf towel and accessories set; no novelty joke items" }),
   P("gifts-for-golfers-under-50", "Gifts for golfers under $50", "a golfer", "Christmas", 50, { topic: "Family & interests", notes: "golf" }),
   P("stocking-stuffers-for-adults", "Stocking stuffers for adults", "an adult", "Christmas stocking", 30, { topic: "Family & interests" }),
 ];
 export const pageBySlug = slug => PAGES.find(p => p.slug === slug) || null;
 
 // No page should be seven candles: at most `cap` products of one kind, in the order they came.
-const KINDS = /\b(candles?|mugs?|bowls?|pens?|blankets?|throws?|journals?|notebooks?|clocks?|tumblers?|portfolios?|padfolios?|boards?|glass(?:es)?|decanters?|socks|necklaces?|bracelets?|wall art|prints?|baskets?|tote|bags?|wallets?|frames?|plants?|games?|ornaments?|flasks?|flashlights?|coins?|dryers?|power banks?|power paks?|headlamps?|keyboards?|ssds?|sunglasses|bottles?|towels?|shears|light bars?|massagers?|massage|sunscreens?|suncare|watch(?:es)?)\b/i;
+const KINDS = /\b(candles?|mugs?|bowls?|pens?|blankets?|throws?|journals?|notebooks?|clocks?|tumblers?|portfolios?|padfolios?|boards?|glass(?:es)?|decanters?|socks|necklaces?|bracelets?|wall art|prints?|baskets?|tote|bags?|wallets?|frames?|plants?|games?|ornaments?|flasks?|flashlights?|coins?|dryers?|power banks?|power paks?|headlamps?|keyboards?|ssds?|sunglasses|bottles?|towels?|shears|light bars?|massagers?|massage|sunscreens?|suncare|watch(?:es)?|smartwatch(?:es)?|headphones?|earbuds?|hub|speakers?|projectors?|e-readers?|drones?|consoles?|cameras?|vacuums?|putting|divot|sensors?|golf balls?|jerseys?|grills?|display cases?|ereaders?|watch\d+)\b/i;
 // "Candles" and "Candle" are one kind ("es" only goes for glasses-type words).
 const singular = w => /(ss|x|ch|sh)es$/.test(w) ? w.slice(0, -2) : /[^s]s$/.test(w) ? w.slice(0, -1) : w;
 export function diversify(cards, cap = 3) {
   const n = {};
   // Known kinds first; otherwise the title's last word ("Rugged Power Bank" -> bank), so four power banks can't fill a page either.
-  const kindOf = t => { const m = KINDS.exec(t); if (m) return singular(m[1].toLowerCase()); const w = (t.toLowerCase().match(/[a-z]{3,}/g) || []).pop(); return w ? singular(w) : null; };
+  const kindOf = t => { const m = KINDS.exec(t); if (m) return singular(m[1].toLowerCase().replace(/-/g, "").replace(/\d+$/, "")); const w = (t.toLowerCase().match(/[a-z]{3,}/g) || []).pop(); return w ? singular(w) : null; };
   return cards.filter(c => { const k = kindOf(c.title || ""); if (!k) return true; n[k] = (n[k] || 0) + 1; return n[k] <= cap; });
 }
 // Per-page safety net: drop products whose title contains a phrase the page must not show

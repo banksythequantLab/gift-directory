@@ -51,6 +51,15 @@ eq("without ids the page has no ad code at all", renderGuide(p, row, [], null, "
   eq("boot dryers capped even with a trailing word", dryers.length, 2);
   const misc = diversify(["Treasure Box", "Keepsake Box", "Beaded Box", "Wool Scarf"].map(x => ({ title: x })), 2);
   eq("unknown kinds capped by last word", misc.length, 3);
+  const ten = pageBySlug("10-best-high-tech-christmas-gifts");
+  eq("10-best page asks for exactly 10 products", ten && ten.count, 10);
+  ok("10-best page sits in the Tech topic", ten && ten.topic === "Tech");
+  ok("best gifts for golfers exists", !!pageBySlug("best-gifts-for-golfers"));
+  const tech = diversify(["Sony WH1000XM4 Noise Cancelling Wireless Headphones + Guide", "Studio Pro Wireless Headphones with Case", "Google Nest Hub Max", "Nest Hub (2nd Gen)", "Compact Portable Projector PH31"].map(x => ({ title: x })), 1);
+  eq("one of each: headphones, hub, projector", tech.length, 3);
+  eq("Kindle eReader and Kobo E-Reader are one kind", diversify([{ title: "Kobo Clara 6\" E-Reader" }, { title: "Amazon Kindle eReader" }], 1).length, 1);
+  eq("Galaxy Watch5 and a Slate Watch are one kind", diversify([{ title: "Galaxy Watch5 Pro" }, { title: "Suunto 9 Peak Pro Slate Watch" }], 1).length, 1);
+  eq("football page drops baseball", allowed(pageBySlug("gifts-for-football-fans"), { title: "St. Louis Cardinals Park Stadium Throw Blanket" }), false);
 }
 
 console.log(`${passed} passed, ${failed} failed`);

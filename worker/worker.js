@@ -48,9 +48,44 @@ async function buildGuide(db, env, p, { cardsOnly = false } = {}) {
   if (cardsOnly && old) guide = JSON.parse(old.guide_json);
   else { guide = parseGuide(await ai(GUIDE_SYSTEM, guidePrompt(p)).catch(() => null), p); if (!guide) return { ok: false, error: "the model gave no usable guide" }; }
   const brief = pageBrief(p);
-  const r = await findGifts(brief, { ai, search: q => channel3Search(env, q, brief) });
-  const cards = diversify([...(r.picks || []), ...(r.more || [])].filter(c => allowed(p, c)), p.cap || 3).slice(0, 16);
-  if (cards.length < 4) return { ok: false, error: `only ${cards.length} products found` };
+  // A "10 best" page with fixed slots: one search per category, the top in-stock product of each, then one AI call for the reasons.
+  if (p.slots) {
+    const found = await Promise.all(p.slots.map(q => channel3Search(env, q, brief).then(ps => ps.map(x => toCard(x, brief.budget_cents))).catch(() => [])));
+    // Up to six candidates per slot; the AI picks the best-known, best-reviewed-sounding one by index and says why.
+    const cands = found.map(list => mergeCards([list.filter(Boolean)]).filter(c => allowed(p, c)).slice(0, 6));
+    let choice = [];
+    try {
+      const out = (await ai("You pick the single best gift in each category for a page titled \"" + p.keyword + "\". Prefer well-known brands and real, " +
+        "current products over generic or knock-off listings. Only use what the titles and prices say; never invent specs. " +
+        "Answer only JSON: {\"picks\":[{\"slot\":0,\"pick\":2,\"reason\":\"one sentence under 25 words\"}]} with one entry per slot.",
+        JSON.stringify(cands.map((l, i) => ({ slot: i, category: p.slots[i], options: l.map((c, k) => `${k}: ${c.title} ($${(c.price_cents || 0) / 100})`) })))));
+      choice = Array.isArray(out && out.picks) ? out.picks : [];
+    } catch { choice = []; }
+    const chosen = [], seen = new Set();
+    cands.forEach((l, i) => {
+      const ch = choice.find(x => x && x.slot === i), k = ch && Number.isInteger(ch.pick) && l[ch.pick] ? ch.pick : 0;
+      const c = l[k] && !seen.has(l[k].product_id) ? l[k] : l.find(x => !seen.has(x.product_id));
+      if (!c) return;
+      seen.add(c.product_id);
+      chosen.push(ch && typeof ch.reason === "string" && ch.reason.length > 10 && c === l[k] ? { ...c, reason: ch.reason.slice(0, 220) } : c);
+    });
+    if (chosen.length < (p.count || chosen.length)) return { ok: false, error: `only ${chosen.length} of ${p.slots.length} slots found a product` };
+    const cards = chosen.slice(0, p.count || 16), t = now();
+    await db.prepare("INSERT INTO seo_pages (slug,guide_json,cards_json,updated_at,created_at) VALUES (?,?,?,?,?) " +
+      "ON CONFLICT(slug) DO UPDATE SET guide_json=excluded.guide_json, cards_json=excluded.cards_json, updated_at=excluded.updated_at")
+      .bind(p.slug, JSON.stringify(guide), JSON.stringify(cards), t, t).run();
+    return { ok: true, slug: p.slug, products: cards.length, with_reasons: cards.filter(c => c.reason).length, faq: guide.faq.length };
+  }
+  // Otherwise a count page runs up to three search rounds and pools them to reach its number of distinct kinds.
+  let pool = [], cards = [];
+  for (let round = 0; round < (p.count ? 3 : 1); round++) {
+    const r = await findGifts(brief, { ai, search: q => channel3Search(env, q, brief) });
+    pool = mergeCards([pool, r.picks || [], r.more || []]);
+    cards = diversify(pool.filter(c => allowed(p, c)), p.cap || 3).slice(0, p.count || 16);
+    if (!p.count || cards.length >= p.count) break;
+  }
+  const need = p.count || 4;
+  if (cards.length < need) return { ok: false, error: `only ${cards.length} products found (need ${need})` };
   const t = now();
   await db.prepare("INSERT INTO seo_pages (slug,guide_json,cards_json,updated_at,created_at) VALUES (?,?,?,?,?) " +
     "ON CONFLICT(slug) DO UPDATE SET guide_json=excluded.guide_json, cards_json=excluded.cards_json, updated_at=excluded.updated_at")
