@@ -94,6 +94,11 @@ eq("without ids the page has no ad code at all", renderGuide(p, row, [], null, "
       eq("team page links league mates and its sport guide, not itself", team.includes("new-york-giants") && team.includes("/gifts/gifts-for-football-fans") && !team.includes("dallas-cowboys-fans"), true);
       eq("related skips unbuilt pages", related(pageBySlug("gifts-for-dallas-cowboys-fans"), built).map(r => r.slug).every(s => built.has(s)), true);
       eq("non-sport pages get no team list", teamNav(pageBySlug("gifts-for-gamers"), built), ""); }
+    eq("orc page drops orchids and New York", allowed(pageBySlug("gifts-for-orc-fans"), { title: "Phalaenopsis Orchid Plant" }) || allowed(pageBySlug("gifts-for-orc-fans"), { title: "New York Skyline Mug" }), false);
+    eq("orc page keeps orc miniatures", allowed(pageBySlug("gifts-for-orc-fans"), { title: "Warhammer Orks Boyz Miniatures" }), true);
+    eq("mushroom page drops supplements", allowed(pageBySlug("gifts-for-mushroom-lovers"), { title: "Lion's Mane Mushroom Gummies" }), false);
+    eq("Marvel page keeps Doctor Strange", allowed(pageBySlug("gifts-for-marvel-fans"), { title: "Marvel Legends Doctor Strange Figure" }), true);
+    eq("theme slots must be their kind", pageBySlug("gifts-for-unicorn-lovers").slotMust[0].includes("plush") && pageBySlug("gifts-for-unicorn-lovers").slotMust[2].includes("lamp"), true);
     eq("Ajax page drops Ajax cleaner", allowed(pageBySlug("gifts-for-afc-ajax-fans"), { title: "Ajax Dish Soap" }), false);
     eq("USMNT page keeps U.S. Soccer gear", allowed(pageBySlug("gifts-for-usmnt-fans"), { title: "U.S. Soccer 2026 Home Jersey" }), true);
     eq("MLS alias spellings count", allowed(pageBySlug("gifts-for-lafc-fans"), { title: "Los Angeles FC Club Scarf" }), true);

@@ -129,6 +129,68 @@ export const TEAM_PAGES = Object.entries(TEAMS).flatMap(([lg, teams]) => teams.m
     notes: `officially licensed ${full} gear for a ${LEAGUE[lg].sport} fan; every product must be ${full} merchandise` });
 }));
 
+// Fantasy, fandom and character pages. Every product title must name the theme (`require`), each slot must be its
+// own kind of product (`slotMust`, from the slot's last kind word), and adult items stay out (many fans are kids).
+const THEME_WORDS = { ...SLOT_WORDS, plush: ["plush", "stuffed", "plushie", "pillow"], light: ["light", "lamp"], lamp: ["lamp", "light"],
+  necklace: ["necklace", "pendant"], earrings: ["earring"], socks: ["sock"], slippers: ["slipper"], puzzle: ["puzzle"], planter: ["planter", "pot"],
+  "tote bag": ["bag", "tote"], book: ["book", "novel", "guide", "handbook"], figurine: ["figurine", "statue", "figure", "sculpture"],
+  statue: ["statue", "figurine", "sculpture", "gnome"], lego: ["lego"], "funko pop": ["funko", "pop!"], poster: ["poster", "print", "art"],
+  "wall art": ["framed", "canvas", "wall art", "wall decor", "art print", "wall poster"], "graphic novel": ["graphic novel", "omnibus", "book", "vol.", "volume", "library", "collection"], "dice set": ["dice"],
+  "dice tower": ["tower"], "dice tray": ["tray"], miniature: ["miniature", "mini", "figure"], "costume": ["costume"], ornament: ["ornament"] };
+const themeWords = s => { const k = Object.keys(THEME_WORDS).filter(w => s.toLowerCase().includes(w)).sort((a, b) => s.toLowerCase().lastIndexOf(b) - s.toLowerCase().lastIndexOf(a) || b.length - a.length)[0]; return k ? THEME_WORDS[k] : null; };
+const FAN_EXCLUDE = ["vibrator", "adult toy", "sexy", "lingerie", "wine", "shot glass", "vape", "bong", "rolling paper", "gift card", "nsfw"];
+const T = (slug, keyword, recipient, budget, topic, require, slots, extra = {}) => P(slug, keyword, recipient, "Christmas", budget, {
+  topic, count: slots.length, minCount: 5, require, slots, slotMust: slots.map(themeWords), ...extra, exclude: [...FAN_EXCLUDE, ...(topic === "Superheroes" ? ["t-shirt", "tee shirt", " tee", "trucker hat", "9fifty", "snapback", "pull over", "pullover", "sweatshirt", "crewneck"] : []), ...(extra.exclude || [])] });
+export const THEME_PAGES = [
+  T("gifts-for-unicorn-lovers", "Gifts for unicorn lovers", "someone who loves unicorns", 60, "Fantasy & fandoms", ["unicorn"],
+    ["unicorn plush", "unicorn mug", "unicorn night light", "unicorn necklace", "unicorn blanket", "unicorn slippers", "unicorn puzzle"]),
+  T("gifts-for-frog-lovers", "Gifts for frog lovers", "someone who loves frogs", 50, "Fantasy & fandoms", ["frog"],
+    ["frog plush", "frog mug", "frog planter", "frog socks", "frog lamp", "frog earrings", "frog tote bag"], { exclude: ["frogg toggs", "frog tape"] }),
+  T("gifts-for-fairy-lovers", "Gifts for fairy lovers", "someone who loves fairies", 60, "Fantasy & fandoms", ["fairy", "fairies", "faerie"],
+    ["fairy garden house", "fairy figurine", "fairy necklace", "fairy night light", "fairy book", "fairy wings costume", "fairy blanket"], { exclude: ["fairy lights", "string lights"] }),
+  T("gifts-for-gnome-lovers", "Gifts for gnome lovers", "someone who loves gnomes", 60, "Fantasy & fandoms", ["gnome"],
+    ["garden gnome statue", "gnome plush", "gnome mug", "gnome socks", "gnome ornament", "gnome puzzle", "gnome book"]),
+  T("gifts-for-wizard-lovers", "Gifts for wizard lovers", "someone who loves wizards and magic", 75, "Fantasy & fandoms", ["wizard"],
+    ["wizard figurine", "wizard staff costume", "wizard hat costume", "wizard book", "wizard mug", "wizard lamp", "wizard puzzle"], { exclude: ["washington wizards", "wizards jersey"] }),
+  T("gifts-for-fantasy-ranger-fans", "Gifts for fantasy ranger fans", "someone who loves fantasy rangers, archers and LARP", 100, "Fantasy & fandoms", null,
+    ["LARP ranger cloak", "medieval leather bracers", "leather arrow quiver", "elven ranger miniature", "fantasy world map poster", "compass necklace", "fantasy ranger book"],
+    { exclude: ["texas rangers", "new york rangers", "power rangers", "park ranger", "range rover", "glasgow rangers", "rangers fc"], notes: "the fantasy ranger: Aragorn-style wanderers, D&D rangers, archers and LARP gear" }),
+  T("gifts-for-orc-fans", "Gifts for orc fans", "someone who loves orcs from fantasy games and books", 75, "Fantasy & fandoms", [" orc", "orcs", " ork", "orks "],
+    ["orc miniature", "orc figurine", "orc mask costume", "orc book", "orc mug", "orc poster"], { exclude: ["orchid", "orchestra", "orca", "york", "work", "fork", "pork", "cork", "torch"] }),
+  T("gifts-for-dragon-lovers", "Gifts for dragon lovers", "someone who loves dragons", 75, "Fantasy & fandoms", ["dragon"],
+    ["dragon figurine", "dragon necklace", "dragon plush", "dragon lamp", "dragon mug", "dragon book", "dragon dice set"], { exclude: ["dragon fruit", "dragonfly", "dragon ball", "dragon naturally"] }),
+  T("gifts-for-mermaid-lovers", "Gifts for mermaid lovers", "someone who loves mermaids", 60, "Fantasy & fandoms", ["mermaid"],
+    ["mermaid tail blanket", "mermaid necklace", "mermaid plush", "mermaid night light", "mermaid mug", "mermaid book", "mermaid figurine"]),
+  T("gifts-for-mushroom-lovers", "Gifts for mushroom lovers", "someone who loves the cottagecore mushroom look", 60, "Fantasy & fandoms", ["mushroom"],
+    ["mushroom lamp", "mushroom plush", "mushroom mug", "mushroom earrings", "mushroom planter", "mushroom growing kit", "mushroom book"],
+    { exclude: ["supplement", "gummies", "gummy", "capsule", "extract", "powder", "tincture", "lion's mane", "reishi", "chaga", "cordyceps", "mushroom coffee", "psilocybin", "magic mushroom", "spore"] }),
+  T("gifts-for-dnd-players", "Gifts for D&D players", "someone who plays Dungeons & Dragons", 100, "Fantasy & fandoms", null,
+    ["metal dice set", "dice tower", "dice tray", "D&D Player's Handbook", "D&D miniature", "D&D adventure book", "D&D board game"], { exclude: ["drug", "dnd sticker sheet"] }),
+  T("gifts-for-dungeon-masters", "Gifts for dungeon masters", "a Dungeons & Dragons dungeon master", 100, "Fantasy & fandoms", null,
+    ["dungeon master screen", "D&D Dungeon Master's Guide", "D&D Monster Manual", "wet erase battle map grid", "dice tower", "D&D miniature"], { exclude: ["exercise", "yoga", "goal tracker", "fitness"] }),
+  T("gifts-for-lord-of-the-rings-fans", "Gifts for Lord of the Rings fans", "a Lord of the Rings fan", 100, "Fantasy & fandoms", ["lord of the rings", "hobbit", "tolkien", "middle-earth", "middle earth", "lotr"],
+    ["Lord of the Rings LEGO", "Lord of the Rings book", "Lord of the Rings map poster", "Lord of the Rings mug", "Lord of the Rings ring necklace", "Lord of the Rings figure", "Lord of the Rings board game"]),
+  T("gifts-for-harry-potter-fans", "Gifts for Harry Potter fans", "a Harry Potter fan", 100, "Fantasy & fandoms", ["harry potter", "hogwarts"],
+    ["Harry Potter LEGO", "Harry Potter wand", "Harry Potter book", "Harry Potter mug", "Hogwarts house scarf", "Harry Potter puzzle", "Harry Potter blanket"]),
+  T("gifts-for-star-wars-fans", "Gifts for Star Wars fans", "a Star Wars fan", 100, "Fantasy & fandoms", ["star wars", "mandalorian", "jedi", "grogu"],
+    ["Star Wars LEGO", "Star Wars lightsaber", "Star Wars mug", "Star Wars hoodie", "Star Wars book", "Star Wars poster", "Star Wars funko pop"]),
+  T("gifts-for-pokemon-fans", "Gifts for Pokémon fans", "a Pokémon fan", 75, "Fantasy & fandoms", ["pokemon", "pokémon", "pikachu"],
+    ["Pokemon plush", "Pokemon card binder", "Pokemon LEGO", "Pokemon hoodie", "Pokemon mug", "Pokemon puzzle", "Pokemon book"], { exclude: ["booster", "card pack", "elite trainer box"] }),
+  // Superheroes
+  T("gifts-for-superhero-fans", "Gifts for superhero fans", "someone who loves superheroes", 100, "Superheroes", ["marvel", "dc comics", "batman", "superman", "spider-man", "spiderman", "wonder woman", "avengers", "superhero", "iron man", "captain america"],
+    ["superhero LEGO", "superhero figure", "superhero graphic novel", "superhero hoodie", "superhero mug", "superhero framed wall art", "superhero funko pop"]),
+  T("gifts-for-batman-fans", "Gifts for Batman fans", "a Batman fan", 100, "Superheroes", ["batman", "gotham", "batmobile"],
+    ["Batman LEGO", "Batman figure", "Batman graphic novel", "Batman hoodie", "Batman mug", "Batman framed wall art", "Batman funko pop"]),
+  T("gifts-for-superman-fans", "Gifts for Superman fans", "a Superman fan", 100, "Superheroes", ["superman"],
+    ["Superman LEGO", "Superman figure", "Superman graphic novel", "Superman hoodie", "Superman mug", "Superman framed wall art", "Superman funko pop"]),
+  T("gifts-for-spider-man-fans", "Gifts for Spider-Man fans", "a Spider-Man fan", 100, "Superheroes", ["spider-man", "spiderman", "spider man", "miles morales"],
+    ["Spider-Man LEGO", "Spider-Man figure", "Spider-Man graphic novel", "Spider-Man hoodie", "Spider-Man mug", "Spider-Man framed wall art", "Spider-Man funko pop"]),
+  T("gifts-for-wonder-woman-fans", "Gifts for Wonder Woman fans", "a Wonder Woman fan", 100, "Superheroes", ["wonder woman"],
+    ["Wonder Woman figure", "Wonder Woman graphic novel", "Wonder Woman hoodie", "Wonder Woman mug", "Wonder Woman framed wall art", "Wonder Woman funko pop", "Wonder Woman necklace"]),
+  T("gifts-for-marvel-fans", "Gifts for Marvel fans", "a Marvel fan", 100, "Superheroes", ["marvel", "avengers"],
+    ["Marvel LEGO", "Marvel Legends figure", "Marvel graphic novel", "Marvel hoodie", "Marvel mug", "Marvel framed wall art", "Marvel funko pop"]),
+];
+
 // Holiday long-tail first. `store` links the page into a gift.directory store (and its group gifts).
 export const PAGES = [
   // lawyers & law
@@ -312,6 +374,7 @@ export const PAGES = [
   // anniversaries by year
   ...ANNIVERSARY_PAGES,
   ...TEAM_PAGES,
+  ...THEME_PAGES,
   // family & interests
   P("christmas-gifts-for-boyfriend", "Christmas gifts for your boyfriend", "my boyfriend", "Christmas", 100, { topic: "Family & interests", cap: 2, exclude: NICHE_NOVELTY,
     notes: "thoughtful gifts he will use: a quality wallet or watch, a cozy hoodie or pullover, headphones, a grooming set, a personalized keepsake, barware, a gadget; no novelty joke gifts" }),
