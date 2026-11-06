@@ -7,6 +7,15 @@
 // as rules, and what it DOES to the shop is a separate function over a D1-shaped db. The network
 // is passed in (fetchImpl) so the token and signature paths can be tested without PayPal.
 
+// Sandbox and live credentials sit side by side; PAYPAL_ENV picks which set the rest of the code sees.
+// Live needs its own secrets (PAYPAL_LIVE_CLIENT_ID / PAYPAL_LIVE_CLIENT_SECRET) and plan (PAYPAL_LIVE_PLAN_ID).
+// If live is chosen but its secrets are missing, PayPal reads as not configured; it never falls back to sandbox keys.
+export function paypalMode(env) {
+  if (!env || env.PAYPAL_ENV !== "live") return env;
+  return { ...env, PAYPAL_CLIENT_ID: env.PAYPAL_LIVE_CLIENT_ID || "", PAYPAL_CLIENT_SECRET: env.PAYPAL_LIVE_CLIENT_SECRET || "",
+    PAYPAL_PLAN_ID: env.PAYPAL_LIVE_PLAN_ID || "", PAYPAL_WEBHOOK_ID: env.PAYPAL_LIVE_WEBHOOK_ID || "" };
+}
+
 export function paypalBase(env) {
   return env && env.PAYPAL_ENV === "live" ? "https://api-m.paypal.com" : "https://api-m.sandbox.paypal.com";
 }

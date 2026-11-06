@@ -48,5 +48,19 @@ eq("in the owner's order", sh[1].cards.map(c => c.product_id).join(","), "d,a");
 eq("hidden items are not on a shelf", sh.flatMap(s => s.cards).some(c => c.product_id === "c"), false);
 eq("hidden products never show", withoutHidden([{ product_id: "c" }, { product_id: "x" }], [it("c", "hidden")]).length, 1);
 
+{
+  const { paypalMode, paypalBase } = await import("../paypal-core.js");
+  const both = { PAYPAL_ENV: "sandbox", PAYPAL_CLIENT_ID: "sb-id", PAYPAL_CLIENT_SECRET: "sb-sec", PAYPAL_PLAN_ID: "P-SB",
+    PAYPAL_LIVE_CLIENT_ID: "live-id", PAYPAL_LIVE_CLIENT_SECRET: "live-sec", PAYPAL_LIVE_PLAN_ID: "P-LIVE", DB: "db" };
+  eq("sandbox mode keeps sandbox keys", paypalMode(both).PAYPAL_CLIENT_ID, "sb-id");
+  const live = paypalMode({ ...both, PAYPAL_ENV: "live" });
+  eq("live mode uses live keys", live.PAYPAL_CLIENT_ID + "|" + live.PAYPAL_CLIENT_SECRET + "|" + live.PAYPAL_PLAN_ID, "live-id|live-sec|P-LIVE");
+  eq("live mode talks to the live API", paypalBase(live), "https://api-m.paypal.com");
+  eq("live mode keeps other bindings", live.DB, "db");
+  const half = paypalMode({ PAYPAL_ENV: "live", PAYPAL_CLIENT_ID: "sb-id", PAYPAL_CLIENT_SECRET: "sb-sec" });
+  eq("live without live keys never falls back to sandbox keys", half.PAYPAL_CLIENT_ID, "");
+  eq("live login goes to paypal.com", authorizeUrl(live, "https://gift.directory/api/auth/paypal/callback", "s").startsWith("https://www.paypal.com/"), true);
+}
+
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

@@ -24,6 +24,8 @@
     "ADSENSE_CLIENT": "ca-pub-7950071846499535",
     "INDEXNOW_KEY": "cdbf5866d78ab29c85ad2021cc135597",
     "PAYPAL_PLAN_ID": "P-10T383300X8815800NLWMZCY",
+    // Live $19/month plan (fill in from scripts/setup-plan.mjs run with PAYPAL_ENV=live). Used only when PAYPAL_ENV is "live".
+    "PAYPAL_LIVE_PLAN_ID": "",
     "TEXT_MODEL": "Qwen/Qwen3-235B-A22B-Instruct-2507"
   }
   // Secrets (wrangler secret put): PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, CHANNEL3_API_KEY, NEBIUS_API_KEY

@@ -1,5 +1,5 @@
 // Gift Finder — API worker. Static pages (finder, pool page) are served from ./public.
-import { paypalFetch, link } from "./paypal-core.js";
+import { paypalFetch, link, paypalMode } from "./paypal-core.js";
 import { validateBrief, findGifts, browseGifts, channel3Search, toCard, mergeCards } from "./finder.js";
 import { validatePool, contributionError, buildContributionOrder, readCapture, applyCapture, publicPool } from "./pools.js";
 import { ROOT, DRAFT_SYSTEM, parseDraft, validateStore, storePlanSystem, subscriptionBody, storeStatusFor, hostKey, publicStore, darkEnough } from "./stores.js";
@@ -184,6 +184,7 @@ async function resolveStore(db, env, url, request) {
 
 export default {
   async fetch(request, env, ctx) {
+    env = paypalMode(env); // sandbox or live PayPal credentials, by PAYPAL_ENV
     const url = new URL(request.url);
     const parts = url.pathname.split("/").filter(Boolean);
     const m = request.method;
