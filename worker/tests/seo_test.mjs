@@ -63,6 +63,9 @@ eq("without ids the page has no ad code at all", renderGuide(p, row, [], null, "
   eq("sleeping pads with different endings are one kind", diversify(["NeoAir Sleeping Pad with Mini Pump", "Inflatable Sleeping Pad with Built-In Foot Pump", "Self Inflating Sleeping Pad"].map(x => ({ title: x })), 2).length, 2);
   eq("a cashmere throw and a throw blanket are one kind", diversify(["Cashmere Throw", "Waffle Knit Throw Blanket", "Faux Cashmere Throw"].map(x => ({ title: x })), 2).length, 2);
   eq("multi-tools with different endings are one kind", diversify(["Foldable Multi-Tool Kit", "Premium 10-in-1 Multi-Tool", "Paint Multi-Tool 14090060"].map(x => ({ title: x })), 2).length, 2);
+  eq("crossbody bags and handbags are one kind", diversify(["Darcy Small Woven Leather Crossbody Handbag", "Laila Extra-small Leather Crossbody Bag", "207 Leather Crossbody"].map(x => ({ title: x })), 2).length, 2);
+  eq("cocktail smokers are one kind", diversify(["Cocktail Smoking Kit", "Glass Topper Cocktail Smoker Kit", "Cold Smoke Electric Cocktail Smoker"].map(x => ({ title: x })), 2).length, 2);
+  eq("barware sets are one kind", diversify(["Lalique Lotus Barware Collection", "Talismano Barware Set", "Ethno Barware Set"].map(x => ({ title: x })), 2).length, 2);
   eq("gifts for her drops lawyer novelty", allowed(pageBySlug("christmas-gifts-for-her-under-50"), { title: "Trust Me, I'm A Lawyer - 22-oz Candle Jar" }), false);
   eq("football page drops baseball", allowed(pageBySlug("gifts-for-football-fans"), { title: "St. Louis Cardinals Park Stadium Throw Blanket" }), false);
 }

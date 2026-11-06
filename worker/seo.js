@@ -152,7 +152,48 @@ export const PAGES = [
     notes: "an electric wine opener, a wine aerator, quality wine glasses, a wine chiller, a wine journal, a countertop wine rack, a wine preserver" }),
   P("gifts-for-runners", "Gifts for runners", "someone who runs", "Christmas", 100, { topic: "Hobbies", cap: 2,
     notes: "a running belt, sport earbuds, a GPS running watch, a foam roller or massage gun, running socks, a reflective vest or running light, a hydration vest" }),
+  P("gifts-for-tea-lovers", "Gifts for tea lovers", "someone who loves tea", "Christmas", 50, { topic: "Hobbies", cap: 2,
+    notes: "a glass teapot or tea infuser set, an electric gooseneck kettle, a tea sampler or loose-leaf collection, a matcha set, a tea mug with infuser, a tea storage tin set" }),
+  P("gifts-for-beer-lovers", "Gifts for beer lovers", "someone who loves craft beer", "Christmas", 50, { topic: "Hobbies", cap: 2,
+    notes: "a home brewing kit, beer glasses set, an insulated growler, a beer cap map or display, a bottle opener, a beer tasting journal" }),
+  P("gifts-for-yoga-lovers", "Gifts for yoga lovers", "someone who does yoga", "Christmas", 75, { topic: "Hobbies", cap: 2,
+    notes: "a quality yoga mat, yoga blocks and strap, a meditation cushion, a mat bag, an essential oil diffuser, a cozy wrap or yoga pants" }),
+  P("gifts-for-artists", "Gifts for artists", "an artist who paints or draws", "Christmas", 75, { topic: "Hobbies", cap: 2,
+    notes: "a professional colored pencil or marker set, watercolor paints, a sketchbook, a tabletop easel, an art supply organizer, a quality brush set, a portable art case" }),
+  P("gifts-for-nature-lovers", "Gifts for nature lovers", "someone who loves the outdoors and nature", "Christmas", 75, { topic: "Hobbies", cap: 2,
+    notes: "a bird feeder or birdhouse, binoculars, a field guide, a nature journal, a plant terrarium, a star map or telescope, a wildflower seed kit" }),
+  P("gifts-for-travelers", "Gifts for travelers", "someone who loves to travel", "Christmas", 100, { topic: "Hobbies", cap: 2,
+    notes: "a carry-on packing cube set, a scratch-off world map, a travel pillow, a leather passport holder, a toiletry bag, a weekender bag, a travel journal" }),
   // family & interests
+  P("christmas-gifts-for-boyfriend", "Christmas gifts for your boyfriend", "my boyfriend", "Christmas", 100, { topic: "Family & interests", cap: 2, exclude: NICHE_NOVELTY,
+    notes: "thoughtful gifts he will use: a quality wallet or watch, a cozy hoodie or pullover, headphones, a grooming set, a personalized keepsake, barware, a gadget; no novelty joke gifts" }),
+  P("christmas-gifts-for-girlfriend", "Christmas gifts for your girlfriend", "my girlfriend", "Christmas", 100, { topic: "Family & interests", cap: 2, exclude: NICHE_NOVELTY,
+    notes: "thoughtful gifts she will love: jewelry, a cozy robe or throw, a spa or beauty set, a handbag or accessory, a personalized keepsake, a candle; no novelty joke gifts" }),
+  P("christmas-gifts-for-husband", "Christmas gifts for your husband", "my husband", "Christmas", 200, { topic: "Family & interests", cap: 2, exclude: NICHE_NOVELTY,
+    notes: "a quality watch or wallet, a leather weekender bag, premium headphones, a grilling or bar upgrade, a cozy quarter-zip, a personalized keepsake, a tool he has wanted" }),
+  P("christmas-gifts-for-wife", "Christmas gifts for your wife", "my wife", "Christmas", 200, { topic: "Family & interests", cap: 2, exclude: NICHE_NOVELTY,
+    notes: "jewelry, a cashmere wrap or robe, a luxury spa set, a quality handbag, a personalized keepsake, a smart mug or photo frame, a cozy throw" }),
+  P("christmas-gifts-for-sister", "Christmas gifts for your sister", "my sister", "Christmas", 75, { topic: "Family & interests", cap: 2, exclude: NICHE_NOVELTY,
+    notes: "a personalized necklace or bracelet, a cozy throw, a candle set, a spa or skincare set, a cute tote, a journal, a sibling keepsake" }),
+  P("christmas-gifts-for-brother", "Christmas gifts for your brother", "my brother", "Christmas", 75, { topic: "Family & interests", cap: 2, exclude: NICHE_NOVELTY,
+    notes: "a gadget, a quality wallet, a hoodie, a card or board game, barware, a multitool, a grooming kit" }),
+  P("gifts-for-new-grandparents", "Gifts for new grandparents", "new grandparents", "new grandchild", 75, { topic: "Life events", cap: 2,
+    notes: "a digital photo frame, a personalized grandparent keepsake or ornament, a 'grandma/grandpa' mug, a baby photo album, a memory journal" }),
+  P("gifts-for-college-students", "Gifts for college students", "a college student", "Christmas", 50, { topic: "Life events", cap: 2,
+    notes: "a dorm-friendly mini fridge or kettle, noise-cancelling earbuds, a portable charger, a weighted or cozy blanket, a backpack, a desk lamp, a coffee maker for one" }),
+  // christmas, broad
+  P("unique-christmas-gifts", "Unique Christmas gifts", "someone who would love something different", "Christmas", 100, { topic: "Holidays", cap: 2, exclude: NICHE_NOVELTY,
+    notes: "unusual but useful: a star map print, a cocktail smoker, a levitating plant pot, a custom pet portrait, a scratch-off map, a sunrise alarm clock, a smart garden" }),
+  P("personalized-christmas-gifts", "Personalized Christmas gifts", "someone special", "Christmas", 75, { topic: "Holidays", cap: 2, exclude: NICHE_NOVELTY,
+    notes: "gifts that can be personalized with a name, initials, date or photo: engraved jewelry, a monogrammed blanket, a custom cutting board, a photo book, an engraved decanter, a name ornament" }),
+  P("christmas-gifts-for-people-who-are-hard-to-shop-for", "Christmas gifts for people who are hard to shop for", "someone who is hard to shop for", "Christmas", 100, { topic: "Holidays", cap: 2, exclude: NICHE_NOVELTY,
+    notes: "safe bets with a wow factor: a heated throw, a premium candle, a smart mug, a quality multitool, a cozy robe, a digital photo frame, a luxury snack-free gift set" }),
+  P("luxury-christmas-gifts-under-200", "Luxury Christmas gifts under $200", "someone who appreciates nice things", "Christmas", 200, { topic: "Holidays", cap: 2, exclude: NICHE_NOVELTY,
+    notes: "premium, well-known brands: cashmere, fine leather goods, a designer candle, premium headphones, crystal barware, a silk pillowcase set" }),
+  P("christmas-gifts-for-kids-under-25", "Christmas gifts for kids under $25", "a child age 6 to 10", "Christmas", 25, { topic: "Holidays", cap: 2,
+    notes: "toys and kits for ages 6-10: a building set, a science or craft kit, a family card or board game, an art set, an outdoor toy, a puzzle; age-appropriate only, nothing for adults" }),
+  P("christmas-gifts-for-coworkers-under-15", "Christmas gifts for coworkers under $15", "a coworker", "Christmas", 15, { topic: "Work & office", cap: 2,
+    notes: "small office-friendly gifts under $15: a nice pen, a desk plant, a mug, hand cream, a mini candle, a phone stand, a desk game; nothing personal" }),
   P("christmas-gifts-for-dad-who-has-everything", "Christmas gifts for a dad who has everything", "my dad, who has everything", "Christmas", 150, { topic: "Family & interests" }),
   P("christmas-gifts-for-mom-who-wants-nothing", "Christmas gifts for a mom who says she wants nothing", "my mom", "Christmas", 150, { topic: "Family & interests" }),
   P("christmas-gifts-for-grandparents", "Christmas gifts for grandparents", "my grandparents", "Christmas", 100, { topic: "Family & interests" }),
@@ -181,9 +222,10 @@ export const PAGES = [
 export const pageBySlug = slug => PAGES.find(p => p.slug === slug) || null;
 
 // No page should be seven candles: at most `cap` products of one kind, in the order they came.
-const KINDS = /\b(candles?|mugs?|bowls?|pens?|blankets?|throws?|journals?|notebooks?|clocks?|tumblers?|portfolios?|padfolios?|boards?|glass(?:es)?|decanters?|socks|necklaces?|bracelets?|wall art|prints?|baskets?|tote|bags?|wallets?|frames?|plants?|games?|ornaments?|flasks?|flashlights?|coins?|dryers?|power banks?|power paks?|headlamps?|keyboards?|ssds?|sunglasses|bottles?|towels?|shears|light bars?|massagers?|massage|sunscreens?|suncare|watch(?:es)?|smartwatch(?:es)?|headphones?|earbuds?|hub|speakers?|projectors?|e-readers?|drones?|consoles?|cameras?|vacuums?|putting|divot|sensors?|golf balls?|jerseys?|grills?|display cases?|ereaders?|watch\d+|gloves?|binoculars?|hammocks?|sleeping pads?|stoves?|lanterns?|cups?|thermometers?|liners?|pillows?|pillowcases?|lamps?|scarf|scarves|slippers?|bookmarks?|hand creams?|trail cameras?|pruners?|kneelers?|planters?|aerators?|openers?|record players?|turntables?|kits?|multi-?tools?|robes?|cocktail sets?|shakers?)\b/i;
+const KINDS = /\b(candles?|mugs?|bowls?|pens?|blankets?|throws?|journals?|notebooks?|clocks?|tumblers?|portfolios?|padfolios?|boards?|glass(?:es)?|decanters?|socks|necklaces?|bracelets?|wall art|prints?|baskets?|tote|bags?|wallets?|frames?|plants?|games?|ornaments?|flasks?|flashlights?|coins?|dryers?|power banks?|power paks?|headlamps?|keyboards?|ssds?|sunglasses|bottles?|towels?|shears|light bars?|massagers?|massage|sunscreens?|suncare|watch(?:es)?|smartwatch(?:es)?|headphones?|earbuds?|hub|speakers?|projectors?|e-readers?|drones?|consoles?|cameras?|vacuums?|putting|divot|sensors?|golf balls?|jerseys?|grills?|display cases?|ereaders?|watch\d+|gloves?|binoculars?|hammocks?|sleeping pads?|stoves?|lanterns?|cups?|thermometers?|liners?|pillows?|pillowcases?|lamps?|scarf|scarves|slippers?|bookmarks?|hand creams?|trail cameras?|pruners?|kneelers?|planters?|aerators?|openers?|record players?|turntables?|kits?|multi-?tools?|robes?|cocktail sets?|shakers?|handbags?|crossbody|smokers?|smoking kits?|portraits?|gardens?|growbars?|flowerpots?|flower pots?|barware|wraps?)\b/i;
 // Words that name the same kind of gift.
-const SAME_KIND = { throw: "blanket", shaker: "cocktail set", turntable: "record player", ereader: "ereader", smartwatch: "watch" };
+const SAME_KIND = { throw: "blanket", shaker: "cocktail set", turntable: "record player", ereader: "ereader", smartwatch: "watch",
+  handbag: "bag", crossbody: "bag", "smoking kit": "smoker", growbar: "garden", flowerpot: "garden", "flower pot": "garden", wrap: "scarf" };
 const KINDS_ALL = new RegExp(KINDS.source, "gi");
 // "Candles" and "Candle" are one kind ("es" only goes for glasses-type words).
 const singular = w => /(ss|x|ch|sh)es$/.test(w) ? w.slice(0, -2) : /[^s]s$/.test(w) ? w.slice(0, -1) : w;
