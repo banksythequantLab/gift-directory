@@ -86,7 +86,10 @@ eq("without ids the page has no ad code at all", renderGuide(p, row, [], null, "
   {
     const { TEAM_PAGES } = await import("../seo.js");
     eq("one fan page per team in the four leagues", TEAM_PAGES.filter(p => ["NFL", "MLB", "NBA", "NHL"].includes(p.team.league)).length, 124);
-    eq("WNBA, MLS and college pages", TEAM_PAGES.length, 199);
+    eq("WNBA, MLS, college, club and national pages", TEAM_PAGES.length, 199 + 31 + 21);
+    eq("England page drops New England gear", allowed(pageBySlug("gifts-for-england-soccer-fans"), { title: "New England Patriots Soccer Scarf" }), false);
+    eq("Ajax page drops Ajax cleaner", allowed(pageBySlug("gifts-for-afc-ajax-fans"), { title: "Ajax Dish Soap" }), false);
+    eq("USMNT page keeps U.S. Soccer gear", allowed(pageBySlug("gifts-for-usmnt-fans"), { title: "U.S. Soccer 2026 Home Jersey" }), true);
     eq("MLS alias spellings count", allowed(pageBySlug("gifts-for-lafc-fans"), { title: "Los Angeles FC Club Scarf" }), true);
     eq("accents leave the slug", !!pageBySlug("gifts-for-cf-montreal-fans"), true);
     eq("pages use the full team name", !!pageBySlug("gifts-for-new-york-giants-fans") && !!pageBySlug("gifts-for-san-francisco-giants-fans") && !!pageBySlug("gifts-for-st-louis-cardinals-fans"), true);

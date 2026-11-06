@@ -79,6 +79,17 @@ const TEAMS = {
     "Penn State Nittany Lions", "Clemson Tigers", "Oklahoma Sooners", "Florida Gators", "Tennessee Volunteers", "Auburn Tigers", "Oregon Ducks", "USC Trojans",
     "Texas A&M Aggies", "Wisconsin Badgers", "Nebraska Cornhuskers", "Iowa Hawkeyes", "Florida State Seminoles", "Miami Hurricanes", "Duke Blue Devils",
     "North Carolina Tar Heels", "Kentucky Wildcats", "Kansas Jayhawks", "Michigan State Spartans", "Arkansas Razorbacks", "Ole Miss Rebels", "UCLA Bruins", "Virginia Tech Hokies"],
+  // World soccer clubs. Names that are also ordinary words (Chelsea boots, Ajax cleaner, Celtic knots) carry the club suffix.
+  Clubs: ["Arsenal", ["Chelsea FC", "Chelsea F.C."], ["Liverpool FC", "Liverpool F.C.", "LFC"], ["Manchester City", "Man City"], ["Manchester United", "Man Utd", "Man United"],
+    ["Tottenham Hotspur", "Tottenham"], "Newcastle United", "Aston Villa", ["West Ham United", "West Ham"], "Everton",
+    "Real Madrid", ["FC Barcelona", "Barcelona FC", "Barça"], ["Atletico Madrid", "Atlético Madrid", "Atlético de Madrid"],
+    ["Bayern Munich", "FC Bayern", "Bayern München"], ["Borussia Dortmund", "BVB"], "Juventus", "AC Milan", ["Inter Milan", "Internazionale"], ["Napoli", "SSC Napoli"], "AS Roma",
+    ["Paris Saint-Germain", "Paris Saint Germain", "PSG"], ["AFC Ajax", "Ajax Amsterdam"], "Benfica", "FC Porto", ["Celtic FC", "Celtic F.C.", "Glasgow Celtic"],
+    ["Rangers FC", "Glasgow Rangers"], "Galatasaray", "Boca Juniors", "River Plate", ["Club América", "Club America"], ["Chivas", "Chivas de Guadalajara"]],
+  // National teams: the page and searches say "<country> soccer"; the filter needs the country in the title.
+  National: [["USMNT", "U.S. Soccer", "US Soccer", "USA Soccer", "United States National Team"], ["USWNT", "U.S. Soccer", "US Soccer", "USA Soccer"],
+    "Mexico", "Argentina", "Brazil", "England", "France", "Germany", "Spain", "Portugal", "Italy", "Netherlands", "Canada", "Japan", "Colombia",
+    "Belgium", "Croatia", "Uruguay", "Morocco", "South Korea", "Scotland"],
 };
 const LEAGUE = {
   NFL: { sport: "football", slots: ["jersey", "hoodie", "knit beanie", "throw blanket", "coffee mug", "Christmas ornament", "wall sign"] },
@@ -88,6 +99,9 @@ const LEAGUE = {
   WNBA: { sport: "basketball", min: 4, slots: ["jersey", "hoodie", "hat", "t-shirt", "coffee mug", "throw blanket", "mini basketball"] },
   MLS: { sport: "soccer", min: 4, slots: ["jersey", "scarf", "hoodie", "knit beanie", "throw blanket", "coffee mug", "soccer ball"] },
   College: { sport: "college sports", topic: "College fans", slots: ["hoodie", "football jersey", "knit beanie", "throw blanket", "coffee mug", "Christmas ornament", "wall sign"] },
+  Clubs: { sport: "soccer (football)", topic: "Soccer clubs", min: 4, slots: ["jersey", "scarf", "hoodie", "knit beanie", "throw blanket", "mug", "soccer ball"] },
+  National: { sport: "international soccer (football)", topic: "National soccer teams", min: 4, exclude: ["New England", "Patriots", "Canada Goose", "Brazil nut"], label: n => /^US[MW]NT$/.test(n) ? n : `${n} soccer`,
+    slots: ["soccer jersey", "soccer scarf", "soccer hoodie", "soccer hat", "soccer ball", "national team flag", "soccer mug"] },
 };
 // The team's short name: the last word, or the last two for names like "Red Sox", "Blue Jays", "Maple Leafs".
 const TWO_WORD = ["Red Sox", "White Sox", "Blue Jays", "Trail Blazers", "Maple Leafs", "Red Wings", "Blue Jackets", "Golden Knights"];
@@ -100,12 +114,12 @@ const SHARED_NICK = new Set(ALL_TEAMS.map(teamNick).filter((n, i, a) => a.indexO
 // filter use the full team name; "St." and "LA"/"Los Angeles" spellings both count.
 const teamSpellings = full => [...new Set([full, full.replace("St. ", "St "), full.replace(/^LA /, "Los Angeles "), full.replace(/^Los Angeles (Clippers)$/, "LA $1")])];
 export const TEAM_PAGES = Object.entries(TEAMS).flatMap(([lg, teams]) => teams.map(t => {
-  const full = teamName(t), nick = teamNick(full), L = LEAGUE[lg];
-  return P(`gifts-for-${slugify(full)}-fans`, `Gifts for ${full} fans`, `a ${full} fan`, "Christmas", 100, {
+  const full = teamName(t), nick = teamNick(full), L = LEAGUE[lg], name = L.label ? L.label(full) : full;
+  return P(`gifts-for-${slugify(name)}-fans`, `Gifts for ${name} fans`, `a ${name} fan`, "Christmas", 100, {
     topic: L.topic || `${lg} fans`, count: 7, minCount: L.min || 5, team: { league: lg, full, nick, shared: SHARED_NICK.has(nick) },
     slots: L.slots.map(s => `${full} ${s}`),
     require: [...new Set([...teamSpellings(full), ...(Array.isArray(t) ? t.slice(1) : [])])],
-    exclude: ["gift card", "replica toy gun", "for dogs", "pet "],
+    exclude: ["gift card", "replica toy gun", "for dogs", "pet ", ...(L.exclude || [])],
     notes: `officially licensed ${full} gear for a ${LEAGUE[lg].sport} fan; every product must be ${full} merchandise` });
 }));
 
