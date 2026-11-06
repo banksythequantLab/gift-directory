@@ -99,9 +99,9 @@ const LEAGUE = {
   WNBA: { sport: "basketball", min: 4, slots: ["jersey", "hoodie", "hat", "t-shirt", "coffee mug", "throw blanket", "mini basketball"] },
   MLS: { sport: "soccer", min: 4, slots: ["jersey", "scarf", "hoodie", "knit beanie", "throw blanket", "coffee mug", "soccer ball"] },
   College: { sport: "college sports", topic: "College fans", slots: ["hoodie", "football jersey", "knit beanie", "throw blanket", "coffee mug", "Christmas ornament", "wall sign"] },
-  Clubs: { sport: "soccer (football)", topic: "Soccer clubs", min: 4, slots: ["jersey", "scarf", "hoodie", "knit beanie", "throw blanket", "mug", "soccer ball"] },
-  National: { sport: "international soccer (football)", topic: "National soccer teams", min: 4, exclude: ["New England", "Patriots", "Canada Goose", "Brazil nut"], label: n => /^US[MW]NT$/.test(n) ? n : `${n} soccer`,
-    slots: ["soccer jersey", "soccer scarf", "soccer hoodie", "soccer hat", "soccer ball", "national team flag", "soccer mug"] },
+  Clubs: { sport: "soccer (football)", topic: "Soccer clubs", min: 4, strict: true, slots: ["jersey", "scarf", "hoodie", "knit beanie", "throw blanket", "mug", "soccer ball"] },
+  National: { sport: "international soccer (football)", topic: "National soccer teams", min: 4, strict: true, exclude: ["New England", "Patriots", "Canada Goose", "Brazil nut", "rugby", "cricket", "starbucks"], label: n => /^US[MW]NT$/.test(n) ? n : `${n} soccer`,
+    slots: ["soccer jersey", "soccer scarf", "soccer hoodie", "soccer hat", "soccer ball", "national team flag", "soccer t-shirt"] },
 };
 // The team's short name: the last word, or the last two for names like "Red Sox", "Blue Jays", "Maple Leafs".
 const TWO_WORD = ["Red Sox", "White Sox", "Blue Jays", "Trail Blazers", "Maple Leafs", "Red Wings", "Blue Jackets", "Golden Knights"];
@@ -113,11 +113,17 @@ const SHARED_NICK = new Set(ALL_TEAMS.map(teamNick).filter((n, i, a) => a.indexO
 // Many nicknames are ordinary words (Heat, Jazz, Chargers, Penguins, Athletics), so pages and the product
 // filter use the full team name; "St." and "LA"/"Los Angeles" spellings both count.
 const teamSpellings = full => [...new Set([full, full.replace("St. ", "St "), full.replace(/^LA /, "Los Angeles "), full.replace(/^Los Angeles (Clippers)$/, "LA $1")])];
+// Words a product title must contain to fill a slot of that kind (strict leagues only).
+const SLOT_WORDS = { jersey: ["jersey", "shirt", "kit"], scarf: ["scarf"], hoodie: ["hoodie", "hoody", "sweatshirt", "pullover", "zip"],
+  hat: ["hat", "cap", "beanie", "knit", "toque", "headwear", "woolie"], beanie: ["beanie", "knit", "toque", "hat", "woolie"], blanket: ["blanket", "throw"],
+  mug: ["mug", "tumbler", "cup", "flask"], ball: ["ball"], flag: ["flag", "banner"], "t-shirt": ["t-shirt", "tee"] };
+const slotWords = s => { const k = Object.keys(SLOT_WORDS).filter(w => s.toLowerCase().includes(w)).pop(); return k ? SLOT_WORDS[k] : null; };
 export const TEAM_PAGES = Object.entries(TEAMS).flatMap(([lg, teams]) => teams.map(t => {
   const full = teamName(t), nick = teamNick(full), L = LEAGUE[lg], name = L.label ? L.label(full) : full;
   return P(`gifts-for-${slugify(name)}-fans`, `Gifts for ${name} fans`, `a ${name} fan`, "Christmas", 100, {
     topic: L.topic || `${lg} fans`, count: 7, minCount: L.min || 5, team: { league: lg, full, nick, shared: SHARED_NICK.has(nick) },
     slots: L.slots.map(s => `${full} ${s}`),
+    ...(L.strict ? { slotMust: L.slots.map(slotWords) } : {}),
     require: [...new Set([...teamSpellings(full), ...(Array.isArray(t) ? t.slice(1) : [])])],
     exclude: ["gift card", "replica toy gun", "for dogs", "pet ", ...(L.exclude || [])],
     notes: `officially licensed ${full} gear for a ${LEAGUE[lg].sport} fan; every product must be ${full} merchandise` });
