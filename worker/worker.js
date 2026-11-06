@@ -6,6 +6,7 @@ import { ROOT, DRAFT_SYSTEM, parseDraft, validateStore, storePlanSystem, subscri
 import { PAGES, pageBySlug, GUIDE_SYSTEM, guidePrompt, parseGuide, pageBrief, renderGuide, renderHub, related, sitemap, adSlot, configureAds, diversify, allowed } from "./seo.js";
 import { LEGAL_SLUGS, renderLegal } from "./legal.js";
 import { authorizeUrl, paypalWebBase, parseUserinfo, ownsStore, validateSettings, validateItem, shelves, withoutHidden } from "./owners.js";
+import { OWN_MAX, safeHttpsUrl, shopOrigin, shopifyCards, productFromHtml, parseCsv, ownMatches } from "./own.js";
 
 const now = () => new Date().toISOString();
 const uid = () => crypto.randomUUID();
@@ -128,6 +129,65 @@ async function paypalLogin(env, code) {
 async function storeItems(db, storeId) {
   return (await db.prepare("SELECT * FROM store_items WHERE store_id=?").bind(storeId).all()).results;
 }
+// ---------- the owner's own products (Shopify, links, CSV) ----------
+async function ownProducts(db, storeId, { all = false } = {}) {
+  const rows = (await db.prepare(`SELECT card_json, available, kind, source_id FROM own_products WHERE store_id=?${all ? "" : " AND available=1"} ORDER BY updated_at DESC LIMIT ${OWN_MAX}`).bind(storeId).all()).results;
+  return rows.map(r => ({ ...JSON.parse(r.card_json), available: !!r.available, kind: r.kind, source_id: r.source_id }));
+}
+// Fetch a public page or JSON with a size cap and a timeout. Redirects are followed only to other safe https URLs.
+async function fetchPublic(u, { json = false, maxBytes = 3_000_000 } = {}) {
+  let url = safeHttpsUrl(u); if (!url) throw new Error("That address isn't a public https site.");
+  for (let hop = 0; hop < 4; hop++) {
+    const r = await fetch(url.href, { redirect: "manual", signal: AbortSignal.timeout(15000),
+      headers: { "user-agent": "gift.directory product import (+https://gift.directory/about)", accept: json ? "application/json" : "text/html,application/xhtml+xml" } });
+    if (r.status >= 300 && r.status < 400 && r.headers.get("location")) { url = safeHttpsUrl(new URL(r.headers.get("location"), url).href); if (!url) throw new Error("The site redirected somewhere we can't follow."); continue; }
+    if (r.status === 429) throw new Error("That site is limiting requests right now. Try again in a few minutes.");
+    if (r.status === 401 || r.status === 403) throw new Error("That site blocked the request. Try the CSV import instead.");
+    if (!r.ok) throw new Error(`The site answered ${r.status}.`);
+    const text = await r.text(); if (text.length > maxBytes) throw new Error("That page is too large to read.");
+    if (!json) return { text, url: url.href };
+    try { return JSON.parse(text); } catch { throw new Error("This doesn't look like a Shopify store with a public product feed. Add products by link or CSV instead."); }
+  }
+  throw new Error("Too many redirects.");
+}
+async function upsertOwn(db, storeId, cards, kind, sourceId = null) {
+  const t = now(), have = await db.prepare("SELECT COUNT(*) n FROM own_products WHERE store_id=?").bind(storeId).first();
+  const room = Math.max(0, OWN_MAX - have.n);
+  const stmts = cards.map(c => db.prepare("INSERT INTO own_products (store_id,product_id,source_id,kind,card_json,available,updated_at,created_at) VALUES (?,?,?,?,?,?,?,?) " +
+    "ON CONFLICT(store_id,product_id) DO UPDATE SET card_json=excluded.card_json, available=excluded.available, source_id=excluded.source_id, updated_at=excluded.updated_at")
+    .bind(storeId, c.product_id, sourceId, kind, JSON.stringify({ ...c, available: undefined }), c.available === false ? 0 : 1, t, t));
+  // New products beyond the cap are dropped; updates to existing ones always go through (ON CONFLICT).
+  for (let i = 0; i < stmts.length; i += 50) await db.batch(stmts.slice(i, i + 50));
+  if (have.n + cards.length > OWN_MAX) await db.prepare(`DELETE FROM own_products WHERE store_id=? AND rowid NOT IN (SELECT rowid FROM own_products WHERE store_id=? ORDER BY created_at LIMIT ${OWN_MAX})`).bind(storeId, storeId).run();
+  return Math.min(cards.length, room + 0);
+}
+// Pull a Shopify shop's whole public catalog (up to 1000 products), store it, and mark what vanished as unavailable.
+async function syncShopify(db, src) {
+  const cards = [];
+  try {
+    for (let page = 1; page <= 4; page++) {
+      const j = await fetchPublic(`${src.url}/products.json?limit=250&page=${page}`, { json: true, maxBytes: 8_000_000 });
+      const got = shopifyCards(j, src.url); cards.push(...got);
+      if (!j || !Array.isArray(j.products) || j.products.length < 250) break;
+    }
+    if (!cards.length) throw new Error("No products found. Is this a Shopify store with products published to its online store?");
+    await upsertOwn(db, src.store_id, cards, "shopify", src.id);
+    const ids = cards.map(c => c.product_id);
+    const gone = (await db.prepare("SELECT product_id FROM own_products WHERE store_id=? AND source_id=?").bind(src.store_id, src.id).all()).results.filter(r => !ids.includes(r.product_id));
+    for (let i = 0; i < gone.length; i += 50) await db.batch(gone.slice(i, i + 50).map(r => db.prepare("UPDATE own_products SET available=0, updated_at=? WHERE store_id=? AND product_id=?").bind(now(), src.store_id, r.product_id)));
+    await db.prepare("UPDATE own_sources SET last_synced=?, last_error=NULL, product_count=? WHERE id=?").bind(now(), cards.length, src.id).run();
+    return { ok: true, count: cards.length, available: cards.filter(c => c.available !== false).length };
+  } catch (e) {
+    await db.prepare("UPDATE own_sources SET last_synced=?, last_error=? WHERE id=?").bind(now(), String(e.message || e).slice(0, 300), src.id).run();
+    return { ok: false, error: String(e.message || e) };
+  }
+}
+// The owner's products as a shelf for the store page (newest first).
+async function ownShelf(db, storeId) {
+  const cards = (await ownProducts(db, storeId)).slice(0, 24);
+  return cards.length ? [{ title: "From our shop", cards }] : [];
+}
+
 // A typed search: any price from $5 to $500, junk and duplicates out. No model: it should feel instant.
 async function searchCards(env, q) {
   if (!env.CHANNEL3_API_KEY) return [];
@@ -265,7 +325,7 @@ export default {
         if (platform) return J({ platform: true });
         if (!store) return J({ error: "No store here." }, 404);
         const user = await currentUser(db, request);
-        return withCookie(Promise.resolve(J({ ...publicStore(store), shelves: shelves(await storeItems(db, store.id)),
+        return withCookie(Promise.resolve(J({ ...publicStore(store), shelves: [...await ownShelf(db, store.id), ...shelves(await storeItems(db, store.id))],
           can_edit: ownsStore(user, store) })), setCookie);
       }
 
@@ -292,7 +352,10 @@ export default {
        if (!env.CHANNEL3_API_KEY) return J({ error: "Product search is not configured yet." }, 503);
         const cfg = JSON.parse(store.config_json);
         const planSystem = cfg.house ? undefined : storePlanSystem({ ...cfg, name: store.name, niche: store.niche });
-        const r = await findGifts(v.brief, { ai: aiFor(env), search: q => channel3Search(env, q, v.brief), planSystem });
+        const ownList = await ownProducts(db, store.id);
+        const b = v.brief;
+        const r = await findGifts(v.brief, { ai: aiFor(env), search: q => channel3Search(env, q, v.brief), planSystem,
+          extra: plan => ownMatches(ownList, [...plan.map(s => s.query), b.recipient, b.occasion, b.notes, ...(b.interests || [])], b.budget_cents) });
         const items = await storeItems(db, store.id);
         r.picks = withoutHidden(r.picks || [], items); r.more = withoutHidden(r.more || [], items);
         const id = uid();
@@ -307,7 +370,8 @@ export default {
         const q = (url.searchParams.get("q") || "").trim().slice(0, 80);
         if (q.length < 2) return J({ cards: [] });
         const items = await storeItems(db, store.id);
-        return J({ q, cards: withoutHidden(await searchCards(env, q), items) });
+        const mineFirst = ownMatches(await ownProducts(db, store.id), [q], 50000, 12);
+        return J({ q, cards: withoutHidden(mergeCards([mineFirst, await searchCards(env, q)]), items) });
       }
 
       // ---------- Log in with PayPal ----------
@@ -380,6 +444,56 @@ export default {
           if (parts[4] === "items" && parts[5] && m === "DELETE") {
             await db.prepare("DELETE FROM store_items WHERE store_id=? AND product_id=?").bind(s.id, decodeURIComponent(parts[5])).run();
             return J({ ok: true });
+          }
+          // ---- the owner's own products ----
+          if (parts[4] === "own") {
+            const sources = async () => (await db.prepare("SELECT id,kind,url,last_synced,last_error,product_count FROM own_sources WHERE store_id=? ORDER BY created_at").bind(s.id).all()).results;
+            if (parts.length === 5 && m === "GET") return J({ sources: await sources(), products: await ownProducts(db, s.id, { all: true }), max: OWN_MAX });
+            if (parts[5] === "shopify" && m === "POST") {
+              const origin = shopOrigin(((await readJson(request)) || {}).url || "");
+              if (!origin) return J({ error: "Enter your shop's web address, like myshop.com or myshop.myshopify.com." }, 400);
+              const list = await sources();
+              let src = list.find(x => x.url === origin);
+              if (!src) {
+                if (list.length >= 3) return J({ error: "A store can connect up to 3 shops." }, 409);
+                src = { id: uid(), store_id: s.id, kind: "shopify", url: origin };
+                await db.prepare("INSERT INTO own_sources (id,store_id,kind,url,created_at) VALUES (?,?,?,?,?)").bind(src.id, s.id, "shopify", origin, now()).run();
+              }
+              const r = await syncShopify(db, { ...src, store_id: s.id });
+              if (!r.ok && !list.find(x => x.url === origin)) await db.prepare("DELETE FROM own_sources WHERE id=?").bind(src.id).run(); // a failed first connect leaves nothing behind
+              return r.ok ? J(r) : J({ error: r.error }, 422);
+            }
+            if (parts[5] === "link" && m === "POST") {
+              const raw = ((await readJson(request)) || {}).url || "";
+              if (!safeHttpsUrl(raw)) return J({ error: "Paste a full product link (https://…)." }, 400);
+              let page; try { page = await fetchPublic(raw); } catch (e) { return J({ error: e.message }, 422); }
+              const card = productFromHtml(page.text, page.url);
+              if (!card) return J({ error: "We couldn't find a product name and price on that page. Try the CSV import instead." }, 422);
+              await upsertOwn(db, s.id, [card], "link");
+              return J({ ok: true, product: card });
+            }
+            if (parts[5] === "csv" && m === "POST") {
+              const body = (await readJson(request)) || {};
+              if (String(body.csv || "").length > 2_000_000) return J({ error: "That file is too large (2 MB max)." }, 413);
+              const r = parseCsv(body.csv);
+              if (!r.rows.length) return J({ error: r.errors[0] || "No products found in that file.", errors: r.errors }, 400);
+              await upsertOwn(db, s.id, r.rows, "csv");
+              return J({ ok: true, added: r.rows.length, errors: r.errors });
+            }
+            if (parts[5] === "sync" && m === "POST") {
+              const out = [];
+              for (const src of await sources()) out.push({ url: src.url, ...(await syncShopify(db, { ...src, store_id: s.id })) });
+              return J({ results: out });
+            }
+            if (parts[5] === "products" && parts[6] && m === "DELETE") {
+              await db.prepare("DELETE FROM own_products WHERE store_id=? AND product_id=?").bind(s.id, decodeURIComponent(parts[6])).run();
+              return J({ ok: true });
+            }
+            if (parts[5] === "sources" && parts[6] && m === "DELETE") {
+              await db.batch([db.prepare("DELETE FROM own_products WHERE store_id=? AND source_id=?").bind(s.id, parts[6]),
+                              db.prepare("DELETE FROM own_sources WHERE store_id=? AND id=?").bind(s.id, parts[6])]);
+              return J({ ok: true });
+            }
           }
         }
         return J({ error: "not found" }, 404);
@@ -493,5 +607,13 @@ export default {
     } catch (e) {
       return J({ error: String((e && e.message) || e) }, 500);
     }
+  },
+
+  // Daily: re-pull every connected Shopify shop (prices, stock, new products), oldest sync first.
+  async scheduled(controller, env, ctx) {
+    const db = env.DB;
+    const due = (await db.prepare("SELECT * FROM own_sources WHERE kind='shopify' AND (last_synced IS NULL OR last_synced < ?) ORDER BY last_synced LIMIT 25")
+      .bind(new Date(Date.now() - 20 * 3600 * 1000).toISOString()).all()).results;
+    for (const src of due) ctx.waitUntil(syncShopify(db, src));
   },
 };

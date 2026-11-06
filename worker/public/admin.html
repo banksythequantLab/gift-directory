@@ -75,11 +75,64 @@ function draw() {
   $("#app").innerHTML = `<div class="card" style="margin-top:12px;display:flex;gap:14px;align-items:center;flex-wrap:wrap">
       <div><b style="font-size:1.15rem">${esc(s.name)}</b> <span class="pill" style="background:var(--accent);color:#fff;border-radius:999px;padding:2px 10px;font-size:.78rem">${esc(s.status)}</span><br>
       <a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.url)}</a></div><div style="margin-left:auto">${pick}</div></div>
-    <div class="tabs">${[["curate", "Curate"], ["settings", "Settings"], ["activity", "Activity & billing"]].map(([k, l]) => `<button data-tab="${k}" class="${tab === k ? "on" : ""}">${l}</button>`).join("")}</div>
+    <div class="tabs">${[["curate", "Curate"], ["products", "Your products"], ["settings", "Settings"], ["activity", "Activity & billing"]].map(([k, l]) => `<button data-tab="${k}" class="${tab === k ? "on" : ""}">${l}</button>`).join("")}</div>
     <div id="pane"></div>`;
   if ($("#pick")) $("#pick").onchange = e => open(e.target.value);
   document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { tab = b.dataset.tab; draw(); });
-  ({ curate, settings, activity })[tab]();
+  ({ curate, products, settings, activity })[tab]();
+}
+
+// ---------- Your products (Shopify, links, CSV) ----------
+async function products() {
+  const base = `/stores/${cur.store.id}/own`;
+  $("#pane").innerHTML = `<p class="muted">Loading your products…</p>`;
+  let d; try { d = await api(base); } catch (err) { $("#pane").innerHTML = `<p class="err">${esc(err.message)}</p>`; return; }
+  const ago = t => t ? new Date(t).toLocaleString() : "never";
+  const avail = d.products.filter(p => p.available).length;
+  $("#pane").innerHTML = `
+    <p class="muted" style="margin-top:0">Sell your own products here too. They show on a "From our shop" shelf at the top of your store, the AI gift finder can recommend them, and every link goes straight to your own checkout.</p>
+    <div class="row">
+      <div class="card"><b>Connect a Shopify store</b>
+        <p class="muted" style="font-size:.85rem;margin:4px 0 8px">Your whole catalog comes in, and prices and stock refresh every day.</p>
+        <form id="f_shop" style="display:flex;gap:8px"><input id="shop" placeholder="myshop.com or myshop.myshopify.com" maxlength="200"><button class="btn">Connect</button></form>
+        <div id="m_shop" style="margin-top:6px"></div>
+        ${d.sources.length ? `<table style="margin-top:8px">${d.sources.map(s => `<tr><td><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.url.replace(/^https:\/\//, ""))}</a><br><span class="muted" style="font-size:.8rem">${s.product_count} products · synced ${esc(ago(s.last_synced))}${s.last_error ? ` · <span class="err">${esc(s.last_error)}</span>` : ""}</span></td>
+          <td style="text-align:right"><button class="btn sec sm" data-own="unsource" data-id="${esc(s.id)}">Disconnect</button></td></tr>`).join("")}</table>
+          <button class="btn sec sm" id="b_sync" style="margin-top:8px">Sync now</button>` : ""}
+      </div>
+      <div class="card"><b>Add a product by link</b>
+        <p class="muted" style="font-size:.85rem;margin:4px 0 8px">Etsy, WooCommerce, Squarespace, your own site: paste a product page and we read its name, photo and price.</p>
+        <form id="f_link" style="display:flex;gap:8px"><input id="plink" placeholder="https://…/products/…" maxlength="500"><button class="btn">Add</button></form>
+        <div id="m_link" style="margin-top:6px"></div>
+        <b style="display:block;margin-top:14px">Or upload a CSV</b>
+        <p class="muted" style="font-size:.85rem;margin:4px 0 8px">Columns: <code>title</code>, <code>price</code>, <code>url</code> (and optional <code>image</code>, <code>tags</code>).</p>
+        <input type="file" id="csv" accept=".csv,text/csv" style="padding:6px"><div id="m_csv" style="margin-top:6px"></div>
+      </div>
+    </div>
+    <h2 style="font-family:Georgia,serif">Your products <span class="muted" style="font-weight:400;font-size:1rem">(${avail} showing${d.products.length > avail ? `, ${d.products.length - avail} sold out or removed` : ""} · up to ${d.max})</span></h2>
+    <div class="mini">${d.products.map(p => `<div class="card"${p.available ? "" : ` style="opacity:.55"`}>${p.image ? `<img src="${esc(p.image)}" alt="" loading="lazy">` : ""}
+      <div class="t">${esc(p.title)}</div><div class="muted" style="font-size:.8rem">${money(p.price_cents)} · ${esc(p.merchant)}${p.available ? "" : " · sold out"}</div>
+      <span class="tag2">${p.kind === "shopify" ? "Shopify" : p.kind === "csv" ? "CSV" : "Link"}</span>
+      <div class="acts"><a class="btn sec sm" href="${esc(p.url)}" target="_blank" rel="noopener">View</a>${p.kind !== "shopify" ? `<button class="btn sec sm" data-own="unproduct" data-id="${esc(p.product_id)}">Remove</button>` : ""}</div></div>`).join("")
+      || `<p class="muted">No products yet. Connect your Shopify store or add a product above.</p>`}</div>`;
+  const busy = (el, txt) => { el.innerHTML = `<p class="muted">${txt}</p>`; };
+  $("#f_shop").onsubmit = async e => { e.preventDefault(); const v = $("#shop").value.trim(); if (!v) return; busy($("#m_shop"), "Importing your catalog…");
+    try { const r = await api(`${base}/shopify`, { method: "POST", body: JSON.stringify({ url: v }) }); tab = "products"; await products(); $("#m_shop").innerHTML = `<p class="ok">Imported ${r.count} products (${r.available} in stock).</p>`; }
+    catch (err) { $("#m_shop").innerHTML = `<p class="err">${esc(err.message)}</p>`; } };
+  $("#f_link").onsubmit = async e => { e.preventDefault(); const v = $("#plink").value.trim(); if (!v) return; busy($("#m_link"), "Reading that page…");
+    try { const r = await api(`${base}/link`, { method: "POST", body: JSON.stringify({ url: v }) }); await products(); $("#m_link").innerHTML = `<p class="ok">Added: ${esc(r.product.title)} (${money(r.product.price_cents)}).</p>`; }
+    catch (err) { $("#m_link").innerHTML = `<p class="err">${esc(err.message)}</p>`; } };
+  $("#csv").onchange = async e => { const f = e.target.files[0]; if (!f) return; if (f.size > 2e6) { $("#m_csv").innerHTML = `<p class="err">That file is over 2 MB.</p>`; return; } busy($("#m_csv"), "Importing…");
+    try { const r = await api(`${base}/csv`, { method: "POST", body: JSON.stringify({ csv: await f.text() }) }); await products();
+      $("#m_csv").innerHTML = `<p class="ok">Added ${r.added} products.</p>${r.errors.length ? `<p class="err" style="font-size:.85rem">${r.errors.map(esc).join("<br>")}</p>` : ""}`; }
+    catch (err) { $("#m_csv").innerHTML = `<p class="err">${esc(err.message)}</p>`; } };
+  if ($("#b_sync")) $("#b_sync").onclick = async () => { busy($("#m_shop"), "Syncing…"); try { await api(`${base}/sync`, { method: "POST" }); await products(); $("#m_shop").innerHTML = `<p class="ok">Synced.</p>`; } catch (err) { $("#m_shop").innerHTML = `<p class="err">${esc(err.message)}</p>`; } };
+  document.querySelectorAll("[data-own]").forEach(b => b.onclick = async () => {
+    if (b.dataset.own === "unsource" && !confirm("Disconnect this shop and remove its products from your store?")) return;
+    b.disabled = true;
+    try { await api(`${base}/${b.dataset.own === "unsource" ? "sources" : "products"}/${encodeURIComponent(b.dataset.id)}`, { method: "DELETE" }); await products(); }
+    catch (err) { b.disabled = false; $("#msg").innerHTML = `<p class="err">${esc(err.message)}</p>`; }
+  });
 }
 
 // ---------- Curate ----------

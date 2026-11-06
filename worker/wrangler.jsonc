@@ -16,6 +16,8 @@
     "binding": "ASSETS",
     "run_worker_first": ["/api/*", "/g/*", "/", "/new", "/favicon.svg", "/login", "/admin", "/gifts", "/gifts/*", "/sitemap.xml", "/robots.txt", "/ads.txt", "/about", "/contact", "/privacy", "/terms", "/cdbf5866d78ab29c85ad2021cc135597.txt"]
   },
+  // Daily re-sync of store owners' Shopify catalogs (08:23 UTC).
+  "triggers": { "crons": ["23 8 * * *"] },
   "d1_databases": [
     { "binding": "DB", "database_name": "gift-finder", "database_id": "12f8f349-a2dc-4cca-a902-64fe661588c2" }
   ],

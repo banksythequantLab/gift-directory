@@ -133,7 +133,8 @@ export function parseIds(j, key, cards) {
 export function pickPrompt(brief, cards) {
   return planPrompt(brief) + "\n\nProducts:\n" + cards.slice(0, 40).map(c =>
     `${c.product_id} | ${c.title}${c.brand ? " by " + c.brand : ""} | $${(c.price_cents / 100).toFixed(2)} at ${c.merchant}` +
-    (c.features.length ? ` | ${c.features.slice(0, 2).join("; ")}` : "")).join("\n");
+    ((c.features || []).length ? ` | ${c.features.slice(0, 2).join("; ")}` : "") +
+    (c.own ? " | sold by this store itself (prefer it when it fits as well as the others)" : "")).join("\n");
 }
 export function parsePicks(j, cards) {
   const byId = new Map(cards.map(c => [c.product_id, c]));
@@ -174,13 +175,17 @@ export function fallbackPicks(cards, n = 6) {
 }
 
 // The whole run. `ai(system, user)` returns parsed JSON or throws; `search(query)` returns products.
-export async function findGifts(brief, { ai, search, planSystem = PLAN_SYSTEM }) {
+// `extra(plan)` may return the store owner's own products that fit; they lead each round of the mix (a boost),
+// and the picker treats them like any other candidate.
+export async function findGifts(brief, { ai, search, planSystem = PLAN_SYSTEM, extra = null }) {
   let plan = [];
   try { plan = parsePlan(await ai(planSystem, planPrompt(brief))); } catch { plan = []; }
   if (!plan.length) plan = fallbackPlan(brief);
   const results = await Promise.all(plan.map(s => search(s.query).then(ps => ps.map(p => toCard(p, brief.budget_cents))).catch(() => [])));
   // Mixed across searches, then junk and duplicates out.
-  const cards = mergeCards([interleave(results.map(l => l.filter(Boolean)))]);
+  let own = [];
+  try { own = extra ? (extra(plan) || []) : []; } catch { own = []; }
+  const cards = mergeCards([interleave([own, ...results.map(l => l.filter(Boolean))])]);
   if (!cards.length) return { plan, picks: [], more: [], empty: true };
   let picks = [], also = null;
   try {

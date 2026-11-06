@@ -94,6 +94,7 @@ function card(p) {
   byId.set(p.product_id, p);
   return `<div class="card gift">
     ${p.image ? `<img src="${esc(p.image)}" alt="" loading="lazy">` : `<div style="aspect-ratio:1;background:#f3f3f3;border-radius:10px"></div>`}
+    ${p.own ? `<span class="badge" style="background:var(--accent);color:#fff;align-self:flex-start">From our shop</span>` : ""}
     <h3>${esc(p.title)}</h3><div class="muted" style="font-size:.82rem">${esc(p.brand || "")}${p.brand ? " · " : ""}${esc(p.merchant)}</div>
     <div class="price">${money(p.price_cents)}${p.was_cents && p.was_cents > p.price_cents ? `<span class="was">${money(p.was_cents)}</span>` : ""}</div>
     ${p.reason ? `<span class="badge">Picked for you</span><div class="why">${esc(p.reason)}</div>` : `<div class="why"></div>`}
