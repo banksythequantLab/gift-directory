@@ -92,13 +92,13 @@ const TEAMS = {
     "Belgium", "Croatia", "Uruguay", "Morocco", "South Korea", "Scotland"],
 };
 const LEAGUE = {
-  NFL: { sport: "football", slots: ["jersey", "hoodie", "knit beanie", "throw blanket", "coffee mug", "Christmas ornament", "wall sign"] },
-  MLB: { sport: "baseball", slots: ["jersey", "fitted cap", "hoodie", "throw blanket", "coffee mug", "Christmas ornament", "wall sign"] },
-  NBA: { sport: "basketball", slots: ["jersey", "hoodie", "snapback hat", "throw blanket", "coffee mug", "Christmas ornament", "mini basketball"] },
-  NHL: { sport: "hockey", slots: ["jersey", "hoodie", "knit beanie", "throw blanket", "coffee mug", "Christmas ornament", "wall sign"] },
-  WNBA: { sport: "basketball", min: 4, slots: ["jersey", "hoodie", "hat", "t-shirt", "coffee mug", "throw blanket", "mini basketball"] },
-  MLS: { sport: "soccer", min: 4, slots: ["jersey", "scarf", "hoodie", "knit beanie", "throw blanket", "coffee mug", "soccer ball"] },
-  College: { sport: "college sports", topic: "College fans", slots: ["hoodie", "football jersey", "knit beanie", "throw blanket", "coffee mug", "Christmas ornament", "wall sign"] },
+  NFL: { strict: true, sport: "football", slots: ["jersey", "hoodie", "knit beanie", "throw blanket", "coffee mug", "Christmas ornament", "wall sign"] },
+  MLB: { strict: true, sport: "baseball", slots: ["jersey", "fitted cap", "hoodie", "throw blanket", "coffee mug", "Christmas ornament", "wall sign"] },
+  NBA: { strict: true, sport: "basketball", slots: ["jersey", "hoodie", "snapback hat", "throw blanket", "coffee mug", "Christmas ornament", "mini basketball"] },
+  NHL: { strict: true, sport: "hockey", slots: ["jersey", "hoodie", "knit beanie", "throw blanket", "coffee mug", "Christmas ornament", "wall sign"] },
+  WNBA: { sport: "basketball", min: 4, strict: true, slots: ["jersey", "hoodie", "hat", "t-shirt", "coffee mug", "throw blanket", "mini basketball"] },
+  MLS: { sport: "soccer", min: 4, strict: true, slots: ["jersey", "scarf", "hoodie", "knit beanie", "throw blanket", "coffee mug", "soccer ball"] },
+  College: { strict: true, sport: "college sports", topic: "College fans", slots: ["hoodie", "football jersey", "knit beanie", "throw blanket", "coffee mug", "Christmas ornament", "wall sign"] },
   Clubs: { sport: "soccer (football)", topic: "Soccer clubs", min: 4, strict: true, slots: ["jersey", "scarf", "hoodie", "knit beanie", "throw blanket", "mug", "soccer ball"] },
   National: { sport: "international soccer (football)", topic: "National soccer teams", min: 4, strict: true, exclude: ["New England", "Patriots", "Canada Goose", "Brazil nut", "rugby", "cricket", "starbucks"], label: n => /^US[MW]NT$/.test(n) ? n : `${n} soccer`,
     slots: ["soccer jersey", "soccer scarf", "soccer hoodie", "soccer hat", "soccer ball", "national team flag", "soccer t-shirt"] },
@@ -114,7 +114,7 @@ const SHARED_NICK = new Set(ALL_TEAMS.map(teamNick).filter((n, i, a) => a.indexO
 // filter use the full team name; "St." and "LA"/"Los Angeles" spellings both count.
 const teamSpellings = full => [...new Set([full, full.replace("St. ", "St "), full.replace(/^LA /, "Los Angeles "), full.replace(/^Los Angeles (Clippers)$/, "LA $1")])];
 // Words a product title must contain to fill a slot of that kind (strict leagues only).
-const SLOT_WORDS = { jersey: ["jersey", "shirt", "kit"], scarf: ["scarf"], hoodie: ["hoodie", "hoody", "sweatshirt", "pullover", "zip"],
+const SLOT_WORDS = { ornament: ["ornament", "topper"], cap: ["cap", "hat"], sign: ["sign", "banner", "art", "flag", "print", "pennant"], jersey: ["jersey", "shirt", "kit"], scarf: ["scarf"], hoodie: ["hoodie", "hoody", "sweatshirt", "pullover", "zip"],
   hat: ["hat", "cap", "beanie", "knit", "toque", "headwear", "woolie"], beanie: ["beanie", "knit", "toque", "hat", "woolie"], blanket: ["blanket", "throw"],
   mug: ["mug", "tumbler", "cup", "flask"], ball: ["ball"], flag: ["flag", "banner"], "t-shirt": ["t-shirt", "tee"] };
 const slotWords = s => { const k = Object.keys(SLOT_WORDS).filter(w => s.toLowerCase().includes(w)).pop(); return k ? SLOT_WORDS[k] : null; };
@@ -189,6 +189,45 @@ export const THEME_PAGES = [
     ["Wonder Woman figure", "Wonder Woman graphic novel", "Wonder Woman hoodie", "Wonder Woman mug", "Wonder Woman framed wall art", "Wonder Woman funko pop", "Wonder Woman necklace"]),
   T("gifts-for-marvel-fans", "Gifts for Marvel fans", "a Marvel fan", 100, "Superheroes", ["marvel", "avengers"],
     ["Marvel LEGO", "Marvel Legends figure", "Marvel graphic novel", "Marvel hoodie", "Marvel mug", "Marvel framed wall art", "Marvel funko pop"]),
+  // More fandoms
+  ...[["minecraft", "Minecraft", ["minecraft"], ["Minecraft LEGO", "Minecraft plush", "Minecraft hoodie", "Minecraft night light", "Minecraft book", "Minecraft mug", "Minecraft puzzle"]],
+    ["super-mario", "Super Mario", ["mario", "luigi", "yoshi", "bowser"], ["Super Mario LEGO", "Super Mario plush", "Mario Kart hoodie", "Super Mario mug", "Super Mario lamp", "Super Mario puzzle", "Super Mario book"], ["mario badescu", "mario batali"]],
+    ["zelda", "Legend of Zelda", ["zelda", "hyrule", "triforce"], ["Legend of Zelda LEGO", "Legend of Zelda figure", "Legend of Zelda hoodie", "Legend of Zelda mug", "Legend of Zelda book", "Legend of Zelda lamp", "Legend of Zelda necklace"]],
+    ["disney", "Disney", ["disney"], ["Disney LEGO", "Disney plush", "Disney hoodie", "Disney mug", "Disney puzzle", "Disney book", "Disney ornament"]],
+    ["hello-kitty", "Hello Kitty", ["hello kitty", "sanrio"], ["Hello Kitty plush", "Hello Kitty mug", "Hello Kitty hoodie", "Hello Kitty blanket", "Hello Kitty slippers", "Hello Kitty necklace", "Hello Kitty lamp"]],
+    ["barbie", "Barbie", ["barbie"], ["Barbie doll", "Barbie dreamhouse", "Barbie hoodie", "Barbie mug", "Barbie book", "Barbie puzzle", "Barbie blanket"]],
+    ["star-trek", "Star Trek", ["star trek", "starfleet", "enterprise"], ["Star Trek LEGO", "Star Trek figure", "Star Trek hoodie", "Star Trek mug", "Star Trek book", "Star Trek framed wall art", "Star Trek ornament"], ["enterprise rent", "enterprise car"]],
+    ["doctor-who", "Doctor Who", ["doctor who", "tardis", "dalek"], ["Doctor Who TARDIS figure", "Doctor Who sonic screwdriver", "Doctor Who hoodie", "Doctor Who mug", "Doctor Who book", "Doctor Who scarf", "Doctor Who ornament"]],
+    ["stranger-things", "Stranger Things", ["stranger things", "hellfire club", "hawkins"], ["Stranger Things LEGO", "Stranger Things figure", "Stranger Things hoodie", "Stranger Things mug", "Stranger Things book", "Stranger Things funko pop", "Stranger Things puzzle"]],
+    ["studio-ghibli", "Studio Ghibli", ["ghibli", "totoro", "spirited away", "kiki's", "howl's moving castle", "no-face", "no face", "calcifer"], ["Totoro plush", "Studio Ghibli mug", "Studio Ghibli book", "Totoro lamp", "Studio Ghibli puzzle", "Studio Ghibli figurine", "Studio Ghibli blanket"]],
+    ["anime", "anime", ["anime", "naruto", "one piece", "demon slayer", "my hero academia", "dragon ball", "jujutsu kaisen", "attack on titan", "chainsaw man", "spy x family"], ["anime figure", "anime hoodie", "anime plush", "anime manga box set book", "anime mug", "anime framed wall art", "anime funko pop"]],
+    ["taylor-swift", "Taylor Swift", ["taylor swift", "eras tour", "swiftie"], ["Taylor Swift vinyl record", "Taylor Swift hoodie", "Taylor Swift book", "Taylor Swift mug", "Taylor Swift friendship bracelet", "Taylor Swift framed wall art", "Taylor Swift blanket"], ["vinyl sticker", "decal"]],
+    ["squishmallows", "Squishmallows", ["squishmallow"], ["Squishmallows plush", "Squishmallows slippers", "Squishmallows blanket", "Squishmallows backpack bag", "Squishmallows mug", "Squishmallows hoodie", "Squishmallows book"]],
+  ].map(([slug, name, req, slots, ex = []]) => T(`gifts-for-${slug}-fans`, `Gifts for ${name} fans`, `a ${name} fan`, 75, "Fantasy & fandoms", req, slots, { exclude: ex })),
+  // Dog breeds: gifts for the person who loves the breed, not dog supplies.
+  ...[["labrador", "Labrador", ["labrador"]], ["golden-retriever", "Golden Retriever", ["golden retriever"]], ["french-bulldog", "French Bulldog", ["french bulldog", "frenchie"]],
+    ["german-shepherd", "German Shepherd", ["german shepherd"]], ["poodle", "Poodle", ["poodle"]], ["bulldog", "English Bulldog", ["english bulldog", "british bulldog"]],
+    ["beagle", "Beagle", ["beagle"]], ["rottweiler", "Rottweiler", ["rottweiler"]], ["dachshund", "Dachshund", ["dachshund", "wiener dog", "doxie"]], ["corgi", "Corgi", ["corgi"]],
+    ["australian-shepherd", "Australian Shepherd", ["australian shepherd"]], ["yorkie", "Yorkie", ["yorkie", "yorkshire terrier"]], ["boxer-dog", "Boxer dog", ["boxer dog"]],
+    ["cavalier", "Cavalier King Charles Spaniel", ["cavalier king charles", "cavalier spaniel"]], ["husky", "Husky", ["husky dog", "siberian husky"]], ["shih-tzu", "Shih Tzu", ["shih tzu"]],
+    ["boston-terrier", "Boston Terrier", ["boston terrier"]], ["pomeranian", "Pomeranian", ["pomeranian"]], ["great-dane", "Great Dane", ["great dane"]], ["pug", "Pug", [" pug", "pug "]],
+    ["chihuahua", "Chihuahua", ["chihuahua"]], ["border-collie", "Border Collie", ["border collie"]], ["bernese-mountain-dog", "Bernese Mountain Dog", ["bernese"]],
+    ["doberman", "Doberman", ["doberman"]], ["pit-bull", "Pit Bull", ["pit bull", "pitbull"]], ["schnauzer", "Schnauzer", ["schnauzer"]], ["shiba-inu", "Shiba Inu", ["shiba"]],
+    ["goldendoodle", "Goldendoodle", ["goldendoodle"]], ["greyhound", "Greyhound", ["greyhound dog", "italian greyhound", "greyhound art", "greyhound mug", "greyhound print"]],
+  ].map(([slug, name, req]) => T(`gifts-for-${slug}-lovers`, `Gifts for ${name} lovers`, `someone who loves their ${name}`, 50, "Dog breeds", req,
+    [`${name} mug`, `${name} ornament`, `${name} socks`, `${name} plush`, `${name} framed wall art`, `${name} necklace`, `${name} blanket`],
+    { exclude: ["collar", "harness", "leash", "dog food", "treats", "dog bed", "chew", "kibble", "flea", "shampoo", "crate", "boxer brief", "husky tool", "greyhound bus", "mr. worldwide", "labradorite", ...(slug === "bulldog" ? ["french"] : [])] })),
+  // Valentine's Day
+  ...[["valentines-day-gifts-for-him", "Valentine's Day gifts for him", "my boyfriend or husband", 100, ["leather wallet", "wireless earbuds", "personalized whiskey glass", "cozy hoodie", "grooming kit", "watch", "couples game"]],
+    ["valentines-day-gifts-for-her", "Valentine's Day gifts for her", "my girlfriend or wife", 100, ["heart necklace", "preserved rose dome", "silk pajamas", "jewelry box", "luxury candle", "spa gift set", "cozy slippers"]],
+    ["valentines-day-gifts-for-husband", "Valentine's Day gifts for your husband", "my husband", 150, ["engraved watch", "leather weekender bag", "smart meat thermometer", "personalized wallet", "massage gun", "whiskey decanter set", "couples journal book"]],
+    ["valentines-day-gifts-for-wife", "Valentine's Day gifts for your wife", "my wife", 150, ["diamond pendant necklace", "cashmere wrap scarf", "personalized jewelry box", "silk robe", "spa gift set", "custom star map print", "luxury candle"]],
+    ["valentines-day-gifts-for-new-relationship", "Valentine's Day gifts for a new relationship", "someone I just started dating", 50, ["chocolate gift box", "scented candle", "date night card game", "cozy socks", "small succulent planter", "cute couples mug", "date night ideas book for couples"]],
+    ["galentines-day-gifts", "Galentine's Day gifts for friends", "my best friends", 30, ["friendship bracelet", "scented candle", "cozy socks", "face mask spa set", "best friend mug", "lip balm set", "scrunchie set"]],
+    ["valentines-day-gifts-under-50", "Valentine's Day gifts under $50", "my partner", 50, ["heart necklace", "preserved rose", "couples card game", "scented candle", "personalized mug", "cozy blanket", "chocolate gift box"]],
+    ["long-distance-relationship-gifts", "Long-distance relationship gifts", "my long-distance partner", 75, ["long distance touch lamp", "long distance bracelets", "open when letters envelopes", "couples journal book", "custom map print", "long distance relationship pillow", "digital photo frame"]],
+    ["10-best-valentines-day-gifts", "10 best Valentine's Day gifts", "my partner", 150, ["heart necklace", "preserved rose dome", "custom star map print", "wireless earbuds", "luxury candle", "silk pajamas", "couples card game", "leather wallet", "women's spa gift basket", "chocolate gift box"]],
+  ].map(([slug, kw, who, budget, slots]) => T(slug, kw, who, budget, "Valentine's Day", null, slots, { occasion: "Valentine's Day", exclude: ["baby", "kids", "toddler", "children's", "infant", "personalized book | letters"], count: slots.length, minCount: Math.min(6, slots.length - 1) })),
 ];
 
 // Holiday long-tail first. `store` links the page into a gift.directory store (and its group gifts).
@@ -560,6 +599,7 @@ export function guidePrompt(p) {
   return `Search phrase: ${p.keyword}\nWho it's for: ${p.recipient}\nOccasion: ${p.occasion}\nTypical budget: up to $${p.budget_cents / 100}` +
     (p.notes ? `\nNotes: ${p.notes}` : "") +
     (p.anniversary ? "\nCover both the traditional and the modern gift, with a few creative ways to interpret each. Never suggest real ivory, coral or other wildlife products."
+                   : p.occasion === "Valentine's Day" ? "\nIt's for Valentine's Day (February 14). Keep it warm and romantic but tasteful, and note it's worth ordering early."
                    : "\nIt's the holiday season. Mention that several people can chip in on one gift if that fits.");
 }
 export function parseGuide(j, p) {
