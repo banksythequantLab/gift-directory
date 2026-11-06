@@ -67,6 +67,17 @@ eq("without ids the page has no ad code at all", renderGuide(p, row, [], null, "
   eq("cocktail smokers are one kind", diversify(["Cocktail Smoking Kit", "Glass Topper Cocktail Smoker Kit", "Cold Smoke Electric Cocktail Smoker"].map(x => ({ title: x })), 2).length, 2);
   eq("barware sets are one kind", diversify(["Lalique Lotus Barware Collection", "Talismano Barware Set", "Ethno Barware Set"].map(x => ({ title: x })), 2).length, 2);
   eq("gifts for her drops lawyer novelty", allowed(pageBySlug("christmas-gifts-for-her-under-50"), { title: "Trust Me, I'm A Lawyer - 22-oz Candle Jar" }), false);
+  {
+    const first = pageBySlug("1st-anniversary-gifts");
+    ok("1st anniversary page names paper and clocks", first && /paper \(traditional\) and clocks \(modern\)/.test(first.keyword));
+    eq("anniversary pages for 20 years", PAGES.filter(p => p.anniversary).length, 20);
+    eq("ordinals read right", ["2nd", "3rd", "11th", "12th", "13th", "20th", "25th"].every(o => !!pageBySlug(`${o}-anniversary-gifts`)), true);
+    eq("first four slots are traditional", first.slotGroups.slice(0, 4).every(g => g === "Traditional: paper"), true);
+    eq("same-theme years have no split", pageBySlug("25th-anniversary-gifts").slotGroups, null);
+    eq("real ivory never shows", allowed(pageBySlug("14th-anniversary-gifts"), { title: "Genuine Ivory Carving" }), false);
+    const { groupCards } = await import("../seo.js");
+    eq("cards group under their theme headings", groupCards([{ group: "Traditional: paper" }, { group: "Modern: clocks" }, { group: "Traditional: paper" }]).map(([k, v]) => k + v.length).join("|"), "Traditional: paper2|Modern: clocks1");
+  }
   eq("football page drops baseball", allowed(pageBySlug("gifts-for-football-fans"), { title: "St. Louis Cardinals Park Stadium Throw Blanket" }), false);
 }
 

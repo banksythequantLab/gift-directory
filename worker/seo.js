@@ -8,6 +8,43 @@ const P = (slug, keyword, recipient, occasion, budget, opts = {}) => ({ slug, ke
 // General (not profession) pages keep profession novelty items out, e.g. a "Trust me, I'm a lawyer" candle on "gifts for her".
 const NICHE_NOVELTY = ["lawyer", "attorney", "nurse", "teacher", "doctor"];
 
+// Anniversary gifts by year, traditional and modern themes (the common US lists). Each page searches four
+// gift ideas per theme, one product per idea, and the AI picks the best of each and says why.
+const ANNIVERSARIES = [
+  [1, "paper", "clocks", 100, ["custom star map print", "personalized photo book", "leather bound journal", "framed vintage map print"], ["wooden desk clock", "engraved mantel clock", "personalized wall clock", "sunrise alarm clock"]],
+  [2, "cotton", "china", 100, ["personalized cotton throw blanket", "cotton waffle robe set", "organic cotton sheet set", "embroidered cotton pillowcase"], ["porcelain tea set", "fine china serving platter", "porcelain mug set", "porcelain vase"]],
+  [3, "leather", "crystal and glass", 150, ["personalized leather wallet", "leather weekender bag", "leather watch strap", "leather photo album"], ["crystal wine glasses set", "crystal whiskey decanter set", "glass terrarium", "crystal vase"]],
+  [4, "fruit and flowers (linen and silk)", "appliances", 150, ["preserved roses in glass dome", "silk pillowcase set", "linen tablecloth", "fruit tree gift"], ["espresso machine", "air fryer", "smart display", "robot vacuum"]],
+  [5, "wood", "silverware", 150, ["personalized wooden cutting board", "wooden watch", "wooden jewelry box", "engraved wooden photo frame"], ["silverware set", "silver plated serving set", "silver cocktail shaker set", "silver picture frame"]],
+  [6, "iron (and candy)", "wood", 150, ["cast iron skillet set", "cast iron dutch oven", "wrought iron wall art", "gourmet candy gift box"], ["wooden wine box", "wooden serving board", "wooden bookends", "personalized wooden sign"]],
+  [7, "wool and copper", "desk sets", 150, ["merino wool throw blanket", "wool blend scarf", "copper moscow mule mugs", "copper cookware"], ["leather desk pad", "executive desk organizer set", "engraved pen set", "desk clock and pen holder"]],
+  [8, "bronze", "linens and lace", 150, ["bronze sculpture", "bronze candle holders", "bronze wind chime", "bronze bookends"], ["linen bedding set", "linen robe", "lace table runner", "embroidered linen napkins"]],
+  [9, "pottery (and willow)", "leather", 150, ["handmade ceramic mug set", "stoneware dinnerware set", "pottery vase", "willow picnic basket"], ["leather tote bag", "leather jewelry case", "leather wallet", "leather passport holder"]],
+  [10, "tin and aluminum", "diamond jewelry", 300, ["tin anniversary keepsake", "aluminum photo print", "vintage tin sign", "personalized metal map art"], ["diamond pendant necklace", "diamond stud earrings", "diamond tennis bracelet", "diamond band ring"]],
+  [11, "steel", "fashion jewelry", 200, ["stainless steel watch", "steel engraved bracelet", "steel cocktail set", "steel wall art"], ["statement necklace", "charm bracelet", "gold hoop earrings", "fashion ring set"]],
+  [12, "silk and linen", "pearls", 200, ["silk scarf", "silk pajama set", "linen sheet set", "silk eye mask and pillowcase set"], ["pearl necklace", "pearl stud earrings", "pearl bracelet", "pearl cufflinks"]],
+  [13, "lace", "textiles and furs", 200, ["lace lingerie set", "lace table runner", "lace robe", "lace trimmed throw pillow"], ["faux fur throw blanket", "cashmere wrap", "faux fur slippers", "chunky knit blanket"]],
+  [14, "ivory (ivory-colored, never real ivory)", "gold jewelry", 250, ["ivory cashmere sweater", "ivory ceramic vase", "ivory silk robe", "ivory candle set"], ["gold pendant necklace", "gold hoop earrings", "gold bracelet", "gold signet ring"]],
+  [15, "crystal", "watches", 300, ["crystal decanter set", "crystal champagne flutes", "crystal bowl", "crystal photo frame"], ["automatic watch", "his and hers watch set", "smartwatch", "watch winder box"]],
+  [20, "china", "platinum", 300, ["fine china dinnerware set", "china teapot set", "porcelain figurine", "china serving bowl"], ["platinum plated necklace", "platinum ring", "platinum cufflinks", "platinum plated bracelet"]],
+  [25, "silver", "silver", 300, ["sterling silver necklace", "silver photo frame", "silver serving tray", "silver cufflinks"], ["silver watch", "sterling silver bracelet", "silver candlesticks", "engraved silver keepsake box"]],
+  [30, "pearl", "diamond", 400, ["pearl necklace", "pearl earrings", "mother of pearl jewelry box", "pearl bracelet"], ["diamond earrings", "diamond pendant", "diamond anniversary band", "diamond bracelet"]],
+  [40, "ruby", "ruby", 400, ["ruby pendant necklace", "ruby stud earrings", "ruby red crystal glasses", "ruby ring"], ["ruby bracelet", "red ruby glass vase", "ruby cufflinks", "ruby red cashmere scarf"]],
+  [50, "gold", "gold", 500, ["gold pendant necklace", "gold watch", "gold rimmed champagne flutes", "gold photo frame"], ["gold bracelet", "gold cufflinks", "gold earrings", "gold anniversary ornament"]],
+];
+const ordinal = n => n + (n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th");
+const plainTheme = t => t.replace(/\s*\(.*\)$/, "");
+const ANNIVERSARY_PAGES = ANNIVERSARIES.map(([y, trad, modern, budget, tradSlots, modernSlots]) => {
+  const same = plainTheme(trad) === plainTheme(modern);
+  return P(`${ordinal(y)}-anniversary-gifts`,
+    same ? `${ordinal(y)} anniversary gifts (${plainTheme(trad)})` : `${ordinal(y)} anniversary gifts: ${plainTheme(trad)} (traditional) and ${plainTheme(modern)} (modern)`,
+    "my spouse or partner", `${ordinal(y)} wedding anniversary`, budget, { topic: "Anniversaries", count: 8, minCount: 6, anniversary: { year: y, traditional: trad, modern },
+      slots: [...tradSlots, ...modernSlots],
+      slotGroups: same ? null : [...tradSlots.map(() => `Traditional: ${plainTheme(trad)}`), ...modernSlots.map(() => `Modern: ${plainTheme(modern)}`)],
+      exclude: ["genuine ivory", "real ivory", "elephant ivory", "bone ivory"],
+      notes: `the ${ordinal(y)} anniversary: the traditional gift is ${trad}; the modern gift is ${modern}. Explain both themes and give creative ideas for each; the first four products follow the traditional theme, the last four the modern one` });
+});
+
 // Holiday long-tail first. `store` links the page into a gift.directory store (and its group gifts).
 export const PAGES = [
   // lawyers & law
@@ -164,6 +201,8 @@ export const PAGES = [
     notes: "a bird feeder or birdhouse, binoculars, a field guide, a nature journal, a plant terrarium, a star map or telescope, a wildflower seed kit" }),
   P("gifts-for-travelers", "Gifts for travelers", "someone who loves to travel", "Christmas", 100, { topic: "Hobbies", cap: 2,
     notes: "a carry-on packing cube set, a scratch-off world map, a travel pillow, a leather passport holder, a toiletry bag, a weekender bag, a travel journal" }),
+  // anniversaries by year
+  ...ANNIVERSARY_PAGES,
   // family & interests
   P("christmas-gifts-for-boyfriend", "Christmas gifts for your boyfriend", "my boyfriend", "Christmas", 100, { topic: "Family & interests", cap: 2, exclude: NICHE_NOVELTY,
     notes: "thoughtful gifts he will use: a quality wallet or watch, a cozy hoodie or pullover, headphones, a grooming set, a personalized keepsake, barware, a gadget; no novelty joke gifts" }),
@@ -252,7 +291,9 @@ export const GUIDE_SYSTEM =
   "\"faq\":[{\"q\":\"a question people ask about this\",\"a\":\"2-3 sentence answer\"}] (4 items)}";
 export function guidePrompt(p) {
   return `Search phrase: ${p.keyword}\nWho it's for: ${p.recipient}\nOccasion: ${p.occasion}\nTypical budget: up to $${p.budget_cents / 100}` +
-    (p.notes ? `\nNotes: ${p.notes}` : "") + "\nIt's the holiday season. Mention that several people can chip in on one gift if that fits.";
+    (p.notes ? `\nNotes: ${p.notes}` : "") +
+    (p.anniversary ? "\nCover both the traditional and the modern gift, with a few creative ways to interpret each. Never suggest real ivory, coral or other wildlife products."
+                   : "\nIt's the holiday season. Mention that several people can chip in on one gift if that fits.");
 }
 export function parseGuide(j, p) {
   const clip = (s, n) => String(s ?? "").trim().slice(0, n);
@@ -268,6 +309,11 @@ export const pageBrief = p => ({ recipient: p.recipient, occasion: p.occasion, r
 
 // ---------- HTML ----------
 const ROOT = "https://gift.directory";
+// Cards that carry a `group` label (anniversary themes) are shown under one heading per group, in first-seen order.
+export function groupCards(cards) {
+  const out = new Map(); for (const c of cards) { const k = c.group || "More ideas"; if (!out.has(k)) out.set(k, []); out.get(k).push(c); }
+  return [...out.entries()];
+}
 function card(c) {
   return `<article class="card gift">${c.image ? `<img src="${esc(c.image)}" alt="${esc(c.title)}" loading="lazy" width="300" height="300">` : ""}
 <h3>${esc(c.title)}</h3><div class="muted" style="font-size:.82rem">${esc(c.brand || "")}${c.brand ? " · " : ""}${esc(c.merchant)}</div>
@@ -309,7 +355,10 @@ export function renderGuide(p, row, related, storeUrl, ad = "") {
 <h1 style="font-family:Georgia,serif;margin:4px 0 6px">${esc(p.keyword)}</h1>
 <p class="muted" style="margin:0 0 12px">Updated ${esc(updated)} · ${cards.length} gifts in stock now</p>
 <section class="guide">${g.intro.map(x => `<p>${esc(x)}</p>`).join("")}</section>
-${cards.length ? `<h2 style="font-family:Georgia,serif">Our picks</h2><div class="grid">${cards.map(card).join("")}</div>` : ""}
+${p.anniversary ? `<p class="muted" style="font-size:1.02rem"><b>Traditional gift:</b> ${esc(p.anniversary.traditional.replace(/\s*\(ivory-colored, never real ivory\)/, " (ivory-colored)"))} · <b>Modern gift:</b> ${esc(p.anniversary.modern)}</p>` : ""}
+${cards.length ? (cards.some(c => c.group)
+  ? groupCards(cards).map(([label, cs]) => `<h2 style="font-family:Georgia,serif">${esc(label)}</h2><div class="grid">${cs.map(card).join("")}</div>`).join("")
+  : `<h2 style="font-family:Georgia,serif">Our picks</h2><div class="grid">${cards.map(card).join("")}</div>`) : ""}
 <div class="cta"><b style="font-size:1.1rem">Going in together?</b><br>${storeUrl
     ? `Find more and start a group gift at <a href="${esc(storeUrl)}">${esc(storeUrl.replace(/^https:\/\//, "").replace(/\/$/, ""))}</a> — everyone chips in with PayPal, straight to the organizer.`
     : `Every store on <a href="/">gift.directory</a> lets a group chip in with PayPal, straight to the organizer. <a href="/">Start your own gift store →</a>`}</div>

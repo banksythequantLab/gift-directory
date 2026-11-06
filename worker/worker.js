@@ -57,8 +57,10 @@ async function buildGuide(db, env, p, { cardsOnly = false } = {}) {
     let choice = [];
     try {
       const out = (await ai("You pick the single best gift in each category for a page titled \"" + p.keyword + "\". Prefer well-known brands and real, " +
-        "current products over generic or knock-off listings. Only use what the titles and prices say; never invent specs. " +
-        "Answer only JSON: {\"picks\":[{\"slot\":0,\"pick\":2,\"reason\":\"one sentence under 25 words\"}]} with one entry per slot.",
+        "current products over generic or knock-off listings. Only use what the titles say; never invent specs. " +
+        "The reason is for the shopper: why this makes a meaningful gift for the occasion" + (p.anniversary ? " and its theme (" + p.anniversary.traditional.replace(/\s*\(.*\)$/, "") + " / " + p.anniversary.modern + ")" : "") +
+        ". Never mention the price, never compare it to the other options, never say 'highest-priced' or 'premium option'. " +
+        "Answer only JSON: {\"picks\":[{\"slot\":0,\"pick\":2,\"reason\":\"one warm sentence under 25 words\"}]} with one entry per slot.",
         JSON.stringify(cands.map((l, i) => ({ slot: i, category: p.slots[i], options: l.map((c, k) => `${k}: ${c.title} ($${(c.price_cents || 0) / 100})`) })))));
       choice = Array.isArray(out && out.picks) ? out.picks : [];
     } catch { choice = []; }
@@ -68,9 +70,10 @@ async function buildGuide(db, env, p, { cardsOnly = false } = {}) {
       const c = l[k] && !seen.has(l[k].product_id) ? l[k] : l.find(x => !seen.has(x.product_id));
       if (!c) return;
       seen.add(c.product_id);
-      chosen.push(ch && typeof ch.reason === "string" && ch.reason.length > 10 && c === l[k] ? { ...c, reason: ch.reason.slice(0, 220) } : c);
+      const group = p.slotGroups ? p.slotGroups[i] : undefined;
+      chosen.push({ ...(ch && typeof ch.reason === "string" && ch.reason.length > 10 && c === l[k] ? { ...c, reason: ch.reason.slice(0, 220) } : c), ...(group ? { group } : {}) });
     });
-    if (chosen.length < (p.count || chosen.length)) return { ok: false, error: `only ${chosen.length} of ${p.slots.length} slots found a product` };
+    if (chosen.length < (p.minCount || p.count || chosen.length)) return { ok: false, error: `only ${chosen.length} of ${p.slots.length} slots found a product` };
     const cards = chosen.slice(0, p.count || 16), t = now();
     await db.prepare("INSERT INTO seo_pages (slug,guide_json,cards_json,updated_at,created_at) VALUES (?,?,?,?,?) " +
       "ON CONFLICT(slug) DO UPDATE SET guide_json=excluded.guide_json, cards_json=excluded.cards_json, updated_at=excluded.updated_at")
