@@ -59,6 +59,11 @@ eq("without ids the page has no ad code at all", renderGuide(p, row, [], null, "
   eq("one of each: headphones, hub, projector", tech.length, 3);
   eq("Kindle eReader and Kobo E-Reader are one kind", diversify([{ title: "Kobo Clara 6\" E-Reader" }, { title: "Amazon Kindle eReader" }], 1).length, 1);
   eq("Galaxy Watch5 and a Slate Watch are one kind", diversify([{ title: "Galaxy Watch5 Pro" }, { title: "Suunto 9 Peak Pro Slate Watch" }], 1).length, 1);
+  eq("the last kind word wins: Mini Glass Candle is a candle", diversify(["Mini Soy Candle", "Amber Mini Soy Candle", "Woody Mini Glass Candle"].map(x => ({ title: x })), 2).length, 2);
+  eq("sleeping pads with different endings are one kind", diversify(["NeoAir Sleeping Pad with Mini Pump", "Inflatable Sleeping Pad with Built-In Foot Pump", "Self Inflating Sleeping Pad"].map(x => ({ title: x })), 2).length, 2);
+  eq("a cashmere throw and a throw blanket are one kind", diversify(["Cashmere Throw", "Waffle Knit Throw Blanket", "Faux Cashmere Throw"].map(x => ({ title: x })), 2).length, 2);
+  eq("multi-tools with different endings are one kind", diversify(["Foldable Multi-Tool Kit", "Premium 10-in-1 Multi-Tool", "Paint Multi-Tool 14090060"].map(x => ({ title: x })), 2).length, 2);
+  eq("gifts for her drops lawyer novelty", allowed(pageBySlug("christmas-gifts-for-her-under-50"), { title: "Trust Me, I'm A Lawyer - 22-oz Candle Jar" }), false);
   eq("football page drops baseball", allowed(pageBySlug("gifts-for-football-fans"), { title: "St. Louis Cardinals Park Stadium Throw Blanket" }), false);
 }
 
