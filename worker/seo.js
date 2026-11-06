@@ -9,6 +9,8 @@ const P = (slug, keyword, recipient, occasion, budget, opts = {}) => ({ slug, ke
 const NICHE_NOVELTY = ["lawyer", "attorney", "nurse", "teacher", "doctor"];
 // Gaming pages: no gift cards or download codes, no internal PC parts.
 const GAMING_EXCLUDE = ["gift card", "digital code", "download code", "fan unit", "case fan", "rf-u", "power supply", "thermal paste", "motherboard", "replacement part"];
+// Kids pages: nothing adult, no gift cards.
+const KIDS_EXCLUDE = ["wine", "beer", "whiskey", "bourbon", "cocktail", "shot glass", "vape", "lingerie", "adult", "knife", "gift card", "for men", "for women", "18+"];
 
 // Anniversary gifts by year, traditional and modern themes (the common US lists). Each page searches four
 // gift ideas per theme, one product per idea, and the AI picks the best of each and says why.
@@ -283,6 +285,46 @@ export const PAGES = [
   P("secret-santa-gifts-under-15", "Secret Santa gifts under $15", "a coworker or friend", "Secret Santa", 15, { topic: "Holidays", cap: 2,
     notes: "crowd-pleasing small gifts under $15: a nice mug, cozy socks, a candle, a desk gadget, a card or party game, a snack-free treat like hand cream" }),
   P("stocking-stuffers-for-adults", "Stocking stuffers for adults", "an adult", "Christmas stocking", 30, { topic: "Family & interests" }),
+  // Kids by age: one search per category so each page has variety; nothing adult.
+  P("christmas-gifts-for-toddlers", "Christmas gifts for toddlers", "a toddler age 1 to 3", "Christmas", 50, { topic: "Kids", count: 7, minCount: 5, exclude: KIDS_EXCLUDE,
+    slots: ["toddler push walker toy", "toddler ride-on toy", "chunky wooden puzzle for toddlers", "toddler stacking blocks", "board books for toddlers", "toddler musical instrument set", "toddler play kitchen accessories"],
+    notes: "safe, age-appropriate toys for ages 1-3; no small parts" }),
+  P("christmas-gifts-for-kids-5-to-7", "Christmas gifts for kids ages 5 to 7", "a child age 5 to 7", "Christmas", 50, { topic: "Kids", count: 7, minCount: 5, exclude: KIDS_EXCLUDE,
+    slots: ["magnetic building tiles", "kids science kit ages 5-7", "kids art supply set", "family board game for young kids", "kids scooter", "dress up costume set for kids", "early reader book set"],
+    notes: "age-appropriate gifts for ages 5-7" }),
+  P("christmas-gifts-for-kids-8-to-10", "Christmas gifts for kids ages 8 to 10", "a child age 8 to 10", "Christmas", 75, { topic: "Kids", count: 7, minCount: 5, exclude: KIDS_EXCLUDE,
+    slots: ["LEGO building set ages 8+", "coding robot for kids", "kids crystal growing science kit", "kids walkie talkies", "strategy board game for kids", "kids digital camera", "kids telescope"],
+    notes: "age-appropriate gifts for ages 8-10" }),
+  P("christmas-gifts-for-tweens", "Christmas gifts for tweens", "a tween age 10 to 12", "Christmas", 75, { topic: "Kids", count: 7, minCount: 5, exclude: KIDS_EXCLUDE,
+    slots: ["instant camera for kids", "kids wireless headphones", "friendship bracelet making kit", "Rubik's cube speed cube", "LED room lights for kids", "graphic novel box set", "kids smartwatch"],
+    notes: "gifts for ages 10-12 that don't feel babyish" }),
+  P("christmas-gifts-for-teen-boys", "Christmas gifts for teen boys", "a teenage boy", "Christmas", 100, { topic: "Kids", count: 7, minCount: 5, exclude: KIDS_EXCLUDE,
+    slots: ["wireless earbuds", "portable Bluetooth speaker", "gaming headset", "hoodie for teen boys", "basketball", "LED strip lights", "portable phone charger power bank"],
+    notes: "gifts teen boys actually use" }),
+  P("christmas-gifts-for-teen-girls", "Christmas gifts for teen girls", "a teenage girl", "Christmas", 100, { topic: "Kids", count: 7, minCount: 5, exclude: KIDS_EXCLUDE,
+    slots: ["instant camera", "wireless earbuds", "cozy sherpa blanket", "makeup bag organizer", "hair styling tool set", "insulated tumbler", "jewelry box"],
+    notes: "gifts teen girls actually use; no adult skincare claims" }),
+  P("stocking-stuffers-for-kids", "Stocking stuffers for kids", "a child age 5 to 10", "Christmas stocking", 15, { topic: "Kids", count: 7, minCount: 5, exclude: KIDS_EXCLUDE,
+    slots: ["kids sticker book", "fidget toy set", "mini LEGO set", "kids card game", "glow in the dark toys", "kids flashlight", "travel puzzle game"],
+    notes: "small stocking-size items for ages 5-10; no candy" }),
+  P("stocking-stuffers-for-teens", "Stocking stuffers for teens", "a teenager", "Christmas stocking", 25, { topic: "Kids", count: 7, minCount: 5, exclude: KIDS_EXCLUDE,
+    slots: ["phone grip stand", "lip balm set", "fun socks", "portable charger keychain", "mini Bluetooth speaker", "card game for teens", "scrunchie or hair clip set"],
+    notes: "small stocking-size items teens use" }),
+  P("gamer-stocking-stuffers", "Stocking stuffers for gamers", "a gamer", "Christmas stocking", 25, { topic: "Gaming", count: 7, minCount: 5, exclude: GAMING_EXCLUDE,
+    slots: ["controller thumb grips", "gaming mug", "controller charging cable", "gaming keycaps", "pixel art keychain", "controller skin decal", "gaming socks"],
+    notes: "small stocking-size gaming items" }),
+  P("stocking-stuffers-for-men", "Stocking stuffers for men", "a man", "Christmas stocking", 30, { topic: "Family & interests", count: 7, minCount: 5, exclude: NICHE_NOVELTY,
+    slots: ["multitool", "beard care kit", "wool socks", "tracker tag for keys", "pocket flashlight", "hot sauce gift set", "slim wallet"],
+    notes: "useful stocking-size items for men" }),
+  P("stocking-stuffers-for-women", "Stocking stuffers for women", "a woman", "Christmas stocking", 30, { topic: "Family & interests", count: 7, minCount: 5, exclude: NICHE_NOVELTY,
+    slots: ["hand cream gift set", "silk scrunchies", "cozy socks", "scented candle", "lip balm set", "mini perfume", "phone wristlet"],
+    notes: "small treats for women" }),
+  P("hanukkah-gifts-for-kids", "Hanukkah gifts for kids", "a child who celebrates Hanukkah", "Hanukkah", 40, { topic: "Holidays", count: 6, minCount: 5, exclude: KIDS_EXCLUDE,
+    slots: ["kids dreidel set", "Hanukkah children's book", "kids menorah", "Hanukkah plush toy", "kids craft kit", "family board game"],
+    notes: "age-appropriate Hanukkah and everyday gifts for kids" }),
+  P("eight-nights-of-hanukkah-gifts", "8 nights of Hanukkah gift ideas", "family members who celebrate Hanukkah", "Hanukkah", 50, { topic: "Holidays", count: 8, minCount: 6,
+    slots: ["dreidel set", "Hanukkah book", "cozy socks", "family board game", "scented candle", "puzzle", "art supply set", "menorah"],
+    notes: "one gift idea for each of the eight nights; mix of small and bigger gifts" }),
 ];
 export const pageBySlug = slug => PAGES.find(p => p.slug === slug) || null;
 
