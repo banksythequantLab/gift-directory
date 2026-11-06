@@ -88,6 +88,12 @@ eq("without ids the page has no ad code at all", renderGuide(p, row, [], null, "
     eq("one fan page per team in the four leagues", TEAM_PAGES.filter(p => ["NFL", "MLB", "NBA", "NHL"].includes(p.team.league)).length, 124);
     eq("WNBA, MLS, college, club and national pages", TEAM_PAGES.length, 199 + 31 + 21);
     eq("England page drops New England gear", allowed(pageBySlug("gifts-for-england-soccer-fans"), { title: "New England Patriots Soccer Scarf" }), false);
+    { const { teamNav, related } = await import("../seo.js"); const built = new Set(["gifts-for-football-fans", "gifts-for-new-york-giants-fans", "gifts-for-dallas-cowboys-fans", "gifts-for-alabama-crimson-tide-fans"]);
+      const hub = teamNav(pageBySlug("gifts-for-football-fans"), built), team = teamNav(pageBySlug("gifts-for-dallas-cowboys-fans"), built);
+      eq("football guide lists built NFL and college teams", hub.includes("/gifts/gifts-for-new-york-giants-fans") && hub.includes("Shop by team: College") && !hub.includes("philadelphia-eagles"), true);
+      eq("team page links league mates and its sport guide, not itself", team.includes("new-york-giants") && team.includes("/gifts/gifts-for-football-fans") && !team.includes("dallas-cowboys-fans"), true);
+      eq("related skips unbuilt pages", related(pageBySlug("gifts-for-dallas-cowboys-fans"), built).map(r => r.slug).every(s => built.has(s)), true);
+      eq("non-sport pages get no team list", teamNav(pageBySlug("gifts-for-gamers"), built), ""); }
     eq("Ajax page drops Ajax cleaner", allowed(pageBySlug("gifts-for-afc-ajax-fans"), { title: "Ajax Dish Soap" }), false);
     eq("USMNT page keeps U.S. Soccer gear", allowed(pageBySlug("gifts-for-usmnt-fans"), { title: "U.S. Soccer 2026 Home Jersey" }), true);
     eq("MLS alias spellings count", allowed(pageBySlug("gifts-for-lafc-fans"), { title: "Los Angeles FC Club Scarf" }), true);

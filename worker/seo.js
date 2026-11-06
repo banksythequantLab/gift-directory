@@ -434,6 +434,12 @@ export const PAGES = [
   P("gifts-for-soccer-players", "Gifts for soccer players", "someone who plays soccer", "Christmas", 75, { topic: "Hobbies", count: 6, minCount: 5, exclude: [...NICHE_NOVELTY, "football helmet", "baseball", "hockey", "basketball"],
     slots: ["soccer ball", "soccer rebounder net", "shin guards", "soccer backpack", "soccer training cones set", "grip socks for soccer"],
     notes: "soccer gear for players" }),
+  P("gifts-for-basketball-fans", "Gifts for basketball fans", "a basketball fan", "Christmas", 100, { topic: "Hobbies", count: 6, minCount: 5, exclude: [...NICHE_NOVELTY, "football", "baseball", "hockey", "soccer", "golf"],
+    slots: ["over the door basketball hoop", "official size indoor outdoor basketball", "basketball display case", "basketball history book", "basketball arcade game", "basketball court wall art"],
+    notes: "gifts for basketball fans and players; team-neutral (the team pages below cover each NBA and WNBA team)" }),
+  P("gifts-for-soccer-fans", "Gifts for soccer fans", "a soccer (football) fan", "Christmas", 100, { topic: "Hobbies", count: 6, minCount: 5, exclude: [...NICHE_NOVELTY, "nfl", "football helmet", "baseball", "hockey", "basketball", "rugby", "ncaa", "mountaineers", "college", "bruins", "nhl"],
+    slots: ["World Cup 2026 official match ball", "soccer history book", "tabletop foosball game", "soccer ball display case", "soccer stadium poster print", "soccer fan scarf"],
+    notes: "gifts for soccer fans who follow clubs and national teams; team-neutral (the team pages below cover each club and national team)" }),
   P("gifts-for-houseplant-lovers", "Gifts for houseplant lovers", "someone who loves houseplants", "Christmas", 60, { topic: "Hobbies", count: 7, minCount: 5, exclude: NICHE_NOVELTY,
     slots: ["self watering planter", "plant grow light", "plant mister", "propagation station", "indoor plant shelf", "soil moisture meter", "houseplant care book"],
     notes: "gear for indoor plant people" }),
@@ -545,7 +551,7 @@ ${jsonld.map(j => `<script type="application/ld+json">${JSON.stringify(j).replac
 ${ad}
 <footer><a href="/">gift.directory</a> · <a href="/gifts">All gift guides</a> · <a href="https://gift.directory/about">About</a> · <a href="https://gift.directory/contact">Contact</a> · <a href="https://gift.directory/privacy">Privacy</a> · <a href="https://gift.directory/terms">Terms</a><br>Prices and stock come live from retailers through Channel3 and may change; links go to the retailer. We may earn a commission when you buy through these links.</footer></div></body></html>`;
 
-export function renderGuide(p, row, related, storeUrl, ad = "") {
+export function renderGuide(p, row, related, storeUrl, ad = "", teams = "") {
   const g = JSON.parse(row.guide_json), cards = JSON.parse(row.cards_json || "[]");
   const url = `${ROOT}/gifts/${p.slug}`, updated = String(row.updated_at).slice(0, 10);
   const title = `${p.keyword} (${new Date(row.updated_at).getUTCFullYear()}) — real gifts in stock | gift.directory`;
@@ -560,6 +566,7 @@ ${cards.length ? (cards.some(c => c.group)
 <div class="cta"><b style="font-size:1.1rem">Going in together?</b><br>${storeUrl
     ? `Find more and start a group gift at <a href="${esc(storeUrl)}">${esc(storeUrl.replace(/^https:\/\//, "").replace(/\/$/, ""))}</a> — everyone chips in with PayPal, straight to the organizer.`
     : `Every store on <a href="/">gift.directory</a> lets a group chip in with PayPal, straight to the organizer. <a href="/">Start your own gift store →</a>`}</div>
+${teams}
 ${g.faq.length ? `<h2 style="font-family:Georgia,serif">Questions people ask</h2>${g.faq.map(f => `<h3>${esc(f.q)}</h3><p>${esc(f.a)}</p>`).join("")}` : ""}
 <h2 style="font-family:Georgia,serif">More gift guides</h2><nav class="rel">${related.map(r => `<a href="/gifts/${r.slug}">${esc(r.keyword)}</a>`).join("")}</nav>`;
   const ld = [
@@ -575,9 +582,27 @@ export function renderHub(built, ad = "") {
 ${Object.entries(byTopic).map(([t, ps]) => `<h2 style="font-family:Georgia,serif">${esc(t)}</h2><nav class="rel">${ps.map(p => `<a href="/gifts/${p.slug}">${esc(p.keyword)}</a>`).join("")}</nav>`).join("")}`;
   return shell("Gift guides — real gifts in stock, picked by AI | gift.directory", "Christmas and year-round gift guides for lawyers, nurses, coworkers, family and more: real, in-stock gifts with live prices, picked by AI.", `${ROOT}/gifts`, body, [], ad);
 }
-export function related(p, n = 8) {
-  const same = PAGES.filter(x => x.topic === p.topic && x.slug !== p.slug), other = PAGES.filter(x => x.topic !== p.topic);
-  return [...same, ...other].slice(0, n);
+// Related guides: built pages only, starting with the page's neighbours in its own topic (so links spread
+// across a topic instead of every page pointing at its first eight), then other topics.
+export function related(p, built = null, n = 8) {
+  const ok = x => x.slug !== p.slug && (!built || built.has(x.slug));
+  const same = PAGES.filter(x => x.topic === p.topic), i = same.findIndex(x => x.slug === p.slug);
+  const ring = i < 0 ? same : [...same.slice(i + 1), ...same.slice(0, i)];
+  return [...ring.filter(ok), ...PAGES.filter(x => x.topic !== p.topic && ok(x))].slice(0, n);
+}
+// Each league's fan pages hang off one sport guide, and that guide lists every team.
+const SPORT_HUB = { NFL: "gifts-for-football-fans", College: "gifts-for-football-fans", MLB: "gifts-for-baseball-fans", NHL: "gifts-for-hockey-fans",
+  NBA: "gifts-for-basketball-fans", WNBA: "gifts-for-basketball-fans", MLS: "gifts-for-soccer-fans", Clubs: "gifts-for-soccer-fans", National: "gifts-for-soccer-fans" };
+export function teamNav(p, built) {
+  const nav = ps => `<nav class="rel">${ps.map(x => `<a href="/gifts/${x.slug}">${esc(x.keyword.replace(/^Gifts for /, "").replace(/ fans$/, ""))}</a>`).join("")}</nav>`;
+  if (p.team) {
+    const hub = pageBySlug(SPORT_HUB[p.team.league]), mates = TEAM_PAGES.filter(x => x.team.league === p.team.league && x.slug !== p.slug && built.has(x.slug));
+    return (mates.length ? `<h2 style="font-family:Georgia,serif">More ${esc(/ fans$/.test(p.topic) ? p.topic.replace(/ fans$/, " teams").replace(/^College/, "college") : p.topic.toLowerCase())}</h2>${nav(mates)}` : "") +
+      (hub && built.has(hub.slug) ? `<p><a href="/gifts/${hub.slug}">${esc(hub.keyword)} →</a></p>` : "");
+  }
+  const leagues = Object.keys(SPORT_HUB).filter(lg => SPORT_HUB[lg] === p.slug);
+  return leagues.map(lg => { const ts = TEAM_PAGES.filter(x => x.team.league === lg && built.has(x.slug)), t = ts[0] && ts[0].topic;
+    return ts.length ? `<h2 style="font-family:Georgia,serif">Shop by team: ${esc(t.replace(/ fans$/, ""))}</h2>${nav(ts)}` : ""; }).join("");
 }
 export function sitemap(urls) {
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +

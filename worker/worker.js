@@ -3,12 +3,22 @@ import { paypalFetch, link, paypalMode } from "./paypal-core.js";
 import { validateBrief, findGifts, browseGifts, channel3Search, toCard, mergeCards } from "./finder.js";
 import { validatePool, contributionError, buildContributionOrder, readCapture, applyCapture, publicPool } from "./pools.js";
 import { ROOT, DRAFT_SYSTEM, parseDraft, validateStore, storePlanSystem, subscriptionBody, storeStatusFor, hostKey, publicStore, darkEnough } from "./stores.js";
-import { PAGES, pageBySlug, GUIDE_SYSTEM, guidePrompt, parseGuide, pageBrief, renderGuide, renderHub, related, sitemap, adSlot, configureAds, diversify, allowed } from "./seo.js";
+import { PAGES, pageBySlug, GUIDE_SYSTEM, guidePrompt, parseGuide, pageBrief, renderGuide, renderHub, related, teamNav, TEAM_PAGES, sitemap, adSlot, configureAds, diversify, allowed } from "./seo.js";
 import { LEGAL_SLUGS, renderLegal } from "./legal.js";
 import { authorizeUrl, paypalWebBase, parseUserinfo, ownsStore, validateSettings, validateItem, shelves, withoutHidden } from "./owners.js";
 import { OWN_MAX, safeHttpsUrl, shopOrigin, shopifyCards, productFromHtml, parseCsv, ownMatches } from "./own.js";
 
 const now = () => new Date().toISOString();
+// Unbuilt team pages, a few per run, one after another (each build is several searches and two model calls).
+async function retryTeamPages(db, env, max = 6) {
+  const built = new Set((await db.prepare("SELECT slug FROM seo_pages").all()).results.map(r => r.slug));
+  // Rotate by week so the same few hopeless teams don't take every turn.
+  const left = TEAM_PAGES.filter(p => !built.has(p.slug)), at = left.length ? (Math.floor(Date.now() / 6048e5) * max) % left.length : 0;
+  const todo = [...left.slice(at), ...left.slice(0, at)].slice(0, max), out = [];
+  for (const p of todo) out.push({ slug: p.slug, ...(await buildGuide(db, env, p).catch(e => ({ ok: false, error: String(e) }))) });
+  console.log("team retry", JSON.stringify(out.map(o => [o.slug, o.ok])));
+  return out;
+}
 const uid = () => crypto.randomUUID();
 const J = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 async function readJson(req) { try { return await req.json(); } catch { return null; } }
@@ -297,7 +307,8 @@ export default {
         // Keep prices and stock fresh without making a visitor (or a crawler) wait for it.
         if (ctx && Date.now() - Date.parse(row.updated_at) > 3 * 864e5) ctx.waitUntil(buildGuide(db, env, p, { cardsOnly: true }).catch(() => {}));
         const st = p.store && await db.prepare("SELECT slug FROM stores WHERE slug=? AND status='active'").bind(p.store).first();
-        return html(renderGuide(p, row, related(p).filter(r => rows.some(x => x.slug === r.slug)), st ? `https://${st.slug}.${ROOT}/` : null, adSlot(env)));
+        const built = new Set(rows.map(r => r.slug));
+        return html(renderGuide(p, row, related(p, built), st ? `https://${st.slug}.${ROOT}/` : null, adSlot(env), teamNav(p, built)));
       }
       // Builds a guide page. Not public: needs the build token.
       if (url.pathname.startsWith("/api/seo/build/") && m === "POST") {
@@ -620,5 +631,7 @@ export default {
     const due = (await db.prepare("SELECT * FROM own_sources WHERE kind='shopify' AND (last_synced IS NULL OR last_synced < ?) ORDER BY last_synced LIMIT 25")
       .bind(new Date(Date.now() - 20 * 3600 * 1000).toISOString()).all()).results;
     for (const src of due) ctx.waitUntil(syncShopify(db, src));
+    // Mondays: retry team fan pages that had too little gear to build (they go live once stock shows up).
+    if (new Date(controller.scheduledTime || Date.now()).getUTCDay() === 1) ctx.waitUntil(retryTeamPages(db, env));
   },
 };
