@@ -217,6 +217,11 @@ export const THEME_PAGES = [
   ].map(([slug, name, req]) => T(`gifts-for-${slug}-lovers`, `Gifts for ${name} lovers`, `someone who loves their ${name}`, 50, "Dog breeds", req,
     [`${name} mug`, `${name} ornament`, `${name} socks`, `${name} plush`, `${name} framed wall art`, `${name} necklace`, `${name} blanket`],
     { exclude: ["collar", "harness", "leash", "dog food", "treats", "dog bed", "chew", "kibble", "flea", "shampoo", "crate", "boxer brief", "husky tool", "greyhound bus", "mr. worldwide", "labradorite", ...(slug === "bulldog" ? ["french"] : [])] })),
+  // Doodle dogs together: one breed alone is too thin. "Doodle" is also drawing, so drawing toys stay out.
+  T("gifts-for-doodle-lovers", "Gifts for doodle lovers (Goldendoodle, Labradoodle, Bernedoodle)", "someone who loves their Goldendoodle, Labradoodle or Bernedoodle", 50, "Dog breeds",
+    ["doodle"], ["Goldendoodle mug", "Doodle dog ornament", "Goldendoodle socks", "Goldendoodle plush", "Bernedoodle framed wall art", "Doodle dog necklace", "Labradoodle blanket"],
+    { exclude: ["magna doodle", "doodle pad", "doodle board", "doodle art", "doodle book", "coloring", "drawing", "doodle bear", "doodle jump", "yankee doodle", "doodlebug", "doodle mat", "collar", "harness", "leash", "dog food", "treats", "dog bed", "chew", "shampoo", "crate"],
+      notes: "doodle dogs (Goldendoodles, Labradoodles, Bernedoodles); gifts for the owner, not dog supplies" }),
   // Valentine's Day
   ...[["valentines-day-gifts-for-him", "Valentine's Day gifts for him", "my boyfriend or husband", 100, ["leather wallet", "wireless earbuds", "personalized whiskey glass", "cozy hoodie", "grooming kit", "watch", "couples game"]],
     ["valentines-day-gifts-for-her", "Valentine's Day gifts for her", "my girlfriend or wife", 100, ["heart necklace", "preserved rose dome", "silk pajamas", "jewelry box", "luxury candle", "spa gift set", "cozy slippers"]],
