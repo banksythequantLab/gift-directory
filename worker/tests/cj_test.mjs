@@ -1,5 +1,5 @@
 // CJ Affiliate products: query shape, card filtering, and the off switch when keys are missing.
-import { cjOn, cjQuery, cjToCard, cjSearch } from "../cj.js";
+import { cjOn, cjQuery, cjToCard, cjSearch, cjRelevant } from "../cj.js";
 
 let passed = 0, failed = 0;
 const ok = (n, c, d = "") => { c ? passed++ : (failed++, console.log(`FAIL  ${n}${d ? "  - " + d : ""}`)); };
@@ -49,5 +49,9 @@ eq("http image is not used", cjToCard(prod({ imageLink: "http://img.example/a.jp
   ok("API errors throw (callers fall back to Channel3)", threw);
 }
 
+eq("relevance: every meaningful word", cjRelevant("Midnight Mystic Men's Wizard Costume", "wizard costume"), true);
+eq("relevance: any-word matches are dropped", cjRelevant("Spiral Threader Drop Gold Dangle Earrings", "hunting gifts"), false);
+eq("relevance: plurals match", cjRelevant("Batman LEGO Set", "Batman LEGO sets for 8 year old boys"), true);
+eq("relevance: missing word fails", cjRelevant("Batman Hoodie", "Batman LEGO"), false);
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

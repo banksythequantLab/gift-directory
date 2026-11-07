@@ -12,7 +12,13 @@ const which = process.argv[2] === "joined" ? "joined" : "notjoined";
 const KEYWORDS = ["gift", "gifts", "jewelry", "personalized", "home decor", "kitchen", "toys", "games", "books", "apparel",
   "outdoor", "sports", "fan shop", "pets", "beauty", "spa", "candles", "flowers", "tech", "gadgets", "art", "crafts", "watches", "bags", "baby"];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const tag = (x, t) => { const m = x.match(new RegExp(`<${t}>([\\s\\S]*?)</${t}>`)); return m ? m[1].replace(/<!\[CDATA\[|\]\]>/g, "").trim() : ""; };
+const ent = s => s.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'");
+const tag = (x, t) => { const m = x.match(new RegExp(`<${t}(?:\\s[^>]*)?>([\\s\\S]*?)</${t}>`)); return m ? ent(m[1].replace(/<!\[CDATA\[|\]\]>/g, "").trim()) : ""; };
+// Gift-shop fit: product retailers in gift-friendly categories, US programs (names marked for other countries are dropped).
+const GIFT_PARENTS = /^(Gifts & Flowers|Accessories|Clothing\/Apparel|Home & Garden|Toys & Hobbies|Sports & Fitness|Computer & Electronics|Family|Beauty|Department Stores\/Malls|Entertainment|Books\/Media|Art\/Photo\/Music|Recreation & Leisure|Food & Drinks|Health and Wellness)\b/;
+const NOT_GIFTS = /(Utilities|Construction|Internet Service|Computer SW|Groceries|Telephone|Online\/Wireless|Loans|Insurance|Banking|Real Estate|Energy Saving|Office|Moving|Tools & Supplies|Medical|Pharmaceutical|Dental|Vacation|Hotel|\bCars?\b|\bAuto(motive)?\b)/i;
+const ABROAD = /\b(UK|U\.K\.|EU|Europe|Canada|CA|AU|Australia|DE|FR|IT|ES|NL|Germany|France|Ireland|NZ|India|Global Programme|International)\b/;
+export const giftFit = r => GIFT_PARENTS.test(r.category) && !NOT_GIFTS.test(r.category) && !ABROAD.test(r.name);
 
 const seen = new Map();
 for (const kw of KEYWORDS) {
@@ -41,5 +47,7 @@ const csv = ["advertiser_id,name,program_url,category,three_month_epc,seven_day_
   ...rows.map(r => [r.id, r.name, r.url, r.category, r.epc3m, r.epc7d, r.rank, r.sale, r.status, r.matched].map(v => `"${String(v).replace(/"/g, '""')}"`).join(","))].join("\n");
 const out = new URL(`../../docs/cj-advertisers-${which}.csv`, import.meta.url);
 writeFileSync(out, csv);
-console.log(`${rows.length} ${which} advertisers -> ${out.pathname}`);
-for (const r of rows.slice(0, 40)) console.log(`${String(r.epc3m.toFixed(2)).padStart(7)}  ${r.sale.padEnd(14).slice(0, 14)}  ${r.name.slice(0, 40).padEnd(40)}  ${r.category.slice(0, 40)}`);
+const gifts = rows.filter(giftFit);
+writeFileSync(new URL(`../../docs/cj-advertisers-${which}-gifts.csv`, import.meta.url), [csv.split("\n")[0], ...csv.split("\n").slice(1).filter((_, i) => giftFit(rows[i]))].join("\n"));
+console.log(`${rows.length} ${which} advertisers -> ${out.pathname}; ${gifts.length} fit a gift site -> cj-advertisers-${which}-gifts.csv`);
+for (const r of gifts.slice(0, 60)) console.log(`${String(r.epc3m.toFixed(2)).padStart(7)}  ${r.sale.padEnd(14).slice(0, 14)}  ${r.name.slice(0, 40).padEnd(40)}  ${r.category.slice(0, 40)}`);

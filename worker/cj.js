@@ -35,6 +35,18 @@ export function cjToCard(p, budgetCents) {
   };
 }
 
+// CJ keyword search matches ANY word ("hunting gifts" returns earrings), and CJ results are listed first, so a CJ product
+// only counts if its title has every meaningful word of the search (plurals match singulars).
+const STOP = new Set(["for", "the", "and", "a", "an", "of", "with", "to", "in", "on", "gift", "gifts", "him", "her", "his", "hers", "year", "old",
+  "years", "kids", "kid", "boy", "boys", "girl", "girls", "man", "men", "woman", "women", "adult", "adults", "fan", "fans", "lover", "lovers", "set"]);
+const stem = w => w.replace(/(ies)$/, "y").replace(/(es|s)$/, "");
+const words = s => String(s).toLowerCase().replace(/[^a-z0-9&]+/g, " ").split(" ").filter(w => w.length > 1 && !STOP.has(w) && !/^\d+$/.test(w)).map(stem);
+export function cjRelevant(title, query) {
+  const need = words(query); if (!need.length) return false;
+  const have = new Set(words(title)), flat = " " + String(title).toLowerCase().replace(/[^a-z0-9&]+/g, " ") + " ";
+  return need.every(w => have.has(w) || flat.includes(" " + w));
+}
+
 export async function cjSearch(env, query, brief = {}, { fetchImpl = fetch, limit = 24 } = {}) {
   if (!cjOn(env)) return [];
   const r = await fetchImpl(CJ_URL, { method: "POST", headers: { authorization: `Bearer ${env.CJ_TOKEN}`, "content-type": "application/json" },
@@ -43,5 +55,5 @@ export async function cjSearch(env, query, brief = {}, { fetchImpl = fetch, limi
   const j = await r.json();
   if (j && j.errors && j.errors.length && !(j.data && j.data.shoppingProducts)) throw new Error(`cj ${clip(j.errors[0].message, 120)}`);
   const list = (j && j.data && j.data.shoppingProducts && j.data.shoppingProducts.resultList) || [];
-  return list.map(p => cjToCard(p, brief.budget_cents || null)).filter(Boolean);
+  return list.filter(p => cjRelevant(p.title, query)).map(p => cjToCard(p, brief.budget_cents || null)).filter(Boolean);
 }

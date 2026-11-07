@@ -66,7 +66,7 @@ async function buildGuide(db, env, p, { cardsOnly = false } = {}) {
   if (p.slots) {
     // CJ products from joined advertisers come first (they pay us directly); Channel3 fills the rest. No CJ keys, no CJ.
     const found = await Promise.all(p.slots.map(q => Promise.all([
-      cjSearch(env, q, brief, { limit: 8 }).catch(() => []),
+      cjSearch(env, q, brief, { limit: 40 }).then(cs => cs.slice(0, 6)).catch(() => []),
       channel3Search(env, q, brief).then(ps => ps.map(x => toCard(x, brief.budget_cents))).catch(() => []),
     ]).then(([cj, c3]) => [...cj, ...c3])));
     // Up to six candidates per slot; the AI picks the best-known, best-reviewed-sounding one by index and says why.
