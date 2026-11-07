@@ -241,11 +241,11 @@ export const THEME_PAGES = [
     by[g].map(s => `${s} for ${age} year old ${g}`), { occasion: "birthday", exclude: KIDS_EXCLUDE, minCount: 5, notes: `age-appropriate gifts a ${age}-year-old ${g} will actually want` })))),
   ...[21, 30, 40, 50, 60, 70].flatMap(n => [
     T(`${n}th-birthday-gifts-for-him`.replace("21th", "21st"), `${n === 21 ? "21st" : n + "th"} birthday gifts for him`, `a man turning ${n}`, n === 21 ? 75 : 150, "Birthdays", null,
-      (n <= 30 ? ["wireless earbuds", "leather wallet", "bluetooth speaker", "hoodie", "watch", "card game", "travel bag"] : ["personalized whiskey glass", "leather wallet", "watch", "grilling tool set", "massage gun", "golf gift set", "leather weekender bag"]).map(s => `${s} for him`),
-      { occasion: `${n === 21 ? "21st" : n + "th"} birthday`, minCount: 5, notes: `milestone ${n}th birthday; lasting gifts he'll use, plus one fun nod to turning ${n}` }),
+      (n <= 30 ? ["wireless earbuds", "leather wallet", "bluetooth speaker", "hoodie", "watch", "card game", "travel bag"] : ["personalized whiskey glass", "leather wallet", "watch", "grilling tool set", "massage gun", "golf gift set", "leather weekender bag"]).map(s => `${s} for ${n} year old man`),
+      { occasion: `${n === 21 ? "21st" : n + "th"} birthday`, minCount: 5, exclude: ["objet d", "kids", "boys", "girls", "fanatics", "nfl", "mlb", "nba", "nhl", "ncaa"], notes: `milestone ${n}th birthday; lasting gifts he'll use, plus one fun nod to turning ${n}` }),
     T(`${n}th-birthday-gifts-for-her`.replace("21th", "21st"), `${n === 21 ? "21st" : n + "th"} birthday gifts for her`, `a woman turning ${n}`, n === 21 ? 75 : 150, "Birthdays", null,
-      (n <= 30 ? ["initial necklace", "instant camera", "jewelry box", "luxury candle", "silk pillowcase", "makeup bag", "tote bag"] : ["personalized necklace", "jewelry box", "spa gift set", "luxury candle", "cashmere scarf", "silk pajamas", "personalized photo book"]).map(s => `${s} for her`),
-      { occasion: `${n === 21 ? "21st" : n + "th"} birthday`, minCount: 5, notes: `milestone ${n}th birthday; meaningful gifts she'll keep` })]),
+      (n <= 30 ? ["initial necklace", "instant camera", "jewelry box", "luxury candle", "silk pillowcase", "makeup bag", "tote bag"] : ["personalized necklace", "jewelry box", "spa gift set", "luxury candle", "cashmere scarf", "silk pajamas", "personalized photo book"]).map(s => `${s} for ${n} year old woman`),
+      { occasion: `${n === 21 ? "21st" : n + "th"} birthday`, minCount: 5, exclude: ["objet d", "kids", "boys", "girls", "fanatics", "nfl", "mlb", "nba", "nhl", "ncaa"], notes: `milestone ${n}th birthday; meaningful gifts she'll keep` })]),
   // Valentine's Day
   ...[["valentines-day-gifts-for-him", "Valentine's Day gifts for him", "my boyfriend or husband", 100, ["leather wallet", "wireless earbuds", "personalized whiskey glass", "cozy hoodie", "grooming kit", "watch", "couples game"]],
     ["valentines-day-gifts-for-her", "Valentine's Day gifts for her", "my girlfriend or wife", 100, ["heart necklace", "preserved rose dome", "silk pajamas", "jewelry box", "luxury candle", "spa gift set", "cozy slippers"]],
