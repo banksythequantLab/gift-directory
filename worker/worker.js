@@ -10,6 +10,7 @@ import { OWN_MAX, safeHttpsUrl, shopOrigin, shopifyCards, productFromHtml, parse
 import { ETSY_API, ETSY_NOTICE, etsyShopName, etsyShopUrl, pickShop, etsyCards } from "./etsy.js";
 import { cjSearch } from "./cj.js";
 import { TEE, teePromo } from "./promo.js";
+import { ASSIST_SYSTEM, MAX_STEPS, SHELF_MAX, storeBrief, assistPrompt, parseAssist, matchHide, pickShelf, describeStep, PICK_SYSTEM, pickPrompt, applyPicks, capKinds } from "./assistant.js";
 
 const now = () => new Date().toISOString();
 // Guide price/stock refresh budget (see the /gifts/<slug> route): ~570 pages every 14 days is ~40 a day, ~280 searches.
@@ -257,6 +258,115 @@ async function teePrice(env) {
     return live;
   } catch { return 0; }
 }
+// Connect a shop to a store (the "Your products" forms and the AI assistant both use these).
+async function connectSource(env, db, storeId, kind, input) {
+  const target = kind === "etsy" ? (etsyShopName(input) && etsyShopUrl(etsyShopName(input))) : shopOrigin(input);
+  if (!target) return { ok: false, status: 400, error: kind === "etsy" ? "Enter your Etsy shop name or address, like etsy.com/shop/YourShop." : "Enter your shop's web address, like myshop.com or myshop.myshopify.com." };
+  const list = (await db.prepare("SELECT id,kind,url FROM own_sources WHERE store_id=?").bind(storeId).all()).results;
+  let src = list.find(x => x.url.toLowerCase() === target.toLowerCase());
+  const isNew = !src;
+  if (isNew) {
+    if (list.length >= 3) return { ok: false, status: 409, error: "A store can connect up to 3 shops." };
+    src = { id: uid(), kind, url: target };
+    await db.prepare("INSERT INTO own_sources (id,store_id,kind,url,created_at) VALUES (?,?,?,?,?)").bind(src.id, storeId, kind, target, now()).run();
+  }
+  const r = await syncSource(env, db, { ...src, kind, store_id: storeId });
+  if (!r.ok && isNew) await db.prepare("DELETE FROM own_sources WHERE id=?").bind(src.id).run();   // a failed first connect leaves nothing behind
+  return r.ok ? r : { ok: false, status: 422, error: r.error };
+}
+// Pin one card on a store (validated like the Curate tab's Pin button). Returns an error string or null.
+async function putItem(db, storeId, body) {
+  const v = validateItem(body); if (v.error) return v.error;
+  const n = await db.prepare("SELECT COUNT(*) n FROM store_items WHERE store_id=?").bind(storeId).first();
+  if (n.n >= 300) return "That's the most a store can curate.";
+  await db.prepare("INSERT INTO store_items (store_id,product_id,status,collection,card_json,sort,created_at) VALUES (?,?,?,?,?,?,?) " +
+    "ON CONFLICT(store_id,product_id) DO UPDATE SET status=excluded.status, collection=excluded.collection, card_json=excluded.card_json")
+    .bind(storeId, v.item.card.product_id, v.item.status, v.item.collection, JSON.stringify(v.item.card), n.n, now()).run();
+  return null;
+}
+// ---------- the store owner's AI assistant ----------
+async function assistContext(db, s) {
+  const items = await storeItems(db, s.id);
+  const counts = {}; for (const i of items) if (i.status === "pinned") counts[i.collection || "Our picks"] = (counts[i.collection || "Our picks"] || 0) + 1;
+  const sources = (await db.prepare("SELECT kind,url FROM own_sources WHERE store_id=?").bind(s.id).all()).results;
+  const fc = await db.prepare("SELECT cards_json FROM browse_cache WHERE store_id=?").bind(s.id).first();
+  return { items, shelves: Object.entries(counts).map(([title, count]) => ({ title, count })), sources, front: fc ? JSON.parse(fc.cards_json) : [] };
+}
+// Plan: ask the model, then do the lookups each step needs (searches for shelves, matches for hides) so the
+// owner sees the actual products before anything changes.
+async function assistPlan(env, db, s, cfg, body) {
+  const message = String(body.message || "").trim();
+  if (!message) return { error: "Tell the assistant what you'd like to do." };
+  const ctx = await assistContext(db, s);
+  let j; try { j = await aiFor(env)(ASSIST_SYSTEM, assistPrompt(storeBrief(s, cfg, ctx.shelves, ctx.sources), message, Array.isArray(body.history) ? body.history : [])); }
+  catch { return { reply: "I couldn't reach the AI just now. Try again in a moment.", steps: [] }; }
+  const plan = parseAssist(j, ctx.shelves.map(x => x.title));
+  const taken = new Set(ctx.items.map(i => i.product_id));
+  const shelves = plan.steps.filter(st => st.type === "add_shelf");
+  // Search every new shelf at once, then let the model choose the best of the candidates in one call.
+  await Promise.all(shelves.map(async st => {
+    const brief = { budget_cents: st.max_cents || 50000 };
+    // one search per product kind, results interleaved so every kind is in the candidate pool
+    const lists = await Promise.all(st.queries.map(q => Promise.all([searchCards(env, q).catch(() => []), cjSearch(env, q, brief, { limit: 10 }).catch(() => [])])
+      .then(([a, b]) => pickShelf([...b.slice(0, 2), ...a], { max_cents: st.max_cents, count: 8 }, taken))))
+      .then(ls => ls.map((l, k) => l.map(c => ({ ...c, _k: k }))));
+    const mixed = []; for (let k = 0; k < 8; k++) for (const l of lists) if (l[k]) mixed.push(l[k]);
+    st.pool = pickShelf(mixed, { count: 24 });
+  }));
+  if (shelves.some(st => st.pool.length)) {
+    let picks = null;
+    // ask for up to twice the shelf size, ranked; the per-kind cap then trims it to a varied shelf
+    try { picks = await aiFor(env)(PICK_SYSTEM, pickPrompt(s.name, s.niche, shelves.map(st => ({ ...st, count: Math.min(st.pool.length, st.count * 2) })))); } catch {}
+    applyPicks(picks, shelves.map(st => ({ ...st, count: st.pool.length }))).forEach((cards, i) => { shelves[i].cards = capKinds(cards.filter(c => !taken.has(c.product_id)), shelves[i].count, shelves[i].queries.length); shelves[i].cards.forEach(c => taken.add(c.product_id)); });
+  }
+  for (const st of plan.steps) {
+    if (st.type === "add_shelf") { st.cards = st.cards || []; delete st.pool; }
+    else if (st.type === "hide") st.cards = matchHide([...ctx.front, ...ctx.items.filter(i => i.status === "pinned").map(i => JSON.parse(i.card_json))], st.words);
+    st.summary = describeStep(st);
+  }
+  plan.steps = plan.steps.filter(st => st.type !== "add_shelf" || st.cards.length);
+  return plan;
+}
+// Apply the steps the owner approved. Every step is re-checked here; the browser's copy is not trusted.
+async function assistApply(env, db, s, cfg, body) {
+  const steps = (Array.isArray(body.steps) ? body.steps : []).slice(0, MAX_STEPS), results = [];
+  let next = { ...cfg }, name = s.name, tagline = s.tagline, settingsChanged = false;
+  for (const st of steps) {
+    try {
+      if (st.type === "add_shelf") {
+        const collection = String(st.collection || "").slice(0, 40); let n = 0, err = null;
+        for (const card of (Array.isArray(st.cards) ? st.cards : []).slice(0, SHELF_MAX)) { err = await putItem(db, s.id, { status: "pinned", collection, card }); if (!err) n++; else if (err.startsWith("That's the most")) break; }
+        results.push(n ? { ok: true, text: `Added ${n} products to "${collection}".` } : { ok: false, text: err || "No products to add." });
+      } else if (st.type === "remove_shelf") {
+        const r = await db.prepare("DELETE FROM store_items WHERE store_id=? AND status='pinned' AND collection=?").bind(s.id, String(st.collection || "")).run();
+        results.push({ ok: true, text: `Removed "${st.collection}" (${r.meta.changes} products).` });
+      } else if (st.type === "hide") {
+        const words = (Array.isArray(st.words) ? st.words : []).map(w => String(w).toLowerCase().slice(0, 40)).filter(w => w.length >= 3).slice(0, 10);
+        let n = 0; for (const card of (Array.isArray(st.cards) ? st.cards : []).slice(0, 60)) if (words.some(w => String(card.title || "").toLowerCase().includes(w)) && !(await putItem(db, s.id, { status: "hidden", card }))) n++;
+        // and keep them out of future picks
+        const avoid = [next.avoid, ...words.filter(w => !String(next.avoid || "").toLowerCase().includes(w))].filter(Boolean).join(", ").slice(0, 200);
+        if (avoid !== (next.avoid || "")) { next.avoid = avoid; settingsChanged = true; }
+        results.push({ ok: true, text: `Hid ${n} product${n === 1 ? "" : "s"}; the AI will also avoid ${words.join(", ")}.` });
+      } else if (st.type === "settings") {
+        const ch = st.changes || {};
+        const v = validateSettings({ name, tagline, occasions: next.occasions, recipient_examples: next.recipient_examples, search_guidance: next.search_guidance,
+          avoid: next.avoid, accent: next.accent, tee_banner: next.tee_banner !== false, ...ch }, darkEnough);
+        if (v.error) { results.push({ ok: false, text: v.error }); continue; }
+        name = v.settings.name; tagline = v.settings.tagline;
+        next = { ...next, ...v.settings, accent: v.settings.accent || next.accent }; delete next.name; delete next.tagline;
+        settingsChanged = true; results.push({ ok: true, text: "Settings updated." });
+      } else if (st.type === "connect_etsy" || st.type === "connect_shopify") {
+        const r = await connectSource(env, db, s.id, st.type === "connect_etsy" ? "etsy" : "shopify", st.type === "connect_etsy" ? st.shop : st.url);
+        results.push(r.ok ? { ok: true, text: `Connected: ${r.count} products imported.` } : { ok: false, text: r.error });
+      }
+    } catch (e) { results.push({ ok: false, text: String(e.message || e).slice(0, 200) }); }
+  }
+  if (settingsChanged) await db.batch([
+    db.prepare("UPDATE stores SET name=?, tagline=?, config_json=?, updated_at=? WHERE id=?").bind(name, tagline, JSON.stringify(next), now(), s.id),
+    db.prepare("DELETE FROM browse_cache WHERE store_id=?").bind(s.id),
+  ]);
+  return { results };
+}
 // Store owners can switch the tee banner off in Settings (stored as config tee_banner:false).
 const teeOn = store => { try { return JSON.parse(store.config_json || "{}").tee_banner !== false; } catch { return true; } };
 const syncSource = (env, db, src) => src.kind === "etsy" ? syncEtsy(env, db, src) : syncShopify(db, src);
@@ -390,6 +500,13 @@ export default {
         const p = pageBySlug(parts[3]); if (!p) return J({ error: "unknown page" }, 404);
         return J(await buildGuide(db, env, p, { cardsOnly: url.searchParams.get("cards") === "1" }));
       }
+      // The store assistant's plan for a store, without logging in as its owner: a check for the operator.
+      // Plan only (nothing is applied). Needs the build token.
+      if (url.pathname.startsWith("/api/seo/assist-check/") && m === "POST") {
+        if (!env.BUILD_TOKEN || request.headers.get("x-build-token") !== env.BUILD_TOKEN) return J({ error: "not allowed" }, 403);
+        const st = await db.prepare("SELECT * FROM stores WHERE slug=?").bind(parts[3]).first(); if (!st) return J({ error: "unknown store" }, 404);
+        return J(await assistPlan(env, db, st, JSON.parse(st.config_json), (await readJson(request)) || {}));
+      }
       if (parts[0] !== "api") {
         // Ask for bare names ("/pool", not "/pool.html"): the asset server answers .html with a 307
         // to the bare name, and that redirect reached the browser and threw away /g/<id>.
@@ -522,14 +639,14 @@ export default {
             return J({ cards: q.length >= 2 ? await searchCards(env, q) : [] });
           }
           if (parts[4] === "items" && parts.length === 5 && m === "PUT") {
-            const v = validateItem(await readJson(request));
-            if (v.error) return J({ error: v.error }, 400);
-            const n = await db.prepare("SELECT COUNT(*) n FROM store_items WHERE store_id=?").bind(s.id).first();
-            if (n.n >= 300) return J({ error: "That's the most a store can curate." }, 409);
-            await db.prepare("INSERT INTO store_items (store_id,product_id,status,collection,card_json,sort,created_at) VALUES (?,?,?,?,?,?,?) " +
-              "ON CONFLICT(store_id,product_id) DO UPDATE SET status=excluded.status, collection=excluded.collection, card_json=excluded.card_json")
-              .bind(s.id, v.item.card.product_id, v.item.status, v.item.collection, JSON.stringify(v.item.card), n.n, now()).run();
-            return J({ ok: true });
+            const err = await putItem(db, s.id, await readJson(request));
+            return err ? J({ error: err }, err.startsWith("That's the most") ? 409 : 400) : J({ ok: true });
+          }
+          // ---- the AI assistant: plan (nothing changes), then apply what the owner approved ----
+          if (parts[4] === "assist" && m === "POST") {
+            const body = (await readJson(request)) || {};
+            if (parts.length === 5) return J(await assistPlan(env, db, s, cfg, body));
+            if (parts[5] === "apply") return J(await assistApply(env, db, s, cfg, body));
           }
           if (parts[4] === "items" && parts[5] && m === "DELETE") {
             await db.prepare("DELETE FROM store_items WHERE store_id=? AND product_id=?").bind(s.id, decodeURIComponent(parts[5])).run();
@@ -539,33 +656,9 @@ export default {
           if (parts[4] === "own") {
             const sources = async () => (await db.prepare("SELECT id,kind,url,last_synced,last_error,product_count FROM own_sources WHERE store_id=? ORDER BY created_at").bind(s.id).all()).results;
             if (parts.length === 5 && m === "GET") return J({ sources: await sources(), products: await ownProducts(db, s.id, { all: true }), max: OWN_MAX });
-            if (parts[5] === "shopify" && m === "POST") {
-              const origin = shopOrigin(((await readJson(request)) || {}).url || "");
-              if (!origin) return J({ error: "Enter your shop's web address, like myshop.com or myshop.myshopify.com." }, 400);
-              const list = await sources();
-              let src = list.find(x => x.url === origin);
-              if (!src) {
-                if (list.length >= 3) return J({ error: "A store can connect up to 3 shops." }, 409);
-                src = { id: uid(), store_id: s.id, kind: "shopify", url: origin };
-                await db.prepare("INSERT INTO own_sources (id,store_id,kind,url,created_at) VALUES (?,?,?,?,?)").bind(src.id, s.id, "shopify", origin, now()).run();
-              }
-              const r = await syncShopify(db, { ...src, store_id: s.id });
-              if (!r.ok && !list.find(x => x.url === origin)) await db.prepare("DELETE FROM own_sources WHERE id=?").bind(src.id).run(); // a failed first connect leaves nothing behind
-              return r.ok ? J(r) : J({ error: r.error }, 422);
-            }
-            if (parts[5] === "etsy" && m === "POST") {
-              const name = etsyShopName(((await readJson(request)) || {}).url || "");
-              if (!name) return J({ error: "Enter your Etsy shop name or address, like etsy.com/shop/YourShop." }, 400);
-              const url = etsyShopUrl(name), list = await sources();
-              let src = list.find(x => x.url.toLowerCase() === url.toLowerCase());
-              if (!src) {
-                if (list.length >= 3) return J({ error: "A store can connect up to 3 shops." }, 409);
-                src = { id: uid(), store_id: s.id, kind: "etsy", url };
-                await db.prepare("INSERT INTO own_sources (id,store_id,kind,url,created_at) VALUES (?,?,?,?,?)").bind(src.id, s.id, "etsy", url, now()).run();
-              }
-              const r = await syncEtsy(env, db, { ...src, store_id: s.id });
-              if (!r.ok && !list.find(x => x.id === src.id)) await db.prepare("DELETE FROM own_sources WHERE id=?").bind(src.id).run();
-              return r.ok ? J(r) : J({ error: r.error }, 422);
+            if ((parts[5] === "shopify" || parts[5] === "etsy") && m === "POST") {
+              const r = await connectSource(env, db, s.id, parts[5], ((await readJson(request)) || {}).url || "");
+              return r.ok ? J(r) : J({ error: r.error }, r.status || 422);
             }
             if (parts[5] === "link" && m === "POST") {
               const raw = ((await readJson(request)) || {}).url || "";

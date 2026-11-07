@@ -28,7 +28,7 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": 
 const money = c => c == null ? "" : "$" + (c / 100).toLocaleString("en-US", { minimumFractionDigits: c % 100 ? 2 : 0, maximumFractionDigits: 2 });
 const api = async (path, opt = {}) => { const r = await fetch("/api/admin" + path, { headers: { "content-type": "application/json" }, ...opt }); const j = await r.json().catch(() => ({})); if (!r.ok) throw Object.assign(new Error(j.error || "Something went wrong"), { status: r.status }); return j; };
 const q = new URLSearchParams(location.search);
-let me = null, cur = null, tab = "curate", results = [];
+let me = null, cur = null, tab = "assist", results = [];
 
 if (q.get("login") === "failed") $("#msg").innerHTML = `<p class="err">PayPal login didn't complete. Try again.</p>`;
 
@@ -49,7 +49,7 @@ if (q.get("login") === "failed") $("#msg").innerHTML = `<p class="err">PayPal lo
 })();
 
 async function open(id) {
-  const d = await api(`/stores/${id}`); cur = d;
+  const d = await api(`/stores/${id}`); if (!cur || cur.store.id !== d.store.id) chat = []; cur = d;
   document.documentElement.style.setProperty("--accent", d.store.accent || "#1f3a5f");
   draw();
 }
@@ -75,11 +75,51 @@ function draw() {
   $("#app").innerHTML = `<div class="card" style="margin-top:12px;display:flex;gap:14px;align-items:center;flex-wrap:wrap">
       <div><b style="font-size:1.15rem">${esc(s.name)}</b> <span class="pill" style="background:var(--accent);color:#fff;border-radius:999px;padding:2px 10px;font-size:.78rem">${esc(s.status)}</span><br>
       <a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.url)}</a></div><div style="margin-left:auto">${pick}</div></div>
-    <div class="tabs">${[["curate", "Curate"], ["products", "Your products"], ["settings", "Settings"], ["activity", "Activity & billing"]].map(([k, l]) => `<button data-tab="${k}" class="${tab === k ? "on" : ""}">${l}</button>`).join("")}</div>
+    <div class="tabs">${[["assist", "✨ AI assistant"], ["curate", "Curate"], ["products", "Your products"], ["settings", "Settings"], ["activity", "Activity & billing"]].map(([k, l]) => `<button data-tab="${k}" class="${tab === k ? "on" : ""}">${l}</button>`).join("")}</div>
     <div id="pane"></div>`;
   if ($("#pick")) $("#pick").onchange = e => open(e.target.value);
   document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { tab = b.dataset.tab; draw(); });
-  ({ curate, products, settings, activity })[tab]();
+  ({ assist, curate, products, settings, activity })[tab]();
+}
+
+// ---------- AI assistant: say what you want, see the plan, click Apply ----------
+let chat = [];   // { role: "owner"|"assistant", text, steps?, results? } for this store, this visit
+const IDEAS = ["Add a shelf of stocking stuffers under $25", "Hide anything with alcohol or skulls", "Make my tagline punchier",
+  "Add Mother's Day and Graduation to my occasions", "What shelves should I add for the holidays?"];
+function assist() {
+  const s = cur.store;
+  const bubble = (m, i) => m.role === "owner"
+    ? `<div style="align-self:flex-end;background:var(--accent);color:#fff;border-radius:14px 14px 4px 14px;padding:9px 13px;max-width:80%">${esc(m.text)}</div>`
+    : `<div class="card" style="align-self:flex-start;max-width:92%;margin:0"><div>${esc(m.text)}</div>
+        ${m.steps && m.steps.length ? `<ol style="margin:10px 0 0;padding-left:20px">${m.steps.map((st, k) => `<li style="margin-bottom:8px"><label style="display:flex;gap:8px;align-items:flex-start;font-weight:400;margin:0">
+          <input type="checkbox" data-step="${i}:${k}" style="width:auto;margin-top:4px"${m.results ? " disabled" : " checked"}> <span>${esc(st.summary)}</span></label>
+          ${st.cards && st.cards.length ? `<div class="mini" style="margin-top:6px">${st.cards.slice(0, 12).map(c => `<div class="card" style="padding:6px">${c.image ? `<img src="${esc(c.image)}" alt="" loading="lazy">` : ""}<div class="t" style="font-size:.78rem">${esc(c.title)}</div><div class="muted" style="font-size:.75rem">${money(c.price_cents)} · ${esc(c.merchant)}</div></div>`).join("")}</div>` : ""}</li>`).join("")}</ol>
+          ${m.results ? `<div style="margin-top:6px">${m.results.map(r => `<div class="${r.ok ? "ok" : "err"}" style="font-size:.88rem">${r.ok ? "✓" : "✗"} ${esc(r.text)}</div>`).join("")}</div>`
+            : `<button class="btn" data-apply="${i}" style="margin-top:6px">Apply checked steps</button> <span class="muted" style="font-size:.85rem">Nothing changes until you click Apply.</span>`}` : ""}</div>`;
+  $("#pane").innerHTML = `<p class="muted" style="margin-top:0">Tell the assistant what you want for <b>${esc(s.name)}</b>, like you'd tell a helper: new shelves, things to hide, settings to change, a shop to connect. It shows you the plan and the actual products first; nothing changes until you click Apply.</p>
+    <div id="chat" style="display:flex;flex-direction:column;gap:10px;margin:10px 0">${chat.map(bubble).join("") || `<div class="muted">Try one:</div><div style="display:flex;flex-wrap:wrap;gap:6px">${IDEAS.map(t => `<button class="btn sec sm" data-idea="${esc(t)}">${esc(t)}</button>`).join("")}</div>`}</div>
+    <form id="af" style="display:flex;gap:8px"><input id="aq2" placeholder="e.g. Add a shelf of gifts for new nurses under $50" maxlength="600" autocomplete="off"><button class="btn" id="ago">Ask</button></form>
+    <div id="awork" class="muted" style="margin-top:6px"></div>`;
+  const ask = async text => {
+    if (!text.trim()) return;
+    const history = chat.slice(-6).map(m => ({ role: m.role, text: m.text }));
+    chat.push({ role: "owner", text }); assist(); $("#awork").textContent = "Thinking and finding products… (about 10–20 seconds)"; $("#ago").disabled = true;
+    try { const r = await api(`/stores/${s.id}/assist`, { method: "POST", body: JSON.stringify({ message: text, history }) });
+      chat.push({ role: "assistant", text: r.reply || r.error || "Done.", steps: r.steps || [] }); }
+    catch (err) { chat.push({ role: "assistant", text: err.message }); }
+    assist(); $("#chat").lastElementChild.scrollIntoView({ block: "nearest" });
+  };
+  $("#af").onsubmit = e => { e.preventDefault(); ask($("#aq2").value); };
+  document.querySelectorAll("[data-idea]").forEach(b => b.onclick = () => ask(b.dataset.idea));
+  document.querySelectorAll("[data-apply]").forEach(b => b.onclick = async () => {
+    const i = +b.dataset.apply, m = chat[i];
+    const steps = m.steps.filter((_, k) => { const cb = document.querySelector(`[data-step="${i}:${k}"]`); return cb && cb.checked; });
+    if (!steps.length) return;
+    b.disabled = true; b.textContent = "Applying…";
+    try { const r = await api(`/stores/${s.id}/assist/apply`, { method: "POST", body: JSON.stringify({ steps }) }); m.results = r.results || []; }
+    catch (err) { m.results = [{ ok: false, text: err.message }]; }
+    const keep = chat; await open(s.id); chat = keep; tab = "assist"; draw();
+  });
 }
 
 // ---------- Your products (Shopify, links, CSV) ----------
