@@ -220,10 +220,16 @@ async function syncEtsy(env, db, src) {
     const shop = pickShop(await etsyGet(env, `/shops?shop_name=${encodeURIComponent(name)}`), name);
     if (!shop) throw new Error(`No Etsy shop named ${name}.`);
     const cards = [];
+    // Public endpoints only (an API key, no seller sign-in): the shop's active listings, then the same
+    // listings again through the batch endpoint, which is the one that can attach their photos.
     for (let off = 0; off < OWN_MAX; off += 100) {
-      const j = await etsyGet(env, `/shops/${shop.shop_id}/listings?state=active&limit=100&offset=${off}&includes=Images`);
-      cards.push(...etsyCards(j, shop.shop_name));
-      if (!Array.isArray(j.results) || j.results.length < 100) break;
+      const j = await etsyGet(env, `/shops/${shop.shop_id}/listings/active?limit=100&offset=${off}`);
+      const ids = (Array.isArray(j.results) ? j.results : []).map(l => l.listing_id).filter(Boolean);
+      if (ids.length) {
+        const b = await etsyGet(env, `/listings/batch?listing_ids=${ids.join(",")}&includes=Images`).catch(() => j);
+        cards.push(...etsyCards(b, shop.shop_name));
+      }
+      if (ids.length < 100) break;
     }
     if (!cards.length) throw new Error("That Etsy shop has no active listings.");
     await upsertOwn(db, src.store_id, cards, "etsy", src.id);
