@@ -7,6 +7,7 @@ import { PAGES, pageBySlug, GUIDE_SYSTEM, guidePrompt, parseGuide, pageBrief, re
 import { LEGAL_SLUGS, renderLegal } from "./legal.js";
 import { authorizeUrl, paypalWebBase, parseUserinfo, ownsStore, validateSettings, validateItem, shelves, withoutHidden } from "./owners.js";
 import { OWN_MAX, safeHttpsUrl, shopOrigin, shopifyCards, productFromHtml, parseCsv, ownMatches } from "./own.js";
+import { cjSearch } from "./cj.js";
 
 const now = () => new Date().toISOString();
 // Guide price/stock refresh budget (see the /gifts/<slug> route): ~570 pages every 14 days is ~40 a day, ~280 searches.
@@ -63,7 +64,11 @@ async function buildGuide(db, env, p, { cardsOnly = false } = {}) {
   const brief = pageBrief(p);
   // A "10 best" page with fixed slots: one search per category, the top in-stock product of each, then one AI call for the reasons.
   if (p.slots) {
-    const found = await Promise.all(p.slots.map(q => channel3Search(env, q, brief).then(ps => ps.map(x => toCard(x, brief.budget_cents))).catch(() => [])));
+    // CJ products from joined advertisers come first (they pay us directly); Channel3 fills the rest. No CJ keys, no CJ.
+    const found = await Promise.all(p.slots.map(q => Promise.all([
+      cjSearch(env, q, brief, { limit: 8 }).catch(() => []),
+      channel3Search(env, q, brief).then(ps => ps.map(x => toCard(x, brief.budget_cents))).catch(() => []),
+    ]).then(([cj, c3]) => [...cj, ...c3])));
     // Up to six candidates per slot; the AI picks the best-known, best-reviewed-sounding one by index and says why.
     // `slotMust[i]`: the product title must name that slot's kind (a scarf slot can't fill with a fourth jersey).
     const fits = (c, i) => !p.slotMust || !p.slotMust[i] || p.slotMust[i].some(w => String(c.title || "").toLowerCase().includes(w));
