@@ -257,6 +257,8 @@ async function teePrice(env) {
     return live;
   } catch { return 0; }
 }
+// Store owners can switch the tee banner off in Settings (stored as config tee_banner:false).
+const teeOn = store => { try { return JSON.parse(store.config_json || "{}").tee_banner !== false; } catch { return true; } };
 const syncSource = (env, db, src) => src.kind === "etsy" ? syncEtsy(env, db, src) : syncShopify(db, src);
 // The owner's products as a shelf for the store page (newest first).
 async function ownShelf(db, storeId) {
@@ -414,7 +416,7 @@ export default {
         if (!store) return J({ error: "No store here." }, 404);
         const user = await currentUser(db, request);
         return withCookie(Promise.resolve(J({ ...publicStore(store), shelves: [...await ownShelf(db, store.id), ...shelves(await storeItems(db, store.id))],
-          promo: await teePrice(env).then(c => c < 0 ? null : teePromo(store, c)), can_edit: ownsStore(user, store) })), setCookie);
+          promo: teeOn(store) ? await teePrice(env).then(c => c < 0 ? null : teePromo(store, c)) : null, can_edit: ownsStore(user, store) })), setCookie);
       }
 
       // ---------- the front-page grid ----------
@@ -500,7 +502,7 @@ export default {
             const fc = await db.prepare("SELECT cards_json FROM browse_cache WHERE store_id=?").bind(s.id).first();
             const front = fc ? JSON.parse(fc.cards_json) : [];
             return J({ store: { id: s.id, slug: s.slug, name: s.name, tagline: s.tagline, niche: s.niche, status: s.status, url: storeUrl(env, url, s.slug), house: !!cfg.house,
-                       occasions: cfg.occasions, recipient_examples: cfg.recipient_examples || [], search_guidance: cfg.search_guidance || "", avoid: cfg.avoid || "", accent: cfg.accent },
+                       occasions: cfg.occasions, recipient_examples: cfg.recipient_examples || [], search_guidance: cfg.search_guidance || "", avoid: cfg.avoid || "", accent: cfg.accent, tee_banner: cfg.tee_banner !== false },
                        subscription: { id: s.paypal_subscription_id, status: s.subscription_status, checked_at: s.checked_at, manage_url: `${paypalWebBase(env)}/myaccount/autopay/` },
                        items: items.map(i => ({ product_id: i.product_id, status: i.status, collection: i.collection, card: JSON.parse(i.card_json) })),
                        front, pools, searches: searches.n });

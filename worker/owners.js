@@ -44,6 +44,7 @@ export function validateSettings(b, darkEnough) {
     search_guidance: clip(String(b.search_guidance || "").trim(), 300) || null,
     avoid: clip(String(b.avoid || "").trim(), 200) || null,
     accent: b.accent || null,
+    tee_banner: b.tee_banner !== false,   // the custom-tee banner at the bottom of the store; on unless switched off
   } };
 }
 

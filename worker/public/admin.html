@@ -193,6 +193,8 @@ function settings() {
     ${s.house ? `<p class="muted">This is a house store with a hand-tuned search prompt.</p>` : `
     <label>What the AI should look for</label><textarea id="s_guide" maxlength="300">${esc(s.search_guidance)}</textarea>
     <label>What the AI should avoid</label><input id="s_avoid" maxlength="200" value="${esc(s.avoid)}">`}
+    <label style="display:flex;gap:8px;align-items:center;margin-top:14px;font-weight:400"><input type="checkbox" id="s_tee" style="width:auto"${s.tee_banner === false ? "" : " checked"}>
+      Show the custom-tee banner at the bottom of my store <span class="muted" style="font-size:.85rem">(a two-line custom shirt from the HeyAiMe Etsy shop, with sayings that fit your store)</span></label>
     <div class="err" id="serr"></div>
     <button class="btn" style="margin-top:12px">Save</button> <span class="ok" id="sok"></span></form>`;
   $("#sf").onsubmit = async e => {
@@ -201,7 +203,7 @@ function settings() {
     try {
       await api(`/stores/${cur.store.id}/settings`, { method: "PUT", body: JSON.stringify({ name: $("#s_name").value, tagline: $("#s_tag").value, accent: $("#s_accent").value,
         occasions: list($("#s_occ").value), recipient_examples: list($("#s_rec").value),
-        search_guidance: $("#s_guide") ? $("#s_guide").value : cur.store.search_guidance, avoid: $("#s_avoid") ? $("#s_avoid").value : cur.store.avoid }) });
+        search_guidance: $("#s_guide") ? $("#s_guide").value : cur.store.search_guidance, avoid: $("#s_avoid") ? $("#s_avoid").value : cur.store.avoid, tee_banner: $("#s_tee").checked }) });
       await open(cur.store.id); tab = "settings"; draw(); $("#sok").textContent = "Saved — your front page will rebuild with the new settings.";
     } catch (err) { $("#serr").textContent = err.message; }
   };

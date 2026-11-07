@@ -32,6 +32,9 @@ const good = { name: "Nurse Gifts", tagline: "t", occasions: ["a", "b", "c"], ac
 eq("good settings pass", validateSettings(good, darkEnough).settings.name, "Nurse Gifts");
 ok("a name is required", validateSettings({ ...good, name: " " }, darkEnough).error);
 ok("three occasions at least", validateSettings({ ...good, occasions: ["a"] }, darkEnough).error);
+eq("tee banner on by default", validateSettings(good, darkEnough).settings.tee_banner, true);
+eq("tee banner can be switched off", validateSettings({ ...good, tee_banner: false }, darkEnough).settings.tee_banner, false);
+eq("tee banner only off when exactly false", validateSettings({ ...good, tee_banner: "no" }, darkEnough).settings.tee_banner, true);
 ok("a light color is refused", validateSettings({ ...good, accent: "#ffee99" }, darkEnough).error);
 
 const card = { product_id: "p1", title: "Snow Globe", url: "https://shop/x", price_cents: 7000, image: "https://img/x" };
