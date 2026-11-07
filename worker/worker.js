@@ -10,6 +10,7 @@ import { OWN_MAX, safeHttpsUrl, shopOrigin, shopifyCards, productFromHtml, parse
 import { ETSY_API, ETSY_NOTICE, etsyShopName, etsyShopUrl, pickShop, etsyCards } from "./etsy.js";
 import { cjSearch } from "./cj.js";
 import { TEE, teePromo } from "./promo.js";
+import { REG_MAX_ITEMS, REG_POOL_MIN_CENTS, validateRegistry, registrySlug, validateRegItem, publicRegistry, REG_AI_SYSTEM, regAiPrompt, parseRegAi } from "./registry.js";
 import { ASSIST_SYSTEM, MAX_STEPS, SHELF_MAX, storeBrief, assistPrompt, parseAssist, matchHide, pickShelf, describeStep, PICK_SYSTEM, pickPrompt, applyPicks, capKinds } from "./assistant.js";
 
 const now = () => new Date().toISOString();
@@ -511,6 +512,7 @@ export default {
         // Ask for bare names ("/pool", not "/pool.html"): the asset server answers .html with a 307
         // to the bare name, and that redirect reached the browser and threw away /g/<id>.
         if (parts[0] === "g" && parts[1]) return page("/pool");
+        if ((parts[0] === "r" && parts[1]) || (parts[0] === "registry" && parts.length === 1)) return page("/registry");
         // Logins all go through gift.directory, the one callback address registered with PayPal.
         if (parts[0] === "login") {
           if (url.hostname !== ROOT && !isWorkersDev(url.hostname)) return Response.redirect(`https://${ROOT}/login`, 302);
@@ -525,6 +527,106 @@ export default {
         if (platform && (parts.length === 0 || parts[0] === "new")) return page("/platform");
         if (parts.length === 0) return page("/");
         return env.ASSETS.fetch(request);
+      }
+
+      // ---------- gift registries (any store; guests mark what they bought; big items can be group gifts) ----------
+      if (parts[1] === "registry") {
+        if (parts.length === 2 && m === "POST") {
+          const v = validateRegistry(await readJson(request)); if (v.error) return J({ error: v.error }, 400);
+          const ipHash = await sha256("reg:" + (request.headers.get("cf-connecting-ip") || ""));
+          const recent = await db.prepare("SELECT COUNT(*) n FROM registries WHERE ip_hash=? AND created_at > ?").bind(ipHash, new Date(Date.now() - 3600e3).toISOString()).first();
+          if (recent.n >= 5) return J({ error: "That's a lot of registries in an hour. Try again later." }, 429);
+          const id = uid(), token = uid(), t = now(), r = v.registry, slug = registrySlug(r.title, shortId().slice(0, 4));
+          await db.prepare("INSERT INTO registries (id,slug,manage_hash,title,occasion,event_date,owner_name,paypal_email,message,ip_hash,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")
+            .bind(id, slug, await sha256(token), r.title, r.occasion, r.event_date, r.owner_name, r.paypal_email, r.message, ipHash, t, t).run();
+          return J({ slug, manage_token: token, url: `${url.origin}/r/${slug}` }, 201);
+        }
+        const reg = parts[2] && await db.prepare("SELECT * FROM registries WHERE slug=?").bind(parts[2]).first();
+        if (!reg) return J({ error: "This registry doesn't exist." }, 404);
+        const tok = request.headers.get("x-manage-token") || "", owner = !!tok && (await sha256(tok)) === reg.manage_hash;
+        const items = async () => (await db.prepare("SELECT * FROM registry_items WHERE registry_id=? ORDER BY sort, created_at").bind(reg.id).all()).results;
+        if (parts.length === 3 && m === "GET") {
+          const claims = owner ? (await db.prepare("SELECT item_id,name FROM registry_claims WHERE registry_id=? ORDER BY created_at").bind(reg.id).all()).results : [];
+          const its = await items(), ids = its.map(i => i.pool_id).filter(Boolean), pools = {};
+          if (ids.length) for (const p of (await db.prepare(`SELECT id,raised_cents,target_cents,status FROM pools WHERE id IN (${ids.map(() => "?").join(",")})`).bind(...ids).all()).results) pools[p.id] = p;
+          return J(publicRegistry(reg, its, claims, owner, pools));
+        }
+        // Guests: "I bought this" (no login), and "chip in" on a big item, which opens a PayPal group gift.
+        if (parts[3] === "items" && parts[4] && parts[5] === "claim" && m === "POST") {
+          const name = String(((await readJson(request)) || {}).name || "").replace(/\s+/g, " ").trim().slice(0, 60) || null;
+          const r = await db.prepare("UPDATE registry_items SET claimed=claimed+1 WHERE registry_id=? AND item_id=? AND claimed < qty").bind(reg.id, parts[4]).run();
+          if (!r.meta.changes) return J({ error: "Someone already got this one. Thank you anyway!" }, 409);
+          await db.prepare("INSERT INTO registry_claims (id,registry_id,item_id,name,created_at) VALUES (?,?,?,?,?)").bind(uid(), reg.id, parts[4], name, now()).run();
+          return J({ ok: true });
+        }
+        if (parts[3] === "items" && parts[4] && parts[5] === "pool" && m === "POST") {
+          if (!reg.paypal_email) return J({ error: "This registry isn't set up for group gifts." }, 400);
+          const it = await db.prepare("SELECT * FROM registry_items WHERE registry_id=? AND item_id=?").bind(reg.id, parts[4]).first();
+          if (!it) return J({ error: "That item isn't on the registry." }, 404);
+          if (it.pool_id) return J({ id: it.pool_id });
+          if (it.claimed >= it.qty) return J({ error: "Guests already bought this one." }, 409);
+          const c = JSON.parse(it.card_json), price = (c.price_cents || 0) * it.qty;
+          if (price < REG_POOL_MIN_CENTS) return J({ error: "Group gifts are for items over $50." }, 400);
+          const pid = shortId(), t = now();
+          // The pool's manage token is the registry's, so the owner manages both with one private link.
+          await db.prepare("INSERT INTO pools (id,manage_hash,title,occasion,organizer_name,organizer_email,product_json,target_cents,created_at,updated_at,store_id) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
+            .bind(pid, reg.manage_hash, `${c.title.slice(0, 70)} for ${reg.title}`.slice(0, 120), reg.occasion, reg.owner_name, reg.paypal_email,
+              JSON.stringify({ title: c.title, url: c.url, image: c.image, merchant: c.merchant, price_cents: price, product_id: c.product_id }), price, t, t, null).run();
+          const set = await db.prepare("UPDATE registry_items SET pool_id=? WHERE registry_id=? AND item_id=? AND pool_id IS NULL").bind(pid, reg.id, parts[4]).run();
+          if (!set.meta.changes) { await db.prepare("DELETE FROM pools WHERE id=?").bind(pid).run(); return J({ id: (await db.prepare("SELECT pool_id FROM registry_items WHERE registry_id=? AND item_id=?").bind(reg.id, parts[4]).first()).pool_id }); }
+          return J({ id: pid }, 201);
+        }
+        // Everything below is the owner's.
+        if (!owner) return J({ error: "Only the registry's owner can do that." }, 403);
+        if (parts.length === 3 && m === "PUT") {
+          const v = validateRegistry(await readJson(request), { partial: true }); if (v.error) return J({ error: v.error }, 400);
+          const f = Object.keys(v.registry); if (!f.length) return J({ ok: true });
+          await db.prepare(`UPDATE registries SET ${f.map(k => `${k}=?`).join(", ")}, updated_at=? WHERE id=?`).bind(...f.map(k => v.registry[k]), now(), reg.id).run();
+          return J({ ok: true });
+        }
+        if (parts[3] === "items" && parts.length === 4 && m === "POST") {
+          const v = validateRegItem(await readJson(request)); if (v.error) return J({ error: v.error }, 400);
+          const have = await items();
+          if (have.length >= REG_MAX_ITEMS) return J({ error: `A registry can hold ${REG_MAX_ITEMS} items.` }, 409);
+          const dup = v.item.card.product_id && have.find(i => i.product_id === v.item.card.product_id);
+          if (dup) { await db.prepare("UPDATE registry_items SET qty=MIN(20, qty+?) WHERE registry_id=? AND item_id=?").bind(v.item.qty, reg.id, dup.item_id).run(); return J({ ok: true, item_id: dup.item_id, merged: true }); }
+          const iid = shortId();
+          await db.prepare("INSERT INTO registry_items (registry_id,item_id,product_id,card_json,qty,note,sort,created_at) VALUES (?,?,?,?,?,?,?,?)")
+            .bind(reg.id, iid, v.item.card.product_id, JSON.stringify(v.item.card), v.item.qty, v.item.note, have.length, now()).run();
+          return J({ ok: true, item_id: iid }, 201);
+        }
+        if (parts[3] === "items" && parts[4] && parts.length === 5 && m === "PUT") {
+          const b = (await readJson(request)) || {}, qty = Math.max(1, Math.min(20, Math.round(Number(b.qty) || 1)));
+          await db.prepare("UPDATE registry_items SET qty=?, note=? WHERE registry_id=? AND item_id=?").bind(qty, String(b.note || "").trim().slice(0, 140) || null, reg.id, parts[4]).run();
+          return J({ ok: true });
+        }
+        if (parts[3] === "items" && parts[4] && parts.length === 5 && m === "DELETE") {
+          await db.batch([db.prepare("DELETE FROM registry_items WHERE registry_id=? AND item_id=?").bind(reg.id, parts[4]),
+                          db.prepare("DELETE FROM registry_claims WHERE registry_id=? AND item_id=?").bind(reg.id, parts[4])]);
+          return J({ ok: true });
+        }
+        if (parts[3] === "search" && m === "GET") {
+          const q = String(url.searchParams.get("q") || "").trim().slice(0, 80); if (!q) return J({ cards: [] });
+          const [a, b] = await Promise.all([searchCards(env, q).catch(() => []), cjSearch(env, q, { budget_cents: 100000 }, { limit: 10 }).catch(() => [])]);
+          return J({ cards: pickShelf([...b.slice(0, 3), ...a], { count: 18 }) });
+        }
+        if (parts[3] === "link" && m === "POST") {
+          const raw = ((await readJson(request)) || {}).url || "";
+          if (!safeHttpsUrl(raw)) return J({ error: "Paste a full product link (https://…)." }, 400);
+          let pg; try { pg = await fetchPublic(raw); } catch (e) { return J({ error: e.message }, 422); }
+          const card = productFromHtml(pg.text, pg.url);
+          return card ? J({ card }) : J({ error: "We couldn't read a product name and price on that page. Try searching for it instead." }, 422);
+        }
+        if (parts[3] === "ai" && m === "POST") {
+          const message = String(((await readJson(request)) || {}).message || "").trim(); if (!message) return J({ error: "Tell the assistant what you'd like." }, 400);
+          let plan; try { plan = parseRegAi(await aiFor(env)(REG_AI_SYSTEM, regAiPrompt(reg, message))); } catch { return J({ reply: "I couldn't reach the AI just now. Try again in a moment.", groups: [] }); }
+          const groups = await Promise.all(plan.items.map(async it => {
+            const [a, b] = await Promise.all([searchCards(env, it.query).catch(() => []), cjSearch(env, it.query, { budget_cents: it.max_cents || 100000 }, { limit: 8 }).catch(() => [])]);
+            return { query: it.query, qty: it.qty, max_cents: it.max_cents, cards: pickShelf([...b.slice(0, 2), ...a], { max_cents: it.max_cents, count: 4 }) };
+          }));
+          return J({ reply: plan.reply, groups: groups.filter(g => g.cards.length) });
+        }
+        return J({ error: "not found" }, 404);
       }
 
       // ---------- which store is this ----------

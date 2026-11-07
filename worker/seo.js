@@ -809,7 +809,7 @@ ${jsonld.map(j => `<script type="application/ld+json">${JSON.stringify(j).replac
 .rel{display:flex;flex-wrap:wrap;gap:8px}.rel a{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;font-size:.88rem;text-decoration:none;color:var(--ink)}</style>
 </head><body><div class="wrap">${body}
 ${ad}
-<footer><a href="/">gift.directory</a> · <a href="/gifts">All gift guides</a> · <a href="https://gift.directory/about">About</a> · <a href="https://gift.directory/contact">Contact</a> · <a href="https://gift.directory/privacy">Privacy</a> · <a href="https://gift.directory/terms">Terms</a><br>Prices and stock come live from retailers through Channel3 and may change; links go to the retailer. We may earn a commission when you buy through these links.</footer></div></body></html>`;
+<footer><a href="/">gift.directory</a> · <a href="/gifts">All gift guides</a> · <a href="/registry">Gift registry</a> · <a href="https://gift.directory/about">About</a> · <a href="https://gift.directory/contact">Contact</a> · <a href="https://gift.directory/privacy">Privacy</a> · <a href="https://gift.directory/terms">Terms</a><br>Prices and stock come live from retailers through Channel3 and may change; links go to the retailer. We may earn a commission when you buy through these links.</footer></div></body></html>`;
 
 // House ad for our affiliate site Storm Proof AI (stormproof.us), on the preparedness guides only. It sits in the
 // page body after the picks (never in the <head>), and its wording follows what stormproof.us itself says.

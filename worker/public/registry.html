@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gift registry — gift.directory</title>
+<meta name="description" content="A free gift registry from any store: add gifts from hundreds of retailers, Etsy shops or any link, let guests mark what they bought, and group-fund big gifts with PayPal.">
+<link rel="stylesheet" href="/style.css"><link rel="icon" href="/favicon.ico" sizes="any"><link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<style>
+.wrap{max-width:1100px}.items{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.item img{width:100%;aspect-ratio:1;object-fit:contain;background:#fff;border-radius:10px}.item .t{font-weight:600;margin:8px 0 2px;font-size:.95rem}
+.got{opacity:.6}.bar{height:8px;background:#eee;border-radius:99px;overflow:hidden;margin:6px 0}.bar i{display:block;height:100%;background:var(--accent)}
+.tabs2{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.tabs2 button{border:1px solid var(--line);background:#fff;border-radius:99px;padding:6px 12px;cursor:pointer}.tabs2 .on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.sug{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}.sug .card{padding:8px}.sug img{width:100%;aspect-ratio:1;object-fit:contain;background:#fff;border-radius:8px}
+.small{font-size:.82rem}
+</style></head>
+<body><div class="wrap">
+<header class="top"><h1><a href="/" style="color:inherit;text-decoration:none">gift.directory</a></h1><span class="tag">Gift registry</span></header>
+<div id="msg"></div>
+<div id="app"><p class="muted">Loading…</p></div>
+<footer>Gifts link to the store that sells them; group gifts are paid through PayPal straight to the registry's owner. We may earn a commission when you buy through retailer links.
+<div style="margin-top:6px"><a href="/gifts">Gift guides</a> · <a href="/about">About</a> · <a href="/contact">Contact</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></div></footer>
+</div>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const money = c => c == null ? "" : "$" + (c / 100).toLocaleString("en-US", { minimumFractionDigits: c % 100 ? 2 : 0, maximumFractionDigits: 2 });
+const OCC = ["Wedding", "Baby shower", "Birthday", "Housewarming", "Graduation", "Anniversary", "Christmas list", "Retirement", "Other"];
+const slug = location.pathname.split("/")[1] === "r" ? decodeURIComponent(location.pathname.split("/")[2] || "") : null;
+const store = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
+// The owner's private link carries #m=<token> once; keep it on this device and take it out of the address bar.
+if (slug && location.hash.startsWith("#m=")) { store.set("reg:" + slug, decodeURIComponent(location.hash.slice(3))); history.replaceState(null, "", location.pathname + location.search); }
+const token = slug ? store.get("reg:" + slug) : null;
+const api = async (path, opt = {}) => {
+  const r = await fetch("/api/registry" + path, { ...opt, headers: { "content-type": "application/json", ...(token ? { "x-manage-token": token } : {}), ...(opt.headers || {}) } });
+  const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || "Something went wrong"); return j;
+};
+let reg = null, tab = "ai", found = [];
+
+if (!slug) createForm(); else load();
+
+// ---------- create ----------
+function createForm() {
+  $("#app").innerHTML = `<h2 style="font-family:Georgia,serif;margin-top:0">One registry, every store</h2>
+  <p class="muted" style="max-width:720px">Most registries lock you into one store. Here you add gifts from hundreds of retailers, Etsy shops, or any product link, and tell the AI what you want in plain English. Guests mark what they bought so nothing is doubled, and big gifts can be split by a group, paid through PayPal straight to you. Free, no account needed.</p>
+  <form class="card" id="cf" style="max-width:640px">
+    <label>Registry name</label><input id="c_title" maxlength="80" placeholder="Maria & Sam's wedding" required>
+    <div class="row"><div><label>Occasion</label><select id="c_occ">${OCC.map(o => `<option>${o}</option>`).join("")}</select></div>
+      <div><label>Date (optional)</label><input id="c_date" type="date"></div></div>
+    <label>Your name</label><input id="c_name" maxlength="60" placeholder="Maria" required>
+    <label>Your PayPal email (optional, for group gifts)</label><input id="c_pp" type="email" maxlength="200" placeholder="you@example.com">
+    <p class="muted small" style="margin:4px 0 0">Only used to receive group-gift contributions. Guests never see it.</p>
+    <label>A note for guests (optional)</label><textarea id="c_msg" maxlength="400" placeholder="Thank you for celebrating with us!"></textarea>
+    <div class="err" id="cerr"></div>
+    <button class="btn" style="margin-top:12px">Create my registry</button>
+  </form>`;
+  $("#cf").onsubmit = async e => {
+    e.preventDefault(); $("#cerr").textContent = "";
+    try {
+      const r = await api("", { method: "POST", body: JSON.stringify({ title: $("#c_title").value, occasion: $("#c_occ").value, event_date: $("#c_date").value,
+        owner_name: $("#c_name").value, paypal_email: $("#c_pp").value, message: $("#c_msg").value }) });
+      store.set("reg:" + r.slug, r.manage_token);
+      location.href = `/r/${r.slug}?new=1#m=${encodeURIComponent(r.manage_token)}`;
+    } catch (err) { $("#cerr").textContent = err.message; }
+  };
+}
+
+// ---------- view ----------
+async function load() {
+  try { reg = await api("/" + encodeURIComponent(slug)); } catch (err) { $("#app").innerHTML = `<p class="err">${esc(err.message)}</p><p><a href="/registry">Start a registry →</a></p>`; return; }
+  document.title = `${reg.title} — gift registry`;
+  if (reg.owner) for (const it of reg.items) if (it.pool_id) store.set("manage:" + it.pool_id, token);   // the registry's link also manages its group gifts
+  draw();
+}
+function draw() {
+  const share = `${location.origin}/r/${reg.slug}`;
+  const date = reg.event_date ? new Date(reg.event_date + "T12:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "";
+  const left = reg.items.reduce((a, i) => a + Math.max(0, i.qty - i.claimed), 0);
+  $("#app").innerHTML = `
+  ${new URLSearchParams(location.search).get("new") && reg.owner ? `<div class="note" style="margin-bottom:12px"><b>Your registry is live.</b> Add gifts below, then share the link. This device is signed in as the owner; to edit from another device, use your private link: <input readonly value="${esc(share + "#m=" + encodeURIComponent(token))}" onclick="this.select()" style="margin-top:6px"></div>` : ""}
+  <div class="card" style="margin-bottom:14px">
+    <div class="small muted" style="text-transform:uppercase;letter-spacing:.05em">${esc(reg.occasion || "")}${date ? " · " + esc(date) : ""}</div>
+    <h2 style="font-family:Georgia,serif;margin:4px 0">${esc(reg.title)}</h2>
+    <div class="muted">${esc(reg.owner_name)}'s registry · ${reg.items.length} gifts${reg.items.length ? `, ${left} still needed` : ""}</div>
+    ${reg.message ? `<p style="margin:10px 0 0">${esc(reg.message)}</p>` : ""}
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><input readonly value="${esc(share)}" onclick="this.select()" style="flex:1;min-width:220px"><button class="btn sec" id="copy">Copy link</button></div>
+  </div>
+  ${reg.owner ? ownerPanel() : ""}
+  <div class="items">${reg.items.map(itemCard).join("") || `<p class="muted">${reg.owner ? "No gifts yet. Add some above." : "No gifts on this registry yet."}</p>`}</div>`;
+  $("#copy").onclick = () => { navigator.clipboard && navigator.clipboard.writeText(share); $("#copy").textContent = "Copied"; };
+  bindItems(); if (reg.owner) bindOwner();
+}
+function itemCard(i) {
+  const done = i.claimed >= i.qty, pct = Math.round(100 * i.claimed / i.qty), total = (i.price_cents || 0) * i.qty;
+  return `<div class="card item${done ? " got" : ""}">${i.image ? `<img src="${esc(i.image)}" alt="" loading="lazy">` : ""}
+    <div class="t">${esc(i.title)}</div>
+    <div class="muted small">${money(i.price_cents)}${i.qty > 1 ? ` × ${i.qty}` : ""} · ${esc(i.merchant)}</div>
+    ${i.note ? `<div class="small" style="margin-top:4px"><i>${esc(i.note)}</i></div>` : ""}
+    <div class="bar"><i style="width:${pct}%"></i></div><div class="small muted">${done ? "All bought — thank you!" : `${i.claimed} of ${i.qty} bought`}</div>
+    ${i.pool && !done ? `<div class="small" style="margin-top:4px">Group gift: <b>${money(i.pool.raised_cents)}</b> of ${money(i.pool.target_cents)} raised</div>` : ""}
+    ${reg.owner && i.claimed_by && i.claimed_by.length ? `<div class="small" style="margin-top:4px">From: ${esc(i.claimed_by.join(", "))}</div>` : ""}
+    <div class="acts" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+      <a class="btn sec sm" href="${esc(i.url)}" target="_blank" rel="noopener sponsored">Buy at ${esc(i.merchant || "store")}</a>
+      ${done ? "" : `<button class="btn sm" data-claim="${esc(i.item_id)}">I bought this</button>`}
+      ${!done && reg.group_gifts && total >= 5000 ? `<button class="btn gold sm" data-pool="${esc(i.item_id)}">${i.pool_id ? "Chip in" : "Go in together"}</button>` : ""}
+      ${reg.owner ? `<button class="btn sec sm" data-del="${esc(i.item_id)}">Remove</button>` : ""}
+    </div><div class="claimbox" id="cb-${esc(i.item_id)}"></div></div>`;
+}
+function bindItems() {
+  document.querySelectorAll("[data-claim]").forEach(b => b.onclick = () => {
+    const id = b.dataset.claim, box = $("#cb-" + CSS.escape(id));
+    box.innerHTML = `<form style="display:flex;gap:6px;margin-top:8px"><input placeholder="Your name (optional)" maxlength="60"><button class="btn sm">Mark bought</button></form>`;
+    box.querySelector("form").onsubmit = async e => { e.preventDefault();
+      try { await api(`/${encodeURIComponent(slug)}/items/${encodeURIComponent(id)}/claim`, { method: "POST", body: JSON.stringify({ name: box.querySelector("input").value }) }); await load(); $("#msg").innerHTML = `<p class="ok">Thank you! It's marked as bought so nobody doubles up.</p>`; }
+      catch (err) { box.innerHTML = `<p class="err small">${esc(err.message)}</p>`; } };
+  });
+  document.querySelectorAll("[data-pool]").forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    try { const r = await api(`/${encodeURIComponent(slug)}/items/${encodeURIComponent(b.dataset.pool)}/pool`, { method: "POST" }); if (reg.owner) store.set("manage:" + r.id, token); location.href = `/g/${r.id}`; }
+    catch (err) { b.disabled = false; $("#msg").innerHTML = `<p class="err">${esc(err.message)}</p>`; }
+  });
+  document.querySelectorAll("[data-del]").forEach(b => b.onclick = async () => {
+    b.disabled = true; try { await api(`/${encodeURIComponent(slug)}/items/${encodeURIComponent(b.dataset.del)}`, { method: "DELETE" }); await load(); } catch (err) { b.disabled = false; }
+  });
+}
+
+// ---------- owner: add gifts ----------
+function ownerPanel() {
+  return `<div class="card" style="margin-bottom:16px"><b>Add gifts</b>
+    <div class="tabs2">${[["ai", "✨ Ask the AI"], ["search", "Search stores"], ["link", "Paste a link"]].map(([k, l]) => `<button data-t="${k}" class="${tab === k ? "on" : ""}">${l}</button>`).join("")}</div>
+    ${tab === "ai" ? `<form id="af" style="display:flex;gap:8px"><input id="aq" maxlength="600" placeholder="e.g. a KitchenAid stand mixer, 6 cozy throw blankets under $80, and a nice coffee grinder"><button class="btn" id="ago">Ask</button></form>`
+      : tab === "search" ? `<form id="sf" style="display:flex;gap:8px"><input id="sq" maxlength="80" placeholder="Search hundreds of stores — e.g. dutch oven"><button class="btn">Search</button></form>`
+      : `<form id="lf" style="display:flex;gap:8px"><input id="lq" maxlength="1000" placeholder="https://… any product page"><button class="btn">Add</button></form>`}
+    <div id="work" class="muted small" style="margin-top:6px"></div><div id="sug" style="margin-top:8px"></div>
+    ${reg.group_gifts ? "" : `<p class="muted small" style="margin:10px 0 0">Want guests to split big gifts? <a href="#" id="addpp">Add your PayPal email</a> to turn on group gifts.</p><div id="ppbox"></div>`}
+  </div>`;
+}
+const sugCard = (c, qty = 1) => `<div class="card"><img src="${esc(c.image || "")}" alt="" loading="lazy" ${c.image ? "" : 'style="display:none"'}>
+  <div class="small" style="font-weight:600;margin-top:4px">${esc(c.title)}</div><div class="muted small">${money(c.price_cents)} · ${esc(c.merchant)}</div>
+  <button class="btn sm" style="margin-top:6px" data-add="${found.push({ c, qty }) - 1}">Add${qty > 1 ? ` × ${qty}` : ""}</button></div>`;
+function bindOwner() {
+  document.querySelectorAll("[data-t]").forEach(b => b.onclick = () => { tab = b.dataset.t; draw(); });
+  const show = html => { $("#sug").innerHTML = html; document.querySelectorAll("[data-add]").forEach(b => b.onclick = async () => {
+    const f = found[+b.dataset.add]; b.disabled = true; b.textContent = "Adding…";
+    try { await api(`/${encodeURIComponent(slug)}/items`, { method: "POST", body: JSON.stringify({ card: f.c, qty: f.qty }) }); b.textContent = "Added ✓"; reg = await api("/" + encodeURIComponent(slug));
+      const keep = $("#sug").innerHTML; draw(); show(keep); document.querySelectorAll(`[data-add="${b.dataset.add}"]`).forEach(x => { x.disabled = true; x.textContent = "Added ✓"; }); }
+    catch (err) { b.disabled = false; b.textContent = err.message; } }); };
+  if ($("#af")) $("#af").onsubmit = async e => { e.preventDefault(); const q = $("#aq").value.trim(); if (!q) return; found = [];
+    $("#work").textContent = "Finding options in hundreds of stores… (10–20 seconds)"; $("#ago").disabled = true;
+    try { const r = await api(`/${encodeURIComponent(slug)}/ai`, { method: "POST", body: JSON.stringify({ message: q }) });
+      $("#work").textContent = r.reply || "";
+      show(r.groups.map(g => `<div style="margin:10px 0 4px"><b>${esc(g.query)}</b>${g.qty > 1 ? ` <span class="muted small">(× ${g.qty})</span>` : ""}${g.max_cents ? ` <span class="muted small">under ${money(g.max_cents)}</span>` : ""}</div><div class="sug">${g.cards.map(c => sugCard(c, g.qty)).join("")}</div>`).join("") || `<p class="muted">Nothing in stock matched. Try different words.</p>`); }
+    catch (err) { $("#work").textContent = err.message; }
+    $("#ago").disabled = false; };
+  if ($("#sf")) $("#sf").onsubmit = async e => { e.preventDefault(); const q = $("#sq").value.trim(); if (!q) return; found = []; $("#work").textContent = "Searching…";
+    try { const r = await api(`/${encodeURIComponent(slug)}/search?q=${encodeURIComponent(q)}`); $("#work").textContent = ""; show(`<div class="sug">${r.cards.map(c => sugCard(c)).join("") || `<p class="muted">Nothing found.</p>`}</div>`); }
+    catch (err) { $("#work").textContent = err.message; } };
+  if ($("#lf")) $("#lf").onsubmit = async e => { e.preventDefault(); const u = $("#lq").value.trim(); if (!u) return; found = []; $("#work").textContent = "Reading that page…";
+    try { const r = await api(`/${encodeURIComponent(slug)}/link`, { method: "POST", body: JSON.stringify({ url: u }) }); $("#work").textContent = ""; show(`<div class="sug">${sugCard(r.card)}</div>`); }
+    catch (err) { $("#work").textContent = err.message; } };
+  if ($("#addpp")) $("#addpp").onclick = e => { e.preventDefault();
+    $("#ppbox").innerHTML = `<form id="ppf" style="display:flex;gap:8px;margin-top:6px"><input type="email" id="ppe" placeholder="you@example.com" maxlength="200"><button class="btn sm">Save</button></form>`;
+    $("#ppf").onsubmit = async ev => { ev.preventDefault(); try { await api("/" + encodeURIComponent(slug), { method: "PUT", body: JSON.stringify({ paypal_email: $("#ppe").value }) }); await load(); } catch (err) { $("#ppbox").innerHTML += `<p class="err small">${esc(err.message)}</p>`; } }; };
+}
+</script>
+</body></html>
