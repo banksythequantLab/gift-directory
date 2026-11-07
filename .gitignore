@@ -3,3 +3,6 @@ node_modules/
 .dev.vars
 *.env
 .env
+
+# CJ advertiser exports and run logs (account data, keep out of the public repo)
+docs/cj-*
