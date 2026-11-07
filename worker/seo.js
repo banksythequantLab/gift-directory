@@ -811,11 +811,11 @@ ${jsonld.map(j => `<script type="application/ld+json">${JSON.stringify(j).replac
 ${ad}
 <footer><a href="/">gift.directory</a> · <a href="/gifts">All gift guides</a> · <a href="https://gift.directory/about">About</a> · <a href="https://gift.directory/contact">Contact</a> · <a href="https://gift.directory/privacy">Privacy</a> · <a href="https://gift.directory/terms">Terms</a><br>Prices and stock come live from retailers through Channel3 and may change; links go to the retailer. We may earn a commission when you buy through these links.</footer></div></body></html>`;
 
-// House ad for our sister site Storm Proof AI (stormproof.us), on the preparedness guides only. It sits in the
+// House ad for our affiliate site Storm Proof AI (stormproof.us), on the preparedness guides only. It sits in the
 // page body after the picks (never in the <head>), and its wording follows what stormproof.us itself says.
 const HOUSE_ADS = {
   Preparedness: slug => `<aside style="border:2px solid #1f3a5f;background:#f4f7fb;color:#1f2937;border-radius:14px;padding:18px;margin:22px 0">
-<div style="font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:#1f3a5f;font-weight:700">From our sister site</div>
+<div style="font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:#1f3a5f;font-weight:700">From our affiliate site</div>
 <b style="font-size:1.2rem;font-family:Georgia,serif">Storm Proof AI: no signal, still answers</b>
 <p style="margin:6px 0 10px">When a storm takes out the power and the cell towers, phones go dark right when you need answers. Storm Proof AI is an offline AI and library on one drive: first aid, repair guides, maps with turn-by-turn directions, and a voice assistant, with no internet, account or subscription needed.</p>
 <a class="btn" href="https://stormproof.us/?utm_source=gift.directory&amp;utm_medium=house_ad&amp;utm_campaign=${encodeURIComponent(slug)}" rel="noopener" style="display:inline-block;background:#1f3a5f;color:#fff;border-radius:10px;padding:10px 16px;font-weight:700;text-decoration:none">Download it free or get a loaded drive →</a>
