@@ -1,6 +1,6 @@
 // The gift finder without the network: the plan, the cards, the picks.
 import { validateBrief, parsePlan, fallbackPlan, searchBody, toCard, mergeCards, parsePicks,
-         fallbackPicks, findGifts, channel3Search } from "../finder.js";
+         fallbackPicks, findGifts, channel3Search, searchBoth } from "../finder.js";
 
 let passed = 0, failed = 0;
 const ok = (n, c, d = "") => { c ? passed++ : (failed++, console.log(`FAIL  ${n}${d ? "  — " + d : ""}`)); };
@@ -142,5 +142,15 @@ eq("fallback picks lead with the best-priced", fallbackPicks(cards)[0].product_i
   eq("below the picks, only what the model vouched for", f.more.map(c => c.product_id).join(","), "mug,candle");
 }
 
-console.log(`${passed} passed, ${failed} failed`);
+{
+  const c3 = async () => [{ id: "c3a", title: "Leather Journal", offers: [{ availability: "InStock", url: "https://shop.example/a", price: { price: 30 }, domain: "shop.example" }], images: [] }];
+  const cj = async () => [1, 2, 3, 4, 5].map(i => ({ product_id: `cj:9:${i}`, title: `CJ Journal ${i}`, price_cents: 3000, url: "https://www.kqzyfj.com/click-1-2", source: "cj" }));
+  const both = await searchBoth("journal", 10000, c3, cj);
+  eq("second source leads, capped at 3", both.slice(0, 3).every(c => c.source === "cj") && both.filter(c => c && c.source === "cj").length === 3, true);
+  eq("Channel3 cards follow", both[3] && both[3].product_id, "c3a");
+  const failing = await searchBoth("journal", 10000, c3, async () => { throw new Error("cj down"); });
+  eq("second source down: Channel3 still comes back", failing.length === 1 && failing[0].product_id === "c3a", true);
+  const none = await searchBoth("journal", 10000, c3, null);
+  eq("no second source: unchanged", none.length, 1);
+}console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

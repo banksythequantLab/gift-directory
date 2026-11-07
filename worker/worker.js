@@ -102,7 +102,7 @@ async function buildGuide(db, env, p, { cardsOnly = false } = {}) {
   // Otherwise a count page runs up to three search rounds and pools them to reach its number of distinct kinds.
   let pool = [], cards = [];
   for (let round = 0; round < (p.count ? 3 : 1); round++) {
-    const r = await findGifts(brief, { ai, search: q => channel3Search(env, q, brief) });
+    const r = await findGifts(brief, { ai, search: q => channel3Search(env, q, brief), alsoSearch: q => cjSearch(env, q, brief, { limit: 30 }) });
     pool = mergeCards([pool, r.picks || [], r.more || []]);
     cards = diversify(pool.filter(c => allowed(p, c)), p.cap || 3).slice(0, p.count || 16);
     if (!p.count || cards.length >= p.count) break;
@@ -371,7 +371,7 @@ export default {
         if (!env.CHANNEL3_API_KEY) return J({ cards: [] });
         const cfg = JSON.parse(store.config_json);
         const planSystem = cfg.house ? undefined : storePlanSystem({ ...cfg, name: store.name, niche: store.niche });
-        const r = await browseGifts(store.niche, { ai: aiFor(env), search: (q, b) => channel3Search(env, q, b), planSystem, queries: cfg.browse_searches });
+        const r = await browseGifts(store.niche, { ai: aiFor(env), search: (q, b) => channel3Search(env, q, b), alsoSearch: q => cjSearch(env, q, { budget_cents: 15000 }, { limit: 30 }), planSystem, queries: cfg.browse_searches });
         if (r.cards.length) await db.prepare("INSERT INTO browse_cache (store_id,cards_json,created_at) VALUES (?,?,?) ON CONFLICT(store_id) DO UPDATE SET cards_json=excluded.cards_json, created_at=excluded.created_at")
           .bind(store.id, JSON.stringify(r.cards), now()).run();
         return J({ cards: withoutHidden(r.cards, items), cached: false });
@@ -387,7 +387,7 @@ export default {
         const planSystem = cfg.house ? undefined : storePlanSystem({ ...cfg, name: store.name, niche: store.niche });
         const ownList = await ownProducts(db, store.id);
         const b = v.brief;
-        const r = await findGifts(v.brief, { ai: aiFor(env), search: q => channel3Search(env, q, v.brief), planSystem,
+        const r = await findGifts(v.brief, { ai: aiFor(env), search: q => channel3Search(env, q, v.brief), alsoSearch: q => cjSearch(env, q, v.brief, { limit: 30 }), planSystem,
           extra: plan => ownMatches(ownList, [...plan.map(s => s.query), b.recipient, b.occasion, b.notes, ...(b.interests || [])], b.budget_cents) });
         const items = await storeItems(db, store.id);
         r.picks = withoutHidden(r.picks || [], items); r.more = withoutHidden(r.more || [], items);

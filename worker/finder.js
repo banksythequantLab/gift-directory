@@ -174,14 +174,24 @@ export function fallbackPicks(cards, n = 6) {
   return [...cards].sort((a, b) => b.price_cents - a.price_cents).slice(0, n).map(c => ({ ...c, reason: null }));
 }
 
+// One search across both sources: up to 3 second-source cards first, then Channel3's (as cards).
+export function searchBoth(query, budgetCents, search, alsoSearch, brief) {
+  return Promise.all([
+    alsoSearch ? Promise.resolve().then(() => alsoSearch(query)).catch(() => []) : [],
+    search(query, brief).then(ps => ps.map(p => toCard(p, budgetCents))).catch(() => []),
+  ]).then(([a, b]) => [...(a || []).slice(0, 3), ...b]);
+}
+
 // The whole run. `ai(system, user)` returns parsed JSON or throws; `search(query)` returns products.
 // `extra(plan)` may return the store owner's own products that fit; they lead each round of the mix (a boost),
 // and the picker treats them like any other candidate.
-export async function findGifts(brief, { ai, search, planSystem = PLAN_SYSTEM, extra = null }) {
+// `alsoSearch(query)` may return ready cards from a second source (CJ affiliate products); up to 3 per search lead
+// that search's list, so a paying merchant can win a spot without crowding the page.
+export async function findGifts(brief, { ai, search, planSystem = PLAN_SYSTEM, extra = null, alsoSearch = null }) {
   let plan = [];
   try { plan = parsePlan(await ai(planSystem, planPrompt(brief))); } catch { plan = []; }
   if (!plan.length) plan = fallbackPlan(brief);
-  const results = await Promise.all(plan.map(s => search(s.query).then(ps => ps.map(p => toCard(p, brief.budget_cents))).catch(() => [])));
+  const results = await Promise.all(plan.map(s => searchBoth(s.query, brief.budget_cents, search, alsoSearch)));
   // Mixed across searches, then junk and duplicates out.
   let own = [];
   try { own = extra ? (extra(plan) || []) : []; } catch { own = []; }
@@ -211,14 +221,14 @@ export function interleave(lists) {
 // The store's front page: no brief yet, just a good spread for its niche. No picking step.
 // The budget is modest on purpose: search starts at a fifth of it, and a high floor is what let bulk packs
 // of cheap items (and nothing else at that price) fill the page.
-export async function browseGifts(niche, { ai, search, planSystem = PLAN_SYSTEM, budget_cents = 15000, queries = null }) {
+export async function browseGifts(niche, { ai, search, planSystem = PLAN_SYSTEM, budget_cents = 15000, queries = null, alsoSearch = null }) {
   const brief = { recipient: niche, occasion: "", relationship: "", notes: "a broad spread of the best gifts", budget_cents };
   let plan = [];
   // A store can fix its own front-page searches (the house store does); otherwise the AI plans them.
   if (Array.isArray(queries) && queries.length) plan = queries.slice(0, 8).map(q => ({ query: clip(String(q).trim(), 60), why: "store's own" })).filter(s => s.query.length >= 2);
   else try { plan = parsePlan(await ai(planSystem, planPrompt(brief) + "\nGive 5 searches covering different kinds of gift.")); } catch { plan = []; }
   if (!plan.length) plan = fallbackPlan(brief);
-  const results = await Promise.all(plan.map(s => search(s.query, brief).then(ps => ps.map(p => toCard(p, budget_cents)).filter(Boolean)).catch(() => [])));
+  const results = await Promise.all(plan.map(s => searchBoth(s.query, budget_cents, search, alsoSearch, brief).then(l => l.filter(Boolean))));
   const cards = mergeCards([interleave(results)]);
   // A second look by the model: real gifts only. If it fails, the junk filter's result stands.
   let kept = null;
