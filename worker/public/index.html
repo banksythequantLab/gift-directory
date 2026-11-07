@@ -29,6 +29,7 @@
 <div id="notice"></div>
 <div id="shelves"></div>
 <div class="grid" id="grid"></div>
+<div id="promo"></div>
 <footer><div id="fstore" style="margin-bottom:8px"></div>Prices and stock come live from retailers through Channel3; we link you to the store to buy. Group gifts are paid through PayPal, straight to the organizer.
 <div style="margin-top:8px"><a href="https://gift.directory/gifts">Gift guides</a> · <a href="https://gift.directory/">Start your own gift store on gift.directory →</a></div>
 <div style="margin-top:6px"><a href="https://gift.directory/about">About</a> · <a href="https://gift.directory/contact">Contact</a> · <a href="https://gift.directory/privacy">Privacy</a> · <a href="https://gift.directory/terms">Terms</a> · We may earn a commission when you buy through retailer links.</div></footer>
@@ -85,10 +86,40 @@ const nextQ = () => QUESTIONS().find(q => brief[q.key] == null && !skipped.has(q
   if (new URLSearchParams(location.search).get("welcome")) $("#welcome").style.display = "";
   if (s.can_edit) $("#stag").insertAdjacentHTML("afterend", ` <a class="btn sec" style="padding:6px 12px;font-size:.85rem;margin-left:auto" href="https://gift.directory/admin?store=${encodeURIComponent(s.slug)}">Edit this store</a>`);
   shelves = s.shelves || []; $("#sf").style.display = "flex";
+  if (s.promo) teeBanner(s.promo);
   $("#grid").innerHTML = Array.from({ length: 8 }, () => `<div class="skel"></div>`).join("");
   const b = await fetch("/api/browse").then(r => r.json()).catch(() => ({ cards: [] }));
   browse = b.cards || []; items = browse; render();
 })();
+
+// The custom-tee banner at the bottom of the store: a drawn black tee that cycles through sayings
+// that fit this store, and a link to the real listing.
+function teeSvg([a, b]) {
+  // The printable chest is ~116 units wide (the body runs 80–220). Size each line to fit, and squeeze
+  // any line that would still run wide, whatever font the visitor's device falls back to.
+  const W = 116, fs = t => Math.max(10, Math.min(20, Math.floor(W / (Math.max(4, t.length) * 0.64))));
+  const fit = t => t.length * 0.64 * fs(t) > W * 0.92 ? ` textLength="${W}" lengthAdjust="spacingAndGlyphs"` : "";
+  const line = (t, y) => `<text x="150" y="${y}" text-anchor="middle" fill="#fff" font-family="Impact, 'Arial Black', 'Arial Narrow', sans-serif" font-weight="700" font-size="${fs(t)}"${fit(t)}>${esc(t)}</text>`;
+  return `<svg viewBox="0 0 300 300" width="190" height="190" role="img" aria-label="Black tee printed with: ${esc(a)} ${esc(b)}">
+    <path d="M95 30 60 45 20 85l35 40 25-20v165h140V105l25 20 35-40-40-40-35-15c-8 18-30 28-55 28S103 48 95 30z" fill="#151515" stroke="#2c2c2c" stroke-width="2"/>
+    ${line(a, 128)}${line(b, 128 + fs(b) + 6)}</svg>`;
+}
+function teeBanner(p) {
+  const lines = Array.isArray(p.lines) && p.lines.length ? p.lines : [["YOUR WORDS", "ON A TEE"]];
+  $("#promo").innerHTML = `<div class="card" style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin:26px 0 6px;border:2px solid var(--accent)">
+    <a href="${esc(p.url)}" target="_blank" rel="noopener" id="teeArt" style="flex:0 0 auto;margin:0 auto;transition:opacity .35s">${teeSvg(lines[0])}</a>
+    <div style="flex:1;min-width:220px"><div style="font-family:Georgia,serif;font-size:1.35rem;font-weight:700">${esc(p.title)}</div>
+      <p class="muted" style="margin:6px 0 10px">${esc(p.sub)} Write anything: a name, an inside joke, a team, a date.</p>
+      <div id="teeSays" class="muted" style="font-size:.9rem;margin-bottom:12px">Like: <b style="color:var(--ink)">${esc(lines[0].join(" / "))}</b></div>
+      <a class="btn" href="${esc(p.url)}" target="_blank" rel="noopener">Design yours · ${money(p.price_cents)}</a>
+      <p class="muted" style="font-size:.7rem;margin:10px 0 0">${esc(p.note || "")}</p></div></div>`;
+  let i = 0;
+  if (lines.length > 1 && !matchMedia("(prefers-reduced-motion: reduce)").matches) setInterval(() => {
+    i = (i + 1) % lines.length; const art = $("#teeArt"); if (!art) return;
+    art.style.opacity = 0;
+    setTimeout(() => { art.innerHTML = teeSvg(lines[i]); $("#teeSays").innerHTML = `Like: <b style="color:var(--ink)">${esc(lines[i].join(" / "))}</b>`; art.style.opacity = 1; }, 350);
+  }, 3500);
+}
 
 function card(p) {
   byId.set(p.product_id, p);

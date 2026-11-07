@@ -9,6 +9,7 @@ import { authorizeUrl, paypalWebBase, parseUserinfo, ownsStore, validateSettings
 import { OWN_MAX, safeHttpsUrl, shopOrigin, shopifyCards, productFromHtml, parseCsv, ownMatches } from "./own.js";
 import { ETSY_API, ETSY_NOTICE, etsyShopName, etsyShopUrl, pickShop, etsyCards } from "./etsy.js";
 import { cjSearch } from "./cj.js";
+import { TEE, teePromo } from "./promo.js";
 
 const now = () => new Date().toISOString();
 // Guide price/stock refresh budget (see the /gifts/<slug> route): ~570 pages every 14 days is ~40 a day, ~280 searches.
@@ -243,6 +244,19 @@ async function syncEtsy(env, db, src) {
     return { ok: false, error: String(e.message || e) };
   }
 }
+// The tee banner's live price, cached for 6 hours; the listed fallback if Etsy can't be reached.
+async function teePrice(env) {
+  if (!env.ETSY_API_KEY) return 0;
+  const key = new Request(`https://cache.gift.directory/etsy-tee/${TEE.listing_id}`), cache = caches.default;
+  const hit = await cache.match(key); if (hit) return Number(await hit.text()) || 0;   // keeps -1
+  try {
+    const l = await etsyGet(env, `/listings/${TEE.listing_id}`);
+    const c = l && l.price && l.price.divisor ? Math.round(l.price.amount / l.price.divisor * 100) : 0;
+    const live = l && l.state === "active" ? c : -1;   // -1: the listing is gone or paused, so no banner
+    await cache.put(key, new Response(String(live), { headers: { "cache-control": "max-age=21600" } }));
+    return live;
+  } catch { return 0; }
+}
 const syncSource = (env, db, src) => src.kind === "etsy" ? syncEtsy(env, db, src) : syncShopify(db, src);
 // The owner's products as a shelf for the store page (newest first).
 async function ownShelf(db, storeId) {
@@ -400,7 +414,7 @@ export default {
         if (!store) return J({ error: "No store here." }, 404);
         const user = await currentUser(db, request);
         return withCookie(Promise.resolve(J({ ...publicStore(store), shelves: [...await ownShelf(db, store.id), ...shelves(await storeItems(db, store.id))],
-          can_edit: ownsStore(user, store) })), setCookie);
+          promo: await teePrice(env).then(c => c < 0 ? null : teePromo(store, c)), can_edit: ownsStore(user, store) })), setCookie);
       }
 
       // ---------- the front-page grid ----------
