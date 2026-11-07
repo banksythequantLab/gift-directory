@@ -1,5 +1,5 @@
 // Gift guides: page list, the ad slot (bottom only), rendering.
-import { PAGES, adSlot, renderGuide, parseGuide } from "../seo.js";
+import { PAGES, adSlot, renderGuide, parseGuide, houseAd } from "../seo.js";
 
 let passed = 0, failed = 0;
 const ok = (n, c, d = "") => { c ? passed++ : (failed++, console.log(`FAIL  ${n}${d ? "  — " + d : ""}`)); };
@@ -118,6 +118,13 @@ eq("without ids the page has no ad code at all", renderGuide(p, row, [], null, "
     eq("Chargers page drops phone chargers", allowed(pageBySlug("gifts-for-los-angeles-chargers-fans"), { title: "Anker USB-C Charger 65W" }), false);
   }
 }
+
+// Storm Proof AI house ad: preparedness pages only, in the body (never the head), tracked per page.
+ok("storm ad on preparedness", houseAd("Preparedness", "gifts-for-preppers").includes("https://stormproof.us/?utm_source=gift.directory&amp;utm_medium=house_ad&amp;utm_campaign=gifts-for-preppers"));
+eq("no storm ad elsewhere", houseAd("Holidays", "x"), "");
+{ const pp = PAGES.find(x => x.slug === "storm-preparedness-gifts"); ok("storm page is in Preparedness", pp && pp.topic === "Preparedness");
+  const h = renderGuide(pp, { guide_json: JSON.stringify({ intro: ["i"], faq: [], meta: "m" }), cards_json: "[]", updated_at: "2026-11-07T00:00:00Z" }, [], null);
+  ok("storm ad in the body, not the head", h.indexOf("stormproof.us") > h.indexOf("</head>")); }
 
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

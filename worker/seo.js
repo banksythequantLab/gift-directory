@@ -811,6 +811,17 @@ ${jsonld.map(j => `<script type="application/ld+json">${JSON.stringify(j).replac
 ${ad}
 <footer><a href="/">gift.directory</a> · <a href="/gifts">All gift guides</a> · <a href="https://gift.directory/about">About</a> · <a href="https://gift.directory/contact">Contact</a> · <a href="https://gift.directory/privacy">Privacy</a> · <a href="https://gift.directory/terms">Terms</a><br>Prices and stock come live from retailers through Channel3 and may change; links go to the retailer. We may earn a commission when you buy through these links.</footer></div></body></html>`;
 
+// House ad for our sister site Storm Proof AI (stormproof.us), on the preparedness guides only. It sits in the
+// page body after the picks (never in the <head>), and its wording follows what stormproof.us itself says.
+const HOUSE_ADS = {
+  Preparedness: slug => `<aside style="border:2px solid #1f3a5f;background:#f4f7fb;color:#1f2937;border-radius:14px;padding:18px;margin:22px 0">
+<div style="font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:#1f3a5f;font-weight:700">From our sister site</div>
+<b style="font-size:1.2rem;font-family:Georgia,serif">Storm Proof AI: no signal, still answers</b>
+<p style="margin:6px 0 10px">When a storm takes out the power and the cell towers, phones go dark right when you need answers. Storm Proof AI is an offline AI and library on one drive: first aid, repair guides, maps with turn-by-turn directions, and a voice assistant, with no internet, account or subscription needed.</p>
+<a class="btn" href="https://stormproof.us/?utm_source=gift.directory&amp;utm_medium=house_ad&amp;utm_campaign=${encodeURIComponent(slug)}" rel="noopener" style="display:inline-block;background:#1f3a5f;color:#fff;border-radius:10px;padding:10px 16px;font-weight:700;text-decoration:none">Download it free or get a loaded drive →</a>
+</aside>`,
+};
+export const houseAd = (topic, slug) => HOUSE_ADS[topic] ? HOUSE_ADS[topic](slug) : "";
 export function renderGuide(p, row, related, storeUrl, ad = "", teams = "") {
   const g = JSON.parse(row.guide_json), cards = JSON.parse(row.cards_json || "[]");
   const url = `${ROOT}/gifts/${p.slug}`, updated = String(row.updated_at).slice(0, 10);
@@ -826,6 +837,7 @@ ${cards.length ? (cards.some(c => c.group)
 <div class="cta"><b style="font-size:1.1rem">Going in together?</b><br>${storeUrl
     ? `Find more and start a group gift at <a href="${esc(storeUrl)}">${esc(storeUrl.replace(/^https:\/\//, "").replace(/\/$/, ""))}</a> — everyone chips in with PayPal, straight to the organizer.`
     : `Every store on <a href="/">gift.directory</a> lets a group chip in with PayPal, straight to the organizer. <a href="/">Start your own gift store →</a>`}</div>
+${houseAd(p.topic, p.slug)}
 ${teams}
 ${g.faq.length ? `<h2 style="font-family:Georgia,serif">Questions people ask</h2>${g.faq.map(f => `<h3>${esc(f.q)}</h3><p>${esc(f.a)}</p>`).join("")}` : ""}
 <h2 style="font-family:Georgia,serif">More gift guides</h2><nav class="rel">${related.map(r => `<a href="/gifts/${r.slug}">${esc(r.keyword)}</a>`).join("")}</nav>`;
@@ -853,6 +865,7 @@ export function renderTopic(topic, built, ad = "") {
   const body = `<div class="crumbs"><a href="/">gift.directory</a> › <a href="/gifts">Gift guides</a> › ${esc(topic)}</div>
 <h1 style="font-family:Georgia,serif;margin:4px 0 6px">${esc(topic)} gift guides</h1><p class="muted">${ps.length} guides with real, in-stock gifts and live prices.</p>
 <nav class="rel">${ps.map(p => `<a href="/gifts/${p.slug}">${esc(p.keyword)}</a>`).join("")}</nav>
+${houseAd(topic, "topic-" + topicSlug(topic))}
 <p style="margin-top:18px"><a href="/gifts">← All gift guides</a></p>`;
   const ld = [{ "@context": "https://schema.org", "@type": "ItemList", name: `${topic} gift guides`, url, itemListElement: ps.map((p, i) => ({ "@type": "ListItem", position: i + 1, url: `${ROOT}/gifts/${p.slug}`, name: p.keyword })) },
     { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [{ "@type": "ListItem", position: 1, name: "Gift guides", item: `${ROOT}/gifts` }, { "@type": "ListItem", position: 2, name: topic, item: url }] }];
