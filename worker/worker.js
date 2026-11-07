@@ -9,6 +9,8 @@ import { authorizeUrl, paypalWebBase, parseUserinfo, ownsStore, validateSettings
 import { OWN_MAX, safeHttpsUrl, shopOrigin, shopifyCards, productFromHtml, parseCsv, ownMatches } from "./own.js";
 
 const now = () => new Date().toISOString();
+// Guide price/stock refresh budget (see the /gifts/<slug> route): ~570 pages every 14 days is ~40 a day, ~280 searches.
+const REFRESH_DAYS = 14, REFRESH_PER_DAY = 40;
 // Unbuilt team pages, a few per run, one after another (each build is several searches and two model calls).
 async function retryTeamPages(db, env, max = 6) {
   const built = new Set((await db.prepare("SELECT slug FROM seo_pages").all()).results.map(r => r.slug));
@@ -307,7 +309,15 @@ export default {
         const row = p && await db.prepare("SELECT * FROM seo_pages WHERE slug=?").bind(p.slug).first();
         if (!row) return html(`<!doctype html><title>Not found</title><p>No such guide. <a href="/gifts">All gift guides</a></p>`, 404);
         // Keep prices and stock fresh without making a visitor (or a crawler) wait for it.
-        if (ctx && Date.now() - Date.parse(row.updated_at) > 3 * 864e5) ctx.waitUntil(buildGuide(db, env, p, { cardsOnly: true }).catch(() => {}));
+        // Every refresh costs Channel3 searches (about 7 for a slot page) and crawlers visit every page, so: a page
+        // refreshes at most every REFRESH_DAYS, and at most REFRESH_PER_DAY pages refresh in any 24 hours.
+        if (ctx && Date.now() - Date.parse(row.updated_at) > REFRESH_DAYS * 864e5) {
+          const since = new Date(Date.now() - 864e5).toISOString();
+          const done = (await db.prepare("SELECT COUNT(*) AS n FROM seo_pages WHERE updated_at > ?").bind(since).first()).n;
+          // A refresh that comes up short keeps the old products but still counts as a refresh, so it isn't retried on every visit.
+          if (done < REFRESH_PER_DAY) ctx.waitUntil(buildGuide(db, env, p, { cardsOnly: true }).catch(e => ({ ok: false, error: String(e) }))
+            .then(r => r && r.ok ? null : db.prepare("UPDATE seo_pages SET updated_at=? WHERE slug=?").bind(now(), p.slug).run()).catch(() => {}));
+        }
         const st = p.store && await db.prepare("SELECT slug FROM stores WHERE slug=? AND status='active'").bind(p.store).first();
         const built = new Set(rows.map(r => r.slug));
         return html(renderGuide(p, row, related(p, built), st ? `https://${st.slug}.${ROOT}/` : null, adSlot(env), teamNav(p, built)));
