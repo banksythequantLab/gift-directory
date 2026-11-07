@@ -15,7 +15,7 @@ const KIDS_EXCLUDE = ["wine", "beer", "whiskey", "bourbon", "cocktail", "shot gl
 // Anniversary gifts by year, traditional and modern themes (the common US lists). Each page searches four
 // gift ideas per theme, one product per idea, and the AI picks the best of each and says why.
 const ANNIVERSARIES = [
-  [1, "paper", "clocks", 100, ["custom star map print", "personalized photo book", "leather bound journal", "framed vintage map print"], ["wooden desk clock", "engraved mantel clock", "personalized wall clock", "sunrise alarm clock"]],
+  [1, "paper", "clocks", 100, ["personalized night sky star map", "personalized photo book", "leather bound journal", "framed vintage map print"], ["wooden desk clock", "engraved mantel clock", "personalized wall clock", "sunrise alarm clock"]],
   [2, "cotton", "china", 100, ["personalized cotton throw blanket", "cotton waffle robe set", "organic cotton sheet set", "embroidered cotton pillowcase"], ["porcelain tea set", "fine china serving platter", "porcelain mug set", "porcelain vase"]],
   [3, "leather", "crystal and glass", 150, ["personalized leather wallet", "leather weekender bag", "leather watch strap", "leather photo album"], ["crystal wine glasses set", "crystal whiskey decanter set", "glass terrarium", "crystal vase"]],
   [4, "fruit and flowers (linen and silk)", "appliances", 150, ["preserved roses in glass dome", "silk pillowcase set", "linen tablecloth", "fruit tree gift"], ["espresso machine", "air fryer", "smart display", "robot vacuum"]],
@@ -265,12 +265,12 @@ export const THEME_PAGES = [
   ...[["valentines-day-gifts-for-him", "Valentine's Day gifts for him", "my boyfriend or husband", 100, ["leather wallet", "wireless earbuds", "personalized whiskey glass", "cozy hoodie", "grooming kit", "watch", "couples game"]],
     ["valentines-day-gifts-for-her", "Valentine's Day gifts for her", "my girlfriend or wife", 100, ["heart necklace", "preserved rose dome", "silk pajamas", "jewelry box", "luxury candle", "spa gift set", "cozy slippers"]],
     ["valentines-day-gifts-for-husband", "Valentine's Day gifts for your husband", "my husband", 150, ["engraved watch", "leather weekender bag", "smart meat thermometer", "personalized wallet", "massage gun", "whiskey decanter set", "couples journal book"]],
-    ["valentines-day-gifts-for-wife", "Valentine's Day gifts for your wife", "my wife", 150, ["diamond pendant necklace", "cashmere wrap scarf", "personalized jewelry box", "silk robe", "spa gift set", "custom star map print", "luxury candle"]],
+    ["valentines-day-gifts-for-wife", "Valentine's Day gifts for your wife", "my wife", 150, ["diamond pendant necklace", "cashmere wrap scarf", "personalized jewelry box", "silk robe", "spa gift set", "personalized night sky star map", "luxury candle"]],
     ["valentines-day-gifts-for-new-relationship", "Valentine's Day gifts for a new relationship", "someone I just started dating", 50, ["chocolate gift box", "scented candle", "date night card game", "cozy socks", "small succulent planter", "cute couples mug", "date night ideas book for couples"]],
     ["galentines-day-gifts", "Galentine's Day gifts for friends", "my best friends", 30, ["friendship bracelet", "scented candle", "cozy socks", "face mask spa set", "best friend mug", "lip balm set", "scrunchie set"]],
     ["valentines-day-gifts-under-50", "Valentine's Day gifts under $50", "my partner", 50, ["heart necklace", "preserved rose", "couples card game", "scented candle", "personalized mug", "cozy blanket", "chocolate gift box"]],
     ["long-distance-relationship-gifts", "Long-distance relationship gifts", "my long-distance partner", 75, ["long distance touch lamp", "long distance bracelets", "open when letters envelopes", "couples journal book", "custom map print", "long distance relationship pillow", "digital photo frame"]],
-    ["10-best-valentines-day-gifts", "10 best Valentine's Day gifts", "my partner", 150, ["heart necklace", "preserved rose dome", "custom star map print", "wireless earbuds", "luxury candle", "silk pajamas", "couples card game", "leather wallet", "women's spa gift basket", "chocolate gift box"]],
+    ["10-best-valentines-day-gifts", "10 best Valentine's Day gifts", "my partner", 150, ["heart necklace", "preserved rose dome", "personalized night sky star map", "wireless earbuds", "luxury candle", "silk pajamas", "couples card game", "leather wallet", "women's spa gift basket", "chocolate gift box"]],
   ].map(([slug, kw, who, budget, slots]) => T(slug, kw, who, budget, "Valentine's Day", null, slots, { occasion: "Valentine's Day", exclude: ["baby", "kids", "toddler", "children's", "infant", "personalized book | letters"], count: slots.length, minCount: Math.min(6, slots.length - 1) })),
 ];
 
@@ -370,7 +370,7 @@ export const PAGES = [
     slots: ["weighted blanket","adult coloring book","fuzzy socks","herbal tea sampler","nature landscape jigsaw puzzle","bed tray","neck pillow","aromatherapy diffuser"], exclude: ["saw:","billy the puppet","horror","skull","jekyll","electric shock","shock flashlight","prank","chainsaw","massacre","bible","dog breed"] }),
   P("graduation-gifts-for-college-grads", "Graduation gifts for college grads", "a college graduate", "graduation", 100, { topic: "Life events" }),
   P("wedding-gifts-off-the-registry", "Wedding gifts off the registry", "a couple getting married", "wedding", 150, { topic: "Life events", count: 8, minCount: 6, exclude: ["saw:","billy the puppet","horror","skull","jekyll","electric shock","shock flashlight","prank","chainsaw","massacre"],
-    slots: ["personalized cutting board","wedding photo album","custom star map print","picnic basket for two","wine decanter","couples cookbook","throw blanket","keepsake box"] }),
+    slots: ["personalized cutting board","wedding photo album","personalized night sky star map","picnic basket for two","wine decanter","couples cookbook","throw blanket","keepsake box"] }),
   P("group-wedding-gifts-from-coworkers", "Group wedding gifts from coworkers", "a coworker who is getting married, from the team", "wedding", 250, { topic: "Life events", count: 8, minCount: 6, exclude: ["saw:","billy the puppet","horror","skull","jekyll","electric shock","shock flashlight","prank"],
     slots: ["enameled dutch oven","kitchen knife set","wine decanter","luxury bath towel set","espresso machine","picnic backpack for two","personalized cutting board","crystal champagne flutes"] }),
   // professions
@@ -527,6 +527,22 @@ export const PAGES = [
   // christmas, broad
   P("unique-christmas-gifts", "Unique Christmas gifts", "someone who would love something different", "Christmas", 100, { topic: "Holidays", cap: 2, exclude: NICHE_NOVELTY,
     notes: "unusual but useful: a star map print, a cocktail smoker, a levitating plant pot, a custom pet portrait, a scratch-off map, a sunrise alarm clock, a smart garden" }),
+  // curated lists
+  P("most-unique-gifts", "The most unique gifts", "someone who has seen it all", "Christmas", 100, { topic: "Curated lists", count: 10, minCount: 7, exclude: ["gift card","sexy","nsfw","replacement","refill","bulk","knife","knives","saw:","horror","prank","wedding","rain barrel","cabinet","halloween"],
+    notes: "genuinely unusual gifts people haven't seen before: conversation pieces, clever tech, personalized keepsakes; skip anything common",
+    slots: ["personalized night sky star map","smart bird feeder with camera","levitating moon lamp","ferrofluid desk sculpture","custom pet portrait","3D crystal photo","indoor hydroponic garden","sunrise alarm clock","cocktail smoker kit","magnetic levitating plant pot"] }),
+  P("most-unique-gifts-for-him", "The most unique gifts for him", "a man who has everything", "Christmas", 150, { topic: "Curated lists", count: 8, minCount: 6, exclude: ["gift card","sexy","nsfw","replacement","refill","bulk","knife","knives","saw:","horror","prank","wedding","rain barrel","cabinet","halloween"],
+    notes: "unusual gifts for men he would never buy himself: conversation pieces and clever gear, nothing generic",
+    slots: ["meteorite inlay ring","levitating bluetooth speaker","oak whiskey aging barrel kit","personalized golf ball stamp","ferrofluid speaker","smart bird feeder with camera","moon lamp","cocktail smoker kit"] }),
+  P("most-unique-gifts-for-her", "The most unique gifts for her", "a woman who has everything", "Christmas", 150, { topic: "Curated lists", count: 8, minCount: 6, exclude: ["gift card","sexy","nsfw","replacement","refill","bulk","knife","knives","saw:","horror","prank","wedding","rain barrel","cabinet","halloween"],
+    notes: "unusual, thoughtful gifts for women: personalized keepsakes, make-it-yourself kits, beautiful conversation pieces",
+    slots: ["birth flower necklace","personalized night sky star map","pressed flower frame","perfume making kit","levitating plant pot","terrarium kit","sunrise alarm clock","handwritten recipe cutting board"] }),
+  P("unique-gifts-under-25", "Unique gifts under $25", "anyone who loves something different", "Christmas", 25, { topic: "Curated lists", count: 8, minCount: 6, exclude: ["gift card","sexy","nsfw","replacement","refill","bulk","knife","knives","saw:","horror","prank","wedding","rain barrel","cabinet","halloween"],
+    notes: "cheap but genuinely unusual: fidget-worthy desk toys, grow kits, clever little things people keep",
+    slots: ["ferrofluid desk toy","magnetic thinking putty","plantable seed pencils","mini zen garden","bath bomb making kit","kinetic sand art frame","mushroom grow kit","galaxy projector"] }),
+  P("coolest-gadgets-to-gift", "The coolest gadgets to give as gifts", "a gadget lover", "Christmas", 150, { topic: "Curated lists", count: 8, minCount: 6, exclude: ["gift card","sexy","nsfw","replacement","refill","bulk","knife","knives","saw:","horror","prank","wedding","rain barrel","cabinet","halloween"],
+    notes: "clever, genuinely useful gadgets that feel new: finished consumer products, not parts or accessories",
+    slots: ["smart bird feeder with camera","pocket translator device","mini thermal printer","levitating bluetooth speaker","ultrasonic jewelry cleaner","smart garden","digital photo frame with wifi","portable espresso maker"] }),
   P("personalized-christmas-gifts", "Personalized Christmas gifts", "someone special", "Christmas", 75, { topic: "Holidays", cap: 2, exclude: NICHE_NOVELTY,
     notes: "gifts that can be personalized with a name, initials, date or photo: engraved jewelry, a monogrammed blanket, a custom cutting board, a photo book, an engraved decanter, a name ornament" }),
   P("christmas-gifts-for-people-who-are-hard-to-shop-for", "Christmas gifts for people who are hard to shop for", "someone who is hard to shop for", "Christmas", 100, { topic: "Holidays", cap: 2, exclude: NICHE_NOVELTY,
