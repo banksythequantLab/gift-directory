@@ -116,7 +116,7 @@ function render() {
   // The owner's shelves sit above the grid until the shopper searches or answers something.
   const plain = !query && !Object.keys(brief).length;
   $("#shelves").innerHTML = plain ? shelves.map(s => `<h2 style="font-family:Georgia,serif;margin:18px 0 0">${esc(s.title)}</h2>
-    <div class="grid">${s.cards.map(card).join("")}</div>`).join("") + (shelves.length ? `<h2 style="font-family:Georgia,serif;margin:22px 0 0">More gifts</h2>` : "") : "";
+    <div class="grid">${s.cards.map(card).join("")}</div>${s.note ? `<p class="muted" style="font-size:.75rem;margin:6px 0 0">${esc(s.note)}</p>` : ""}`).join("") + (shelves.length ? `<h2 style="font-family:Georgia,serif;margin:22px 0 0">More gifts</h2>` : "") : "";
   const q = query ? null : nextQ();
   const cells = items.map(card);
   if (q) cells.splice(Math.min(3, cells.length), 0, qcard(q));   // the next question sits a few items in

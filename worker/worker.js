@@ -7,6 +7,7 @@ import { PAGES, pageBySlug, GUIDE_SYSTEM, guidePrompt, parseGuide, pageBrief, re
 import { LEGAL_SLUGS, renderLegal } from "./legal.js";
 import { authorizeUrl, paypalWebBase, parseUserinfo, ownsStore, validateSettings, validateItem, shelves, withoutHidden } from "./owners.js";
 import { OWN_MAX, safeHttpsUrl, shopOrigin, shopifyCards, productFromHtml, parseCsv, ownMatches } from "./own.js";
+import { ETSY_API, ETSY_NOTICE, etsyShopName, etsyShopUrl, pickShop, etsyCards } from "./etsy.js";
 import { cjSearch } from "./cj.js";
 
 const now = () => new Date().toISOString();
@@ -204,10 +205,44 @@ async function syncShopify(db, src) {
     return { ok: false, error: String(e.message || e) };
   }
 }
+// Pull an Etsy shop's active listings (up to 1000) through the Etsy Open API; same bookkeeping as Shopify.
+async function etsyGet(env, path) {
+  const r = await fetch(ETSY_API + path, { signal: AbortSignal.timeout(15000), headers: { "x-api-key": env.ETSY_API_KEY, accept: "application/json" } });
+  if (r.status === 429) throw new Error("Etsy is limiting requests right now. Try again in a few minutes.");
+  if (r.status === 401 || r.status === 403) throw new Error("Etsy refused the request (the site's Etsy app key may not be approved yet).");
+  if (!r.ok) throw new Error(`Etsy answered ${r.status}.`);
+  return r.json();
+}
+async function syncEtsy(env, db, src) {
+  try {
+    if (!env.ETSY_API_KEY) throw new Error("Etsy connections aren't switched on yet.");
+    const name = etsyShopName(src.url); if (!name) throw new Error("That isn't an Etsy shop address.");
+    const shop = pickShop(await etsyGet(env, `/shops?shop_name=${encodeURIComponent(name)}`), name);
+    if (!shop) throw new Error(`No Etsy shop named ${name}.`);
+    const cards = [];
+    for (let off = 0; off < OWN_MAX; off += 100) {
+      const j = await etsyGet(env, `/shops/${shop.shop_id}/listings?state=active&limit=100&offset=${off}&includes=Images`);
+      cards.push(...etsyCards(j, shop.shop_name));
+      if (!Array.isArray(j.results) || j.results.length < 100) break;
+    }
+    if (!cards.length) throw new Error("That Etsy shop has no active listings.");
+    await upsertOwn(db, src.store_id, cards, "etsy", src.id);
+    const ids = new Set(cards.map(c => c.product_id));
+    const gone = (await db.prepare("SELECT product_id FROM own_products WHERE store_id=? AND source_id=?").bind(src.store_id, src.id).all()).results.filter(r => !ids.has(r.product_id));
+    for (let i = 0; i < gone.length; i += 50) await db.batch(gone.slice(i, i + 50).map(r => db.prepare("UPDATE own_products SET available=0, updated_at=? WHERE store_id=? AND product_id=?").bind(now(), src.store_id, r.product_id)));
+    await db.prepare("UPDATE own_sources SET last_synced=?, last_error=NULL, product_count=? WHERE id=?").bind(now(), cards.length, src.id).run();
+    return { ok: true, count: cards.length, available: cards.filter(c => c.available !== false).length };
+  } catch (e) {
+    await db.prepare("UPDATE own_sources SET last_synced=?, last_error=? WHERE id=?").bind(now(), String(e.message || e).slice(0, 300), src.id).run();
+    return { ok: false, error: String(e.message || e) };
+  }
+}
+const syncSource = (env, db, src) => src.kind === "etsy" ? syncEtsy(env, db, src) : syncShopify(db, src);
 // The owner's products as a shelf for the store page (newest first).
 async function ownShelf(db, storeId) {
   const cards = (await ownProducts(db, storeId)).slice(0, 24);
-  return cards.length ? [{ title: "From our shop", cards }] : [];
+  if (!cards.length) return [];
+  return [{ title: "From our shop", cards, ...(cards.some(c => c.merchant === "etsy.com") ? { note: ETSY_NOTICE } : {}) }];
 }
 
 // A typed search: any price from $5 to $500, junk and duplicates out. No model: it should feel instant.
@@ -496,6 +531,20 @@ export default {
               if (!r.ok && !list.find(x => x.url === origin)) await db.prepare("DELETE FROM own_sources WHERE id=?").bind(src.id).run(); // a failed first connect leaves nothing behind
               return r.ok ? J(r) : J({ error: r.error }, 422);
             }
+            if (parts[5] === "etsy" && m === "POST") {
+              const name = etsyShopName(((await readJson(request)) || {}).url || "");
+              if (!name) return J({ error: "Enter your Etsy shop name or address, like etsy.com/shop/YourShop." }, 400);
+              const url = etsyShopUrl(name), list = await sources();
+              let src = list.find(x => x.url.toLowerCase() === url.toLowerCase());
+              if (!src) {
+                if (list.length >= 3) return J({ error: "A store can connect up to 3 shops." }, 409);
+                src = { id: uid(), store_id: s.id, kind: "etsy", url };
+                await db.prepare("INSERT INTO own_sources (id,store_id,kind,url,created_at) VALUES (?,?,?,?,?)").bind(src.id, s.id, "etsy", url, now()).run();
+              }
+              const r = await syncEtsy(env, db, { ...src, store_id: s.id });
+              if (!r.ok && !list.find(x => x.id === src.id)) await db.prepare("DELETE FROM own_sources WHERE id=?").bind(src.id).run();
+              return r.ok ? J(r) : J({ error: r.error }, 422);
+            }
             if (parts[5] === "link" && m === "POST") {
               const raw = ((await readJson(request)) || {}).url || "";
               if (!safeHttpsUrl(raw)) return J({ error: "Paste a full product link (https://…)." }, 400);
@@ -515,7 +564,7 @@ export default {
             }
             if (parts[5] === "sync" && m === "POST") {
               const out = [];
-              for (const src of await sources()) out.push({ url: src.url, ...(await syncShopify(db, { ...src, store_id: s.id })) });
+              for (const src of await sources()) out.push({ url: src.url, ...(await syncSource(env, db, { ...src, store_id: s.id })) });
               return J({ results: out });
             }
             if (parts[5] === "products" && parts[6] && m === "DELETE") {
@@ -642,12 +691,12 @@ export default {
     }
   },
 
-  // Daily: re-pull every connected Shopify shop (prices, stock, new products), oldest sync first.
+  // Daily: re-pull every connected Shopify and Etsy shop (prices, stock, new products), oldest sync first.
   async scheduled(controller, env, ctx) {
     const db = env.DB;
-    const due = (await db.prepare("SELECT * FROM own_sources WHERE kind='shopify' AND (last_synced IS NULL OR last_synced < ?) ORDER BY last_synced LIMIT 25")
+    const due = (await db.prepare("SELECT * FROM own_sources WHERE kind IN ('shopify','etsy') AND (last_synced IS NULL OR last_synced < ?) ORDER BY last_synced LIMIT 25")
       .bind(new Date(Date.now() - 20 * 3600 * 1000).toISOString()).all()).results;
-    for (const src of due) ctx.waitUntil(syncShopify(db, src));
+    for (const src of due) ctx.waitUntil(syncSource(env, db, src));
     // Mondays: retry team, fandom, breed and other themed pages that had too little stock to build (they go live once stock shows up).
     if (new Date(controller.scheduledTime || Date.now()).getUTCDay() === 1) ctx.waitUntil(retryTeamPages(db, env));
   },
