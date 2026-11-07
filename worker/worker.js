@@ -3,7 +3,7 @@ import { paypalFetch, link, paypalMode } from "./paypal-core.js";
 import { validateBrief, findGifts, browseGifts, channel3Search, toCard, mergeCards } from "./finder.js";
 import { validatePool, contributionError, buildContributionOrder, readCapture, applyCapture, publicPool } from "./pools.js";
 import { ROOT, DRAFT_SYSTEM, parseDraft, validateStore, storePlanSystem, subscriptionBody, storeStatusFor, hostKey, publicStore, darkEnough } from "./stores.js";
-import { PAGES, pageBySlug, GUIDE_SYSTEM, guidePrompt, parseGuide, pageBrief, renderGuide, renderHub, related, teamNav, TEAM_PAGES, sitemap, adSlot, configureAds, diversify, allowed } from "./seo.js";
+import { PAGES, pageBySlug, GUIDE_SYSTEM, guidePrompt, parseGuide, pageBrief, renderGuide, renderHub, renderTopic, topicSlug, topicBySlug, related, teamNav, TEAM_PAGES, THEME_PAGES, sitemap, adSlot, configureAds, diversify, allowed } from "./seo.js";
 import { LEGAL_SLUGS, renderLegal } from "./legal.js";
 import { authorizeUrl, paypalWebBase, parseUserinfo, ownsStore, validateSettings, validateItem, shelves, withoutHidden } from "./owners.js";
 import { OWN_MAX, safeHttpsUrl, shopOrigin, shopifyCards, productFromHtml, parseCsv, ownMatches } from "./own.js";
@@ -13,7 +13,7 @@ const now = () => new Date().toISOString();
 async function retryTeamPages(db, env, max = 6) {
   const built = new Set((await db.prepare("SELECT slug FROM seo_pages").all()).results.map(r => r.slug));
   // Rotate by week so the same few hopeless teams don't take every turn.
-  const left = TEAM_PAGES.filter(p => !built.has(p.slug)), at = left.length ? (Math.floor(Date.now() / 6048e5) * max) % left.length : 0;
+  const left = [...TEAM_PAGES, ...THEME_PAGES].filter(p => !built.has(p.slug)), at = left.length ? (Math.floor(Date.now() / 6048e5) * max) % left.length : 0;
   const todo = [...left.slice(at), ...left.slice(0, at)].slice(0, max), out = [];
   for (const p of todo) out.push({ slug: p.slug, ...(await buildGuide(db, env, p).catch(e => ({ ok: false, error: String(e) }))) });
   console.log("team retry", JSON.stringify(out.map(o => [o.slug, o.ok])));
@@ -297,10 +297,12 @@ export default {
         if (url.pathname === "/sitemap.xml") {
           const stores = (await db.prepare("SELECT slug, updated_at FROM stores WHERE status='active'").all()).results;
           return new Response(sitemap([{ loc: `https://${ROOT}/` }, { loc: `https://${ROOT}/gifts` }, ...LEGAL_SLUGS.map(s => ({ loc: `https://${ROOT}/${s}` })),
+            ...[...new Set(PAGES.filter(p => rows.some(r => r.slug === p.slug)).map(p => p.topic))].map(t => ({ loc: `https://${ROOT}/gifts/topic/${topicSlug(t)}` })),
             ...rows.map(r => ({ loc: `https://${ROOT}/gifts/${r.slug}`, lastmod: r.updated_at })),
             ...stores.map(s => ({ loc: `https://${s.slug}.${ROOT}/`, lastmod: s.updated_at }))]), { headers: { "content-type": "application/xml" } });
         }
         if (!parts[1]) return html(renderHub(new Set(rows.map(r => r.slug)), adSlot(env)));
+        if (parts[1] === "topic") { const t = topicBySlug(parts[2] || ""); return t ? html(renderTopic(t, new Set(rows.map(r => r.slug)), adSlot(env))) : html(`<!doctype html><title>Not found</title><p>No such topic. <a href="/gifts">All gift guides</a></p>`, 404); }
         const p = pageBySlug(parts[1]);
         const row = p && await db.prepare("SELECT * FROM seo_pages WHERE slug=?").bind(p.slug).first();
         if (!row) return html(`<!doctype html><title>Not found</title><p>No such guide. <a href="/gifts">All gift guides</a></p>`, 404);
@@ -631,7 +633,7 @@ export default {
     const due = (await db.prepare("SELECT * FROM own_sources WHERE kind='shopify' AND (last_synced IS NULL OR last_synced < ?) ORDER BY last_synced LIMIT 25")
       .bind(new Date(Date.now() - 20 * 3600 * 1000).toISOString()).all()).results;
     for (const src of due) ctx.waitUntil(syncShopify(db, src));
-    // Mondays: retry team fan pages that had too little gear to build (they go live once stock shows up).
+    // Mondays: retry team, fandom, breed and other themed pages that had too little stock to build (they go live once stock shows up).
     if (new Date(controller.scheduledTime || Date.now()).getUTCDay() === 1) ctx.waitUntil(retryTeamPages(db, env));
   },
 };

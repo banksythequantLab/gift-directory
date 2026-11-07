@@ -99,6 +99,12 @@ eq("without ids the page has no ad code at all", renderGuide(p, row, [], null, "
     eq("mushroom page drops supplements", allowed(pageBySlug("gifts-for-mushroom-lovers"), { title: "Lion's Mane Mushroom Gummies" }), false);
     eq("Marvel page keeps Doctor Strange", allowed(pageBySlug("gifts-for-marvel-fans"), { title: "Marvel Legends Doctor Strange Figure" }), true);
     eq("theme slots must be their kind", pageBySlug("gifts-for-unicorn-lovers").slotMust[0].includes("plush") && pageBySlug("gifts-for-unicorn-lovers").slotMust[2].includes("lamp"), true);
+    { const { renderHub, renderTopic, topicSlug, topicBySlug } = await import("../seo.js"); const built = new Set(PAGES.filter(p => p.topic === "Dog breeds").map(p => p.slug));
+      eq("topic slugs round-trip", topicBySlug(topicSlug("Valentine's Day")) === "Valentine's Day" && topicSlug("Fantasy & fandoms") === "fantasy-and-fandoms", true);
+      const hub = renderHub(built); eq("hub previews 12 and links the full topic", (hub.match(/href="\/gifts\/gifts-for-/g) || []).length === 12 && hub.includes("/gifts/topic/dog-breeds"), true);
+      eq("topic page lists every built guide in it", (renderTopic("Dog breeds", built).match(/href="\/gifts\/gifts-for-/g) || []).length, built.size); }
+    eq("birthday pages: 1-4 by age, 5-16 boy/girl, milestones him/her", PAGES.filter(p => p.topic === "Birthdays").length, 4 + 12 * 2 + 6 * 2);
+    eq("kids birthday pages keep adult items out", allowed(pageBySlug("gifts-for-9-year-old-girls"), { title: "Wine Glass Set for Women" }), false);
     eq("Ajax page drops Ajax cleaner", allowed(pageBySlug("gifts-for-afc-ajax-fans"), { title: "Ajax Dish Soap" }), false);
     eq("USMNT page keeps U.S. Soccer gear", allowed(pageBySlug("gifts-for-usmnt-fans"), { title: "U.S. Soccer 2026 Home Jersey" }), true);
     eq("MLS alias spellings count", allowed(pageBySlug("gifts-for-lafc-fans"), { title: "Los Angeles FC Club Scarf" }), true);

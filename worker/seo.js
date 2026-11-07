@@ -222,6 +222,30 @@ export const THEME_PAGES = [
     ["doodle"], ["Goldendoodle mug", "Doodle dog ornament", "Goldendoodle socks", "Goldendoodle plush", "Bernedoodle framed wall art", "Doodle dog necklace", "Labradoodle blanket"],
     { exclude: ["magna doodle", "doodle pad", "doodle board", "doodle art", "doodle book", "coloring", "drawing", "doodle bear", "doodle jump", "yankee doodle", "doodlebug", "doodle mat", "collar", "harness", "leash", "dog food", "treats", "dog bed", "chew", "shampoo", "crate"],
       notes: "doodle dogs (Goldendoodles, Labradoodles, Bernedoodles); gifts for the owner, not dog supplies" }),
+  // Birthdays: toddlers by age, kids 5-16 by age and boy/girl, milestone birthdays for him and her.
+  ...[[1, ["baby activity cube", "push walker toy", "board books for babies", "stacking toy", "ride-on toy for 1 year old", "baby plush toy", "bath toys"]],
+    [2, ["toddler balance bike", "toddler play kitchen", "toddler art easel", "wooden stacking blocks", "toy dump truck", "toddler board books", "toddler musical instrument set"]],
+    [3, ["magnetic building tiles", "kids play kitchen", "kids tricycle", "play dough set", "dress up costume set", "puzzle for 3 year olds", "picture book"]],
+    [4, ["kids balance bike", "LEGO Duplo set", "kids art supply set", "preschool board game", "kids scooter", "dress up costume set", "picture book"]],
+  ].map(([age, slots]) => T(`gifts-for-${age}-year-olds`, `Gifts for ${age}-year-olds`, `a ${age}-year-old child`, 50, "Birthdays", null,
+    slots.map(s => /year old/.test(s) ? s : `${s} for ${age} year old`), { occasion: "birthday", exclude: KIDS_EXCLUDE, minCount: 5, notes: `age-appropriate, safe toys for a ${age}-year-old; no small parts for toddlers` })),
+  ...[[[5, 6, 7], { boy: ["LEGO set", "remote control car", "kids scooter", "dinosaur toy", "kids science kit", "kids board game", "kids walkie talkies"],
+                    girl: ["LEGO Friends set", "kids art supply set", "dollhouse", "kids craft kit", "kids scooter", "kids board game", "kids jewelry making kit"] }],
+    [[8, 9, 10], { boy: ["LEGO set", "remote control car", "kids drone", "kids science kit", "strategy board game", "kids digital camera", "kids basketball hoop"],
+                   girl: ["LEGO Friends set", "friendship bracelet kit", "kids instant camera", "kids art supply set", "kids karaoke microphone", "family board game", "slime kit"] }],
+    [[11, 12, 13], { boy: ["LEGO Technic set", "drone with camera", "kids wireless headphones", "speed cube", "basketball", "kids smartwatch", "robotics kit"],
+                     girl: ["instant camera", "kids wireless headphones", "jewelry making kit", "LED room lights", "makeup bag organizer", "sketchbook and art set", "kids smartwatch"] }],
+    [[14, 15, 16], { boy: ["wireless earbuds", "bluetooth speaker", "gaming headset", "hoodie for teen boys", "basketball", "LED strip lights", "portable power bank"],
+                     girl: ["instant camera", "wireless earbuds", "sherpa blanket", "jewelry box", "insulated tumbler", "hair styling tool", "makeup bag organizer"] }],
+  ].flatMap(([ages, by]) => ages.flatMap(age => ["boy", "girl"].map(g => T(`gifts-for-${age}-year-old-${g}s`, `Gifts for ${age}-year-old ${g}s`, `a ${age}-year-old ${g}`, age < 11 ? 50 : 75, "Birthdays", null,
+    by[g].map(s => `${s} for ${age} year old ${g}`), { occasion: "birthday", exclude: KIDS_EXCLUDE, minCount: 5, notes: `age-appropriate gifts a ${age}-year-old ${g} will actually want` })))),
+  ...[21, 30, 40, 50, 60, 70].flatMap(n => [
+    T(`${n}th-birthday-gifts-for-him`.replace("21th", "21st"), `${n === 21 ? "21st" : n + "th"} birthday gifts for him`, `a man turning ${n}`, n === 21 ? 75 : 150, "Birthdays", null,
+      (n <= 30 ? ["wireless earbuds", "leather wallet", "bluetooth speaker", "hoodie", "watch", "card game", "travel bag"] : ["personalized whiskey glass", "leather wallet", "watch", "grilling tool set", "massage gun", "golf gift set", "leather weekender bag"]).map(s => `${s} for him`),
+      { occasion: `${n === 21 ? "21st" : n + "th"} birthday`, minCount: 5, notes: `milestone ${n}th birthday; lasting gifts he'll use, plus one fun nod to turning ${n}` }),
+    T(`${n}th-birthday-gifts-for-her`.replace("21th", "21st"), `${n === 21 ? "21st" : n + "th"} birthday gifts for her`, `a woman turning ${n}`, n === 21 ? 75 : 150, "Birthdays", null,
+      (n <= 30 ? ["initial necklace", "instant camera", "jewelry box", "luxury candle", "silk pillowcase", "makeup bag", "tote bag"] : ["personalized necklace", "jewelry box", "spa gift set", "luxury candle", "cashmere scarf", "silk pajamas", "personalized photo book"]).map(s => `${s} for her`),
+      { occasion: `${n === 21 ? "21st" : n + "th"} birthday`, minCount: 5, notes: `milestone ${n}th birthday; meaningful gifts she'll keep` })]),
   // Valentine's Day
   ...[["valentines-day-gifts-for-him", "Valentine's Day gifts for him", "my boyfriend or husband", 100, ["leather wallet", "wireless earbuds", "personalized whiskey glass", "cozy hoodie", "grooming kit", "watch", "couples game"]],
     ["valentines-day-gifts-for-her", "Valentine's Day gifts for her", "my girlfriend or wife", 100, ["heart necklace", "preserved rose dome", "silk pajamas", "jewelry box", "luxury candle", "spa gift set", "cozy slippers"]],
@@ -604,6 +628,7 @@ export function guidePrompt(p) {
   return `Search phrase: ${p.keyword}\nWho it's for: ${p.recipient}\nOccasion: ${p.occasion}\nTypical budget: up to $${p.budget_cents / 100}` +
     (p.notes ? `\nNotes: ${p.notes}` : "") +
     (p.anniversary ? "\nCover both the traditional and the modern gift, with a few creative ways to interpret each. Never suggest real ivory, coral or other wildlife products."
+                   : /birthday/i.test(p.occasion) ? "\nIt's a birthday gift (any time of year, not just the holidays). Mention that several people can chip in on one gift if that fits."
                    : p.occasion === "Valentine's Day" ? "\nIt's for Valentine's Day (February 14). Keep it warm and romantic but tasteful, and note it's worth ordering early."
                    : "\nIt's the holiday season. Mention that several people can chip in on one gift if that fits.");
 }
@@ -663,7 +688,7 @@ export function renderGuide(p, row, related, storeUrl, ad = "", teams = "") {
   const g = JSON.parse(row.guide_json), cards = JSON.parse(row.cards_json || "[]");
   const url = `${ROOT}/gifts/${p.slug}`, updated = String(row.updated_at).slice(0, 10);
   const title = `${p.keyword} (${new Date(row.updated_at).getUTCFullYear()}) — real gifts in stock | gift.directory`;
-  const body = `<div class="crumbs"><a href="/">gift.directory</a> › <a href="/gifts">Gift guides</a> › ${esc(p.topic)}</div>
+  const body = `<div class="crumbs"><a href="/">gift.directory</a> › <a href="/gifts">Gift guides</a> › <a href="/gifts/topic/${topicSlug(p.topic)}">${esc(p.topic)}</a></div>
 <h1 style="font-family:Georgia,serif;margin:4px 0 6px">${esc(p.keyword)}</h1>
 <p class="muted" style="margin:0 0 12px">Updated ${esc(updated)} · ${cards.length} gifts in stock now</p>
 <section class="guide">${g.intro.map(x => `<p>${esc(x)}</p>`).join("")}</section>
@@ -684,11 +709,27 @@ ${g.faq.length ? `<h2 style="font-family:Georgia,serif">Questions people ask</h2
   ];
   return shell(title, g.meta, url, body, ld, ad);
 }
+// Topic pages (/gifts/topic/<slug>): the hub shows a preview of each topic and links to the full list.
+export const topicSlug = t => String(t).toLowerCase().replace(/&/g, "and").replace(/'/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+export const topicBySlug = s => [...new Set(PAGES.map(p => p.topic))].find(t => topicSlug(t) === s) || null;
+const byTopicBuilt = built => { const m = {}; for (const p of PAGES) if (built.has(p.slug)) (m[p.topic] ||= []).push(p); return m; };
+const HUB_PREVIEW = 12;
 export function renderHub(built, ad = "") {
-  const byTopic = {}; for (const p of PAGES) if (built.has(p.slug)) (byTopic[p.topic] ||= []).push(p);
+  const byTopic = byTopicBuilt(built);
   const body = `<h1 style="font-family:Georgia,serif">Gift guides</h1><p class="muted">Real, in-stock gifts picked by AI for the people on your list — with live prices, and group gifts paid through PayPal.</p>
-${Object.entries(byTopic).map(([t, ps]) => `<h2 style="font-family:Georgia,serif">${esc(t)}</h2><nav class="rel">${ps.map(p => `<a href="/gifts/${p.slug}">${esc(p.keyword)}</a>`).join("")}</nav>`).join("")}`;
+<nav class="rel" style="margin:6px 0 10px">${Object.entries(byTopic).map(([t, ps]) => `<a href="/gifts/topic/${topicSlug(t)}">${esc(t)} (${ps.length})</a>`).join("")}</nav>
+${Object.entries(byTopic).map(([t, ps]) => `<h2 style="font-family:Georgia,serif"><a href="/gifts/topic/${topicSlug(t)}" style="color:inherit">${esc(t)}</a></h2><nav class="rel">${ps.slice(0, HUB_PREVIEW).map(p => `<a href="/gifts/${p.slug}">${esc(p.keyword)}</a>`).join("")}${ps.length > HUB_PREVIEW ? `<a href="/gifts/topic/${topicSlug(t)}"><b>All ${ps.length} ${esc(t)} guides →</b></a>` : ""}</nav>`).join("")}`;
   return shell("Gift guides — real gifts in stock, picked by AI | gift.directory", "Christmas and year-round gift guides for lawyers, nurses, coworkers, family and more: real, in-stock gifts with live prices, picked by AI.", `${ROOT}/gifts`, body, [], ad);
+}
+export function renderTopic(topic, built, ad = "") {
+  const ps = byTopicBuilt(built)[topic] || [], url = `${ROOT}/gifts/topic/${topicSlug(topic)}`;
+  const body = `<div class="crumbs"><a href="/">gift.directory</a> › <a href="/gifts">Gift guides</a> › ${esc(topic)}</div>
+<h1 style="font-family:Georgia,serif;margin:4px 0 6px">${esc(topic)} gift guides</h1><p class="muted">${ps.length} guides with real, in-stock gifts and live prices.</p>
+<nav class="rel">${ps.map(p => `<a href="/gifts/${p.slug}">${esc(p.keyword)}</a>`).join("")}</nav>
+<p style="margin-top:18px"><a href="/gifts">← All gift guides</a></p>`;
+  const ld = [{ "@context": "https://schema.org", "@type": "ItemList", name: `${topic} gift guides`, url, itemListElement: ps.map((p, i) => ({ "@type": "ListItem", position: i + 1, url: `${ROOT}/gifts/${p.slug}`, name: p.keyword })) },
+    { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [{ "@type": "ListItem", position: 1, name: "Gift guides", item: `${ROOT}/gifts` }, { "@type": "ListItem", position: 2, name: topic, item: url }] }];
+  return shell(`${topic} gift guides — real gifts in stock | gift.directory`, `${ps.length} ${topic} gift guides: real, in-stock gifts with live prices, picked by AI.`.slice(0, 155), url, body, ld, ad);
 }
 // Related guides: built pages only, starting with the page's neighbours in its own topic (so links spread
 // across a topic instead of every page pointing at its first eight), then other topics.
