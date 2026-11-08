@@ -50,7 +50,8 @@ function createForm() {
     <label>A note for guests (optional)</label><textarea id="c_msg" maxlength="400" placeholder="Thank you for celebrating with us!"></textarea>
     <div class="err" id="cerr"></div>
     <button class="btn" style="margin-top:12px">Create my registry</button>
-  </form>`;
+  </form>
+  <p class="muted small" style="margin-top:14px">Need ideas? <a href="/gifts/wedding-registry-ideas">Wedding registry ideas</a> · <a href="/gifts/wedding-registry-items-under-100">Under $100</a> · <a href="/gifts/baby-registry-must-haves">Baby registry must-haves</a> · <a href="/gifts/housewarming-registry-ideas">Housewarming</a> · <a href="/gifts/universal-gift-registry-ideas">From every store</a></p>`;
   $("#cf").onsubmit = async e => {
     e.preventDefault(); $("#cerr").textContent = "";
     try {
