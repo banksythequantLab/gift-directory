@@ -34,7 +34,7 @@ I'm a New York attorney. Clients want to thank their lawyer, firms want to thank
 - **Channel3** product search, **CJ Affiliate** (GraphQL product search with tracked links) and the **Etsy Open API** for live prices, stock and retailer links.
 - **AI (Qwen3-235B on Nebius Token Factory)** for drafting stores, planning searches, picking gifts, the store assistant and the registry helper. The model may only pick products the searches actually returned, by ID or position. Anything it invents is dropped, and every price and link comes from the retailer data, never from the model.
 - Link previews are written into each shared page's `<head>` on the server with Cloudflare's HTMLRewriter, from the live pool, registry or store.
-- 467 automated tests run against real SQLite built from the production migrations.
+- 492 automated tests run against real SQLite built from the production migrations.
 
 ## Challenges we ran into
 - **Paying someone who isn't us.** I tested sending contributions directly to another account's PayPal (`payee`). When the organizer's email had no PayPal account, the capture came back `PENDING / UNILATERAL`: the contributor had paid, but the money was waiting to be claimed. I changed the tally to count it and show the organizer a "claim your money" notice.
