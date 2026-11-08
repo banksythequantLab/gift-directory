@@ -24,7 +24,7 @@ I'm a New York attorney. Clients want to thank their lawyer, firms want to thank
 - **Sell your own products:** connect a Shopify store or an **Etsy shop** (Etsy Open API v3), paste product links or upload a CSV. They sit on a "From our shop" shelf and the AI can recommend them. Shops re-sync daily.
 - Publish with a $19/month PayPal Subscription. The store is live at yourname.gift.directory while the subscription is active.
 
-**574 gift guides** (gift.directory/gifts): professions, holidays, hobbies, outdoors and preparedness, fan pages for NFL, MLB, NBA, NHL, WNBA, MLS and college teams and major soccer clubs, fandoms, dog breeds, birthdays and anniversaries. Each page shows one product of each kind (no page of five coffee makers), with AI reasons and an FAQ, and links into a store where a group can chip in with PayPal.
+**576 gift guides** (gift.directory/gifts): professions, holidays, hobbies, outdoors and preparedness, fan pages for NFL, MLB, NBA, NHL, WNBA, MLS and college teams and major soccer clubs, fandoms, dog breeds, birthdays and anniversaries. Each page shows one product of each kind (no page of five coffee makers), with AI reasons and an FAQ, and links into a store where a group can chip in with PayPal.
 
 ## How we built it
 - **Cloudflare Workers + D1**, no framework. One worker serves the platform, every store, the guides and the registries, and decides which store a request is for from its hostname.
