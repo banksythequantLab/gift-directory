@@ -83,3 +83,38 @@ export function parseRegAi(j) {
   const reply = clip(String((j && j.reply) || "").replace(/[⺀-鿿가-힯豈-﫿＀-￯]+/g, ""), 300) || "Here are some options.";
   return { reply, items };
 }
+
+// ---------- reminders: one email to a guest a week before the event ----------
+export const REMIND_DAYS = 7;
+const day = d => new Date(Date.parse(d + "T00:00:00Z"));
+const ymd = d => d.toISOString().slice(0, 10);
+// When to send: 7 days before the event, or today if that day has passed. No date, or a past event: no reminder.
+export function reminderSendOn(eventDate, today) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(eventDate || ""))) return null;
+  const ev = day(eventDate), t = day(today);
+  if (!(ev > t)) return null;
+  const s = new Date(ev.getTime() - REMIND_DAYS * 864e5);
+  return ymd(s > t ? s : t);
+}
+export function validateReminder(b) {
+  const email = String((b && b.email) || "").trim().toLowerCase();
+  if (!EMAIL.test(email) || email.length > 200) return { error: "That email doesn't look right." };
+  return { email };
+}
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const longDate = d => day(d).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" });
+// The reminder itself. Plain and short: whose registry, when, the link, and a one-click unsubscribe.
+export function reminderEmail(reg, regUrl, unsubUrl, left = null) {
+  const when = longDate(reg.event_date), occ = reg.occasion && reg.occasion !== "Other" ? ` ${reg.occasion.toLowerCase()}` : "";
+  const subject = `Reminder: ${clip(reg.title, 70)} is ${when}`;
+  const still = left == null ? "" : left > 0 ? `${left} gift${left === 1 ? " is" : "s are"} still on the list.` : "Every gift on the list is spoken for, but the registry has the details.";
+  const text = `Hi! You asked for a reminder: ${reg.owner_name}'s${occ} is coming up on ${when}.\n\n${still ? still + "\n\n" : ""}See the registry: ${regUrl}\n\n` +
+    `Mark what you buy so nobody doubles up${reg.paypal_email ? ", or go in together on a big gift with PayPal" : ""}.\n\n— gift.directory\n\nThis was a one-time reminder; we've deleted your email. Didn't ask for it? ${unsubUrl}`;
+  const html = `<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:520px;color:#1d2433;line-height:1.5">
+<p style="font-size:1.05rem">Hi! You asked for a reminder: <b>${esc(reg.owner_name)}'s${esc(occ)}</b> is coming up on <b>${esc(when)}</b>.</p>
+${still ? `<p>${esc(still)}</p>` : ""}
+<p><a href="${esc(regUrl)}" style="display:inline-block;background:#1f3a5f;color:#fff;border-radius:10px;padding:11px 18px;font-weight:700;text-decoration:none">See ${esc(clip(reg.title, 60))}</a></p>
+<p style="color:#6b7280">Mark what you buy so nobody doubles up${reg.paypal_email ? ", or go in together on a big gift with PayPal" : ""}.</p>
+<p style="color:#6b7280;font-size:.85rem">— gift.directory<br>This was a one-time reminder; we've deleted your email. <a href="${esc(unsubUrl)}" style="color:#6b7280">Didn't ask for it?</a></p></div>`;
+  return { subject, text, html };
+}

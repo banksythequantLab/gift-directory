@@ -2,7 +2,7 @@
 // crawlers read them). Operator: Banksy AI LLC. Draft for the owner's legal review.
 import { shell } from "./seo.js";
 
-const UPDATED = "November 5, 2026";
+const UPDATED = "November 8, 2026";
 const CONTACT = "hello@gift.directory";
 const h1 = t => `<h1 style="font-family:Georgia,serif;margin:6px 0 10px">${t}</h1>`;
 const sec = (t, ...ps) => `<h2 style="font-family:Georgia,serif;margin-top:22px">${t}</h2>${ps.map(p => `<p style="max-width:780px">${p}</p>`).join("")}`;
@@ -31,6 +31,7 @@ export const LEGAL = {
       sec("What we collect",
         "<b>What you type to find a gift</b>: the occasion, who it's for, budget and interests. We use it to search for products and pick suggestions, and keep it to improve results. Please don't type sensitive personal information into these fields.",
         "<b>Group gifts</b>: the organizer's name and PayPal email, the gift chosen, and each contributor's name (unless they choose to hide it), message and amount. Names and messages appear on the group-gift page for anyone with the link. The organizer's email is never shown publicly.",
+        "<b>Gift registries</b>: the registry's name, date, the owner's name and (optionally) PayPal email, the gifts on it, and the names guests give when they mark a gift as bought (shown only to the owner). If a guest asks for a reminder, we keep their email only until we send that one reminder a week before the date (sent through Cloudflare), then delete it; every reminder has an unsubscribe link that deletes it immediately.",
         "<b>Stores</b>: the owner's email, store settings and PayPal subscription details. When you log in with PayPal, PayPal tells us your verified email address(es), name and PayPal account ID. We never receive your PayPal password.",
         "<b>Payments</b> are handled by PayPal. We receive confirmation of a payment (amount, status and a PayPal reference), never your card or bank details. PayPal's own privacy statement applies to what you give PayPal.",
         "<b>Technical data</b>: like most sites, our hosting provider (Cloudflare) processes IP addresses and request details to deliver and protect the site.") +

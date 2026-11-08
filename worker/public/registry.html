@@ -89,11 +89,27 @@ function draw() {
       <a class="btn sec sm" href="sms:?&body=${encodeURIComponent(shareMsg(share))}">Text</a>
       <a class="btn sec sm" href="https://wa.me/?text=${encodeURIComponent(shareMsg(share))}" target="_blank" rel="noopener">WhatsApp</a></div>
   </div>
-  ${reg.owner ? ownerPanel() + thanksCard() : ""}
+  ${reg.owner ? ownerPanel() + thanksCard() : remindCard(date)}
   <div class="items">${reg.items.map(itemCard).join("") || `<p class="muted">${reg.owner ? "No gifts yet. Add some above." : "No gifts on this registry yet."}</p>`}</div>`;
   $("#copy").onclick = () => { navigator.clipboard && navigator.clipboard.writeText(share); $("#copy").textContent = "Copied"; };
   if ($("#copythanks")) $("#copythanks").onclick = () => { navigator.clipboard && navigator.clipboard.writeText(thanks().map(r => `${r.who}: ${r.what}`).join("\n")); $("#copythanks").textContent = "Copied"; };
   bindItems(); if (reg.owner) bindOwner();
+  if ($("#rf")) $("#rf").onsubmit = async e => {
+    e.preventDefault(); const b = $("#rf button"); b.disabled = true; $("#rmsg").className = "small"; $("#rmsg").textContent = "";
+    try {
+      const r = await fetch(`/api/registry/${reg.slug}/remind`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: $("#re").value }) });
+      const j = await r.json(); if (!r.ok) throw new Error(j.error || "Couldn't set that up");
+      $("#rf").outerHTML = `<p class="small" style="margin:6px 0 0"><b>Done.</b> We'll email you once on ${esc(new Date(j.send_on + "T12:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric" }))}, then delete your address.</p>`;
+    } catch (err) { $("#rmsg").className = "small err"; $("#rmsg").textContent = err.message; b.disabled = false; }
+  };
+}
+// Guests can ask for one reminder a week before the date (shown only when the server has email sending on).
+function remindCard(date) {
+  if (!reg.reminders) return "";
+  return `<div class="card" style="margin-bottom:16px"><b>Remind me before ${esc(date)}</b>
+    <form id="rf" style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><input id="re" type="email" required maxlength="200" placeholder="you@example.com" style="flex:1;min-width:200px"><button class="btn sm">Remind me</button></form>
+    <div id="rmsg" class="small"></div>
+    <p class="muted small" style="margin:6px 0 0">One email a week before, then we delete your address. Nothing else.</p></div>`;
 }
 const shareMsg = url => `${reg.title}: here's ${reg.owner_name}'s gift registry${reg.event_date ? ` (${new Date(reg.event_date + "T12:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric" })})` : ""}. Gifts come from all kinds of stores; tap "I bought this" so nobody doubles up. ${url}`;
 // The owner's thank-you list: who marked what as bought, and who chipped in to each group gift.

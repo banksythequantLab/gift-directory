@@ -10,7 +10,7 @@ import { OWN_MAX, safeHttpsUrl, shopOrigin, shopifyCards, productFromHtml, parse
 import { ETSY_API, ETSY_NOTICE, etsyShopName, etsyShopUrl, pickShop, etsyCards } from "./etsy.js";
 import { cjSearch } from "./cj.js";
 import { TEE, teePromo } from "./promo.js";
-import { REG_MAX_ITEMS, REG_POOL_MIN_CENTS, validateRegistry, registrySlug, validateRegItem, publicRegistry, REG_AI_SYSTEM, regAiPrompt, parseRegAi, poolTarget } from "./registry.js";
+import { REG_MAX_ITEMS, REG_POOL_MIN_CENTS, validateRegistry, registrySlug, validateRegItem, publicRegistry, REG_AI_SYSTEM, regAiPrompt, parseRegAi, poolTarget, reminderSendOn, validateReminder, reminderEmail } from "./registry.js";
 import { ASSIST_SYSTEM, MAX_STEPS, SHELF_MAX, storeBrief, assistPrompt, parseAssist, matchHide, pickShelf, describeStep, PICK_SYSTEM, pickPrompt, applyPicks, capKinds } from "./assistant.js";
 import { ogTags, poolMeta, registryMeta, storeMeta, PLATFORM_META, REGISTRY_HOME_META } from "./meta.js";
 
@@ -393,6 +393,22 @@ const isWorkersDev = h => h.endsWith(".workers.dev");
 function storeUrl(env, url, slug) {
   return isWorkersDev(url.hostname) ? `${url.origin}/?store=${slug}` : `https://${slug}.${ROOT}/`;
 }
+// Registry reminders that are due: send each once, then delete the row (and with it the guest's email).
+// A send that fails stays for tomorrow's run; one for an event that has already happened is dropped.
+const REMIND_FROM = "reminders@gift.directory";
+async function sendReminders(env, db, today) {
+  if (!env.EMAIL) return { sent: 0, skipped: "no EMAIL binding" };
+  const due = (await db.prepare("SELECT m.token, m.email, r.id, r.slug, r.title, r.occasion, r.event_date, r.owner_name, r.paypal_email FROM registry_reminders m JOIN registries r ON r.id = m.registry_id WHERE m.send_on <= ? ORDER BY m.send_on LIMIT 100").bind(today).all()).results;
+  let sent = 0, failed = 0, dropped = 0;
+  for (const d of due) {
+    if (!d.event_date || d.event_date < today) { await db.prepare("DELETE FROM registry_reminders WHERE token=?").bind(d.token).run(); dropped++; continue; }
+    const left = (await db.prepare("SELECT COUNT(*) n FROM registry_items WHERE registry_id=? AND claimed < qty").bind(d.id).first()).n;
+    const msg = reminderEmail(d, `https://${ROOT}/r/${d.slug}`, `https://${ROOT}/api/registry/unsubscribe?t=${d.token}`, left);
+    try { await env.EMAIL.send({ to: d.email, from: REMIND_FROM, ...msg }); await db.prepare("DELETE FROM registry_reminders WHERE token=?").bind(d.token).run(); sent++; }
+    catch { failed++; }
+  }
+  return { sent, failed, dropped };
+}
 // Link previews: put Open Graph tags into a static page's <head>. A lookup that fails just leaves the page as it was.
 async function withPreview(resP, metaP) {
   const [res, meta] = await Promise.all([resP, Promise.resolve(metaP).catch(() => null)]);
@@ -531,6 +547,18 @@ export default {
         const st = await db.prepare("SELECT * FROM stores WHERE slug=?").bind(parts[3]).first(); if (!st) return J({ error: "unknown store" }, 404);
         return J(await assistPlan(env, db, st, JSON.parse(st.config_json), (await readJson(request)) || {}));
       }
+      // Operator check of registry reminders: {"to": "..."} sends one sample reminder; {"run": true} sends today's due ones now. Needs the build token.
+      if (url.pathname === "/api/seo/remind-test" && m === "POST") {
+        if (!env.BUILD_TOKEN || request.headers.get("x-build-token") !== env.BUILD_TOKEN) return J({ error: "not allowed" }, 403);
+        if (!env.EMAIL) return J({ error: "no EMAIL binding" }, 503);
+        const b = (await readJson(request)) || {};
+        if (b.run) return J(await sendReminders(env, db, now().slice(0, 10)));
+        const v = validateReminder({ email: b.to }); if (v.error) return J({ error: v.error }, 400);
+        const ev = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
+        const msg = reminderEmail({ title: "Maria & Sam's wedding (sample)", occasion: "Wedding", event_date: ev, owner_name: "Maria", paypal_email: "x" }, `https://${ROOT}/registry`, `https://${ROOT}/api/registry/unsubscribe?t=sample`, 12);
+        try { const r = await env.EMAIL.send({ to: v.email, from: REMIND_FROM, ...msg }); return J({ ok: true, id: r && r.messageId }); }
+        catch (e) { return J({ ok: false, error: String((e && e.message) || e) }, 502); }
+      }
       // Operator check of the Etsy import for a shop (reads only, stores nothing). Needs the build token.
       if (url.pathname.startsWith("/api/seo/etsy-check/") && m === "GET") {
         if (!env.BUILD_TOKEN || request.headers.get("x-build-token") !== env.BUILD_TOKEN) return J({ error: "not allowed" }, 403);
@@ -578,8 +606,27 @@ export default {
             .bind(id, slug, await sha256(token), r.title, r.occasion, r.event_date, r.owner_name, r.paypal_email, r.message, r.ship_pct, ipHash, t, t).run();
           return J({ slug, manage_token: token, url: `${url.origin}/r/${slug}` }, 201);
         }
+        // One-click unsubscribe from a registry reminder (the link in the email). Deleting the row deletes the address.
+        if (parts[2] === "unsubscribe" && m === "GET") {
+          const t = url.searchParams.get("t") || "";
+          if (t) await db.prepare("DELETE FROM registry_reminders WHERE token=?").bind(t).run();
+          return new Response(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Unsubscribed</title><link rel="stylesheet" href="/style.css"><div class="wrap"><h1 style="font-family:Georgia,serif">You're unsubscribed</h1><p>You won't get any registry reminders from us, and we've deleted your email.</p><p><a href="/">gift.directory</a></p></div>`, { headers: { "content-type": "text/html; charset=utf-8" } });
+        }
         const reg = parts[2] && await db.prepare("SELECT * FROM registries WHERE slug=?").bind(parts[2]).first();
         if (!reg) return J({ error: "This registry doesn't exist." }, 404);
+        // A guest asks for one email a week before the event (only once sending is set up, and only for an upcoming date).
+        if (parts[3] === "remind" && m === "POST") {
+          if (!env.EMAIL) return J({ error: "Reminders aren't switched on yet." }, 503);
+          const v = validateReminder(await readJson(request)); if (v.error) return J({ error: v.error }, 400);
+          const sendOn = reminderSendOn(reg.event_date, now().slice(0, 10));
+          if (!sendOn) return J({ error: "This registry has no upcoming date to remind you about." }, 400);
+          const ipHash = await sha256("rem:" + (request.headers.get("cf-connecting-ip") || ""));
+          const recent = await db.prepare("SELECT COUNT(*) n FROM registry_reminders WHERE ip_hash=? AND created_at > ?").bind(ipHash, new Date(Date.now() - 3600e3).toISOString()).first();
+          if (recent.n >= 10) return J({ error: "That's a lot of reminders in an hour. Try again later." }, 429);
+          await db.prepare("INSERT INTO registry_reminders (token,registry_id,email,send_on,ip_hash,created_at) VALUES (?,?,?,?,?,?) ON CONFLICT(registry_id,email) DO UPDATE SET send_on=excluded.send_on")
+            .bind(uid() + uid(), reg.id, v.email, sendOn, ipHash, now()).run();
+          return J({ ok: true, send_on: sendOn });
+        }
         const tok = request.headers.get("x-manage-token") || "", owner = !!tok && (await sha256(tok)) === reg.manage_hash;
         const items = async () => (await db.prepare("SELECT * FROM registry_items WHERE registry_id=? ORDER BY sort, created_at").bind(reg.id).all()).results;
         if (parts.length === 3 && m === "GET") {
@@ -589,7 +636,7 @@ export default {
           // For the owner's thank-you list: who chipped in to each group gift (names as they gave them, even if hidden from other guests).
           if (owner && ids.length) for (const c of (await db.prepare(`SELECT pool_id,name,amount_cents FROM contributions WHERE status='paid' AND pool_id IN (${ids.map(() => "?").join(",")}) ORDER BY paid_at`).bind(...ids).all()).results)
             if (pools[c.pool_id]) (pools[c.pool_id].contributors ||= []).push({ name: c.name || "A guest", amount_cents: c.amount_cents });
-          return J(publicRegistry(reg, its, claims, owner, pools));
+          return J({ ...publicRegistry(reg, its, claims, owner, pools), reminders: !!env.EMAIL && !!reminderSendOn(reg.event_date, now().slice(0, 10)) });
         }
         // Guests: "I bought this" (no login), and "chip in" on a big item, which opens a PayPal group gift.
         if (parts[3] === "items" && parts[4] && parts[5] === "claim" && m === "POST") {
@@ -956,5 +1003,7 @@ export default {
     for (const src of due) ctx.waitUntil(syncSource(env, db, src));
     // Mondays: retry team, fandom, breed and other themed pages that had too little stock to build (they go live once stock shows up).
     if (new Date(controller.scheduledTime || Date.now()).getUTCDay() === 1) ctx.waitUntil(retryTeamPages(db, env));
+    // Registry reminders that are due today.
+    ctx.waitUntil(sendReminders(env, db, new Date(controller.scheduledTime || Date.now()).toISOString().slice(0, 10)).catch(() => {}));
   },
 };
