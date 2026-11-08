@@ -471,7 +471,7 @@ export default {
         const rows = (await db.prepare("SELECT slug, updated_at FROM seo_pages").all()).results;
         if (url.pathname === "/sitemap.xml") {
           const stores = (await db.prepare("SELECT slug, updated_at FROM stores WHERE status='active'").all()).results;
-          return new Response(sitemap([{ loc: `https://${ROOT}/` }, { loc: `https://${ROOT}/gifts` }, ...LEGAL_SLUGS.map(s => ({ loc: `https://${ROOT}/${s}` })),
+          return new Response(sitemap([{ loc: `https://${ROOT}/` }, { loc: `https://${ROOT}/gifts` }, { loc: `https://${ROOT}/registry` }, ...LEGAL_SLUGS.map(s => ({ loc: `https://${ROOT}/${s}` })),
             ...[...new Set(PAGES.filter(p => rows.some(r => r.slug === p.slug)).map(p => p.topic))].map(t => ({ loc: `https://${ROOT}/gifts/topic/${topicSlug(t)}` })),
             ...rows.map(r => ({ loc: `https://${ROOT}/gifts/${r.slug}`, lastmod: r.updated_at })),
             ...stores.map(s => ({ loc: `https://${s.slug}.${ROOT}/`, lastmod: s.updated_at }))]), { headers: { "content-type": "application/xml" } });
