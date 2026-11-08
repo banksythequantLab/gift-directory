@@ -508,6 +508,19 @@ export default {
         const st = await db.prepare("SELECT * FROM stores WHERE slug=?").bind(parts[3]).first(); if (!st) return J({ error: "unknown store" }, 404);
         return J(await assistPlan(env, db, st, JSON.parse(st.config_json), (await readJson(request)) || {}));
       }
+      // Operator check of the Etsy import for a shop (reads only, stores nothing). Needs the build token.
+      if (url.pathname.startsWith("/api/seo/etsy-check/") && m === "GET") {
+        if (!env.BUILD_TOKEN || request.headers.get("x-build-token") !== env.BUILD_TOKEN) return J({ error: "not allowed" }, 403);
+        const out = { key: !!env.ETSY_API_KEY };
+        try {
+          const name = etsyShopName(parts[3]); out.name = name;
+          const shop = pickShop(await etsyGet(env, `/shops?shop_name=${encodeURIComponent(name)}`), name); out.shop_id = shop && shop.shop_id;
+          const j = await etsyGet(env, `/shops/${shop.shop_id}/listings/active?limit=100`); out.active = (j.results || []).length;
+          const b = await etsyGet(env, `/listings/batch?listing_ids=${(j.results || []).map(l => l.listing_id).join(",")}&includes=Images`);
+          out.cards = etsyCards(b, shop.shop_name).map(c => ({ title: c.title, price_cents: c.price_cents, image: !!c.image }));
+        } catch (e) { out.error = String(e.message || e); }
+        return J(out);
+      }
       if (parts[0] !== "api") {
         // Ask for bare names ("/pool", not "/pool.html"): the asset server answers .html with a 307
         // to the bare name, and that redirect reached the browser and threw away /g/<id>.
