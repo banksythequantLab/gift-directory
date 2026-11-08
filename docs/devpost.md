@@ -8,13 +8,15 @@ I'm a New York attorney. Clients want to thank their lawyer, firms want to thank
 ## What it does
 **Shopping (any store):**
 - The store opens on a grid of real, in-stock gifts for its niche, pulled live from thousands of retailers through Channel3 and CJ Affiliate brands.
-- Questions appear *between* the products: occasion, who it's for, budget, your relationship, what they love. Each tap re-ranks the grid. The AI's picks move to the front with a one-line reason written for that person.
-- **Group gift:** start a pool on any product and share one link. Each person chips in through PayPal Checkout, and the money goes straight to the organizer's PayPal account. A live progress bar and a "who's in" list update with each payment.
+- Describe the person in one sentence ("a litigator who loves coffee, $75"), or answer the questions that appear *between* the products: occasion, who it's for, budget, your relationship, what they love. Each answer re-ranks the grid. The AI's picks move to the front with a one-line reason written for that person.
+- **Group gift:** start a pool on any product and share one link. The goal includes an editable estimate for shipping and sales tax (10% by default), so the organizer isn't left short at checkout. Each person chips in through PayPal Checkout, and the money goes straight to the organizer's PayPal account. A live progress bar and a "who's in" list update with each payment.
+- **Links that sell themselves:** a shared group gift shows the gift's photo and "$40 of $193 raised" right in WhatsApp, iMessage or Slack, and registries and stores get their own previews too.
 
 **Gift registry from every store (new):**
 - Make a free registry at gift.directory/registry, no account needed. Add gifts by telling the AI what you want ("a KitchenAid stand mixer, 2 cozy throw blankets under $80 and a burr coffee grinder"), by searching hundreds of stores, or by pasting any product link.
 - Guests open one link, buy from whichever store sells it, and tap "I bought this" so nothing is doubled. The owner sees who bought what; other guests don't.
 - Big items get **"Go in together"**: a PayPal group gift for that item, paid straight to the couple. Once it's fully funded, the item shows as bought.
+- Share by Email, Text or WhatsApp in one tap. The owner also gets a ready-made **thank-you list** of who gave what, to copy into their notes.
 
 **Running a store:**
 - Type who your store is for. The AI drafts the whole store (name, web address, tagline, occasions, search guidance, color), and you can edit anything with a live preview.
@@ -22,7 +24,7 @@ I'm a New York attorney. Clients want to thank their lawyer, firms want to thank
 - **Sell your own products:** connect a Shopify store or an **Etsy shop** (Etsy Open API v3), paste product links or upload a CSV. They sit on a "From our shop" shelf and the AI can recommend them. Shops re-sync daily.
 - Publish with a $19/month PayPal Subscription. The store is live at yourname.gift.directory while the subscription is active.
 
-**569 gift guides** (gift.directory/gifts): professions, holidays, hobbies, outdoors and preparedness, fan pages for NFL, MLB, NBA, NHL, WNBA, MLS and college teams and major soccer clubs, fandoms, dog breeds, birthdays and anniversaries. Each has real products, AI reasons and an FAQ, and links into a store where a group can chip in with PayPal.
+**574 gift guides** (gift.directory/gifts): professions, holidays, hobbies, outdoors and preparedness, fan pages for NFL, MLB, NBA, NHL, WNBA, MLS and college teams and major soccer clubs, fandoms, dog breeds, birthdays and anniversaries. Each page shows one product of each kind (no page of five coffee makers), with AI reasons and an FAQ, and links into a store where a group can chip in with PayPal.
 
 ## How we built it
 - **Cloudflare Workers + D1**, no framework. One worker serves the platform, every store, the guides and the registries, and decides which store a request is for from its hostname.
@@ -31,12 +33,13 @@ I'm a New York attorney. Clients want to thank their lawyer, firms want to thank
 - **Log in with PayPal** for store owners: the dashboard belongs to the PayPal account that pays for the store.
 - **Channel3** product search, **CJ Affiliate** (GraphQL product search with tracked links) and the **Etsy Open API** for live prices, stock and retailer links.
 - **AI (Qwen3-235B on Nebius Token Factory)** for drafting stores, planning searches, picking gifts, the store assistant and the registry helper. The model may only pick products the searches actually returned, by ID or position. Anything it invents is dropped, and every price and link comes from the retailer data, never from the model.
-- 424 automated tests run against real SQLite built from the production migrations.
+- Link previews are written into each shared page's `<head>` on the server with Cloudflare's HTMLRewriter, from the live pool, registry or store.
+- 467 automated tests run against real SQLite built from the production migrations.
 
 ## Challenges we ran into
 - **Paying someone who isn't us.** I tested sending contributions directly to another account's PayPal (`payee`). When the organizer's email had no PayPal account, the capture came back `PENDING / UNILATERAL`: the contributor had paid, but the money was waiting to be claimed. I changed the tally to count it and show the organizer a "claim your money" notice.
 - **AI shelves full of the same thing.** Asked for "stocking stuffers", one search returned four ornaments. Now the assistant searches 4–6 different product kinds, the model ranks them, and code takes the best of each kind in turn.
-- **Words that mean two things.** "Bow case" found double-bass cases and "deer call" found a hair spray. Every guide slot now has words the product title must contain, plus per-page exclusions.
+- **Words that mean two things.** "Bow case" found double-bass cases, "deer call" found a hair spray, and the EMT page's "stethoscope" turned out to be a mechanic's tool for engines. Every guide slot now has words the product title must contain, plus per-page exclusions, and an empty slot beats a wrong one.
 - **Keeping the AI honest about products.** Models happily invent a "Montblanc pen, $89". The pick step only accepts products from the search results, and the tests prove an invented one is dropped.
 
 ## Accomplishments we're proud of
@@ -59,7 +62,7 @@ Step-by-step guide: https://gift.directory/#judges
 - **Sandbox buyer (pays):** `BUYER_EMAIL` / `BUYER_PASSWORD`
 - **Sandbox receiver (organizer / registry PayPal email):** `sb-7bf7453357370@personal.example.com`
 
-1. Ask the AI gift finder at https://gifts.nota.lawyer for a gift.
+1. At https://gifts.nota.lawyer, type "a litigator who loves coffee, $75" in the search bar (or tap the questions) and watch the AI pick.
 2. Tap **Group gift** on a pick, use the receiver email as organizer, open the share link and chip in with the buyer.
 3. Make a registry at https://gift.directory/registry and mark or pool an item from the share link.
 4. Launch a store at https://gift.directory using the buyer email, approve the $19/month sandbox subscription, then open **Edit this store**, where the AI assistant is.
