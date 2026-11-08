@@ -24,7 +24,7 @@
 <header class="top"><h1 id="sname">&nbsp;</h1><span class="tag" id="stag"></span></header>
 <div id="closed" class="card" style="display:none"></div>
 <div id="welcome" class="note" style="display:none;margin-bottom:14px"><b>Your store is live.</b> Share this address with your people.</div>
-<form id="sf" style="display:none;gap:8px;margin:2px 0 10px"><input id="q" type="search" placeholder="Search gifts — e.g. fountain pen, spa set, coffee" maxlength="80" style="flex:1"><button class="btn">Search</button></form>
+<form id="sf" style="display:none;gap:8px;margin:2px 0 10px"><input id="q" type="search" placeholder="Describe them, or search a gift" title="e.g. a litigator who loves coffee, $75 — or just: fountain pen" maxlength="80" style="flex:1"><button class="btn">Search</button></form>
 <div class="answers" id="bar"></div>
 <div id="notice"></div>
 <div id="shelves"></div>
@@ -170,6 +170,11 @@ $("#sf").onsubmit = async e => {
   e.preventDefault();
   query = $("#q").value.trim();
   if (!query) { clearSearch(); return; }
+  // A sentence ("a litigator who loves coffee, about $75") goes to the AI finder, not keyword search.
+  if (query.split(/\s+/).length >= 4) {
+    const m = query.match(/\$\s?(\d{2,5})/); if (m) brief.budget_cents = Math.min(100000, Number(m[1]) * 100);
+    answer("notes", query.slice(0, 120)); return;
+  }
   const my = ++seq; render(); $("#grid").classList.add("busy");
   $("#notice").innerHTML = `<p class="muted" style="margin:4px 0 10px">Searching for “${esc(query)}”…</p>`;
   try {
