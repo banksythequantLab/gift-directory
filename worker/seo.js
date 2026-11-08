@@ -823,10 +823,12 @@ export function adSlot(env) {
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${client}" crossorigin="anonymous"></script>
 <script>(adsbygoogle = window.adsbygoogle || []).push({});</script></aside>`;
 }
-export const shell = (title, meta, canonical, body, jsonld = [], ad = "") => `<!doctype html><html lang="en"><head><meta charset="utf-8">
+// `image`: the link-preview picture (a guide's first product; the gift.directory card otherwise).
+export const shell = (title, meta, canonical, body, jsonld = [], ad = "", image = "") => `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">${ADS_CLIENT ? `<meta name="google-adsense-account" content="${ADS_CLIENT}">` : ""}<title>${esc(title)}</title>
 <meta name="description" content="${esc(meta)}"><link rel="canonical" href="${esc(canonical)}">
-<meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(meta)}"><meta property="og:url" content="${esc(canonical)}"><meta property="og:type" content="website">
+<meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(meta)}"><meta property="og:url" content="${esc(canonical)}"><meta property="og:type" content="website"><meta property="og:site_name" content="gift.directory">
+<meta property="og:image" content="${esc(/^https?:\/\//.test(image) ? image : "https://gift.directory/og.png")}"><meta name="twitter:card" content="${/^https?:\/\//.test(image) ? "summary" : "summary_large_image"}">
 <link rel="stylesheet" href="/style.css"><link rel="icon" href="/favicon.ico" sizes="any"><link rel="icon" href="/favicon.svg" type="image/svg+xml">
 ${jsonld.map(j => `<script type="application/ld+json">${JSON.stringify(j).replace(/</g, "\\u003c")}</script>`).join("")}
 <style>.wrap{max-width:1180px}.grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}.guide p{max-width:760px}.crumbs{font-size:.85rem;margin-bottom:6px}
@@ -878,7 +880,7 @@ ${g.faq.length ? `<h2 style="font-family:Georgia,serif">Questions people ask</h2
     ...(g.faq.length ? [{ "@context": "https://schema.org", "@type": "FAQPage", mainEntity: g.faq.map(f => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })) }] : []),
     { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [{ "@type": "ListItem", position: 1, name: "Gift guides", item: `${ROOT}/gifts` }, { "@type": "ListItem", position: 2, name: p.keyword, item: url }] },
   ];
-  return shell(title, g.meta, url, body, ld, ad);
+  return shell(title, g.meta, url, body, ld, ad, (cards.find(c => c.image) || {}).image);
 }
 // Topic pages (/gifts/topic/<slug>): the hub shows a preview of each topic and links to the full list.
 export const topicSlug = t => String(t).toLowerCase().replace(/&/g, "and").replace(/'/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");

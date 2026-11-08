@@ -12,6 +12,7 @@ import { cjSearch } from "./cj.js";
 import { TEE, teePromo } from "./promo.js";
 import { REG_MAX_ITEMS, REG_POOL_MIN_CENTS, validateRegistry, registrySlug, validateRegItem, publicRegistry, REG_AI_SYSTEM, regAiPrompt, parseRegAi, poolTarget } from "./registry.js";
 import { ASSIST_SYSTEM, MAX_STEPS, SHELF_MAX, storeBrief, assistPrompt, parseAssist, matchHide, pickShelf, describeStep, PICK_SYSTEM, pickPrompt, applyPicks, capKinds } from "./assistant.js";
+import { ogTags, poolMeta, registryMeta, storeMeta, PLATFORM_META, REGISTRY_HOME_META } from "./meta.js";
 
 const now = () => new Date().toISOString();
 // Guide price/stock refresh budget (see the /gifts/<slug> route): ~570 pages every 14 days is ~40 a day, ~280 searches.
@@ -392,6 +393,28 @@ const isWorkersDev = h => h.endsWith(".workers.dev");
 function storeUrl(env, url, slug) {
   return isWorkersDev(url.hostname) ? `${url.origin}/?store=${slug}` : `https://${slug}.${ROOT}/`;
 }
+// Link previews: put Open Graph tags into a static page's <head>. A lookup that fails just leaves the page as it was.
+async function withPreview(resP, metaP) {
+  const [res, meta] = await Promise.all([resP, Promise.resolve(metaP).catch(() => null)]);
+  if (!meta || !res.ok || !/text\/html/.test(res.headers.get("content-type") || "")) return res;
+  const tags = ogTags(meta);
+  return new HTMLRewriter().on("head", { element(el) { el.append(tags, { html: true }); } }).transform(res);
+}
+const card = j => { try { return JSON.parse(j || "{}"); } catch { return {}; } };
+async function poolPreview(db, id, url) {
+  const p = await db.prepare("SELECT title, organizer_name, product_json, target_cents, raised_cents, status FROM pools WHERE id=?").bind(id).first();
+  return p ? poolMeta(p, card(p.product_json), `${url.origin}/g/${id}`) : null;
+}
+async function registryPreview(db, slug, url) {
+  const r = await db.prepare("SELECT id, title, occasion, owner_name, paypal_email FROM registries WHERE slug=?").bind(slug).first();
+  if (!r) return null;
+  const items = (await db.prepare("SELECT card_json FROM registry_items WHERE registry_id=? ORDER BY sort, created_at LIMIT 150").bind(r.id).all()).results.map(i => card(i.card_json));
+  return registryMeta(r, items, `${url.origin}/r/${slug}`);
+}
+async function storePreview(db, store, url) {
+  const it = await db.prepare("SELECT card_json FROM store_items WHERE store_id=? AND status='pinned' ORDER BY sort LIMIT 1").bind(store.id).first();
+  return storeMeta(store, `${url.origin}/`, it && card(it.card_json).image);
+}
 function withCookie(resP, cookie) {
   if (!cookie) return resP;
   return Promise.resolve(resP).then(r => { const h = new Headers(r.headers); h.append("set-cookie", cookie); return new Response(r.body, { status: r.status, headers: h }); });
@@ -524,8 +547,9 @@ export default {
       if (parts[0] !== "api") {
         // Ask for bare names ("/pool", not "/pool.html"): the asset server answers .html with a 307
         // to the bare name, and that redirect reached the browser and threw away /g/<id>.
-        if (parts[0] === "g" && parts[1]) return page("/pool");
-        if ((parts[0] === "r" && parts[1]) || (parts[0] === "registry" && parts.length === 1)) return page("/registry");
+        if (parts[0] === "g" && parts[1]) return withPreview(page("/pool"), poolPreview(db, parts[1], url));
+        if (parts[0] === "r" && parts[1]) return withPreview(page("/registry"), registryPreview(db, parts[1], url));
+        if (parts[0] === "registry" && parts.length === 1) return withPreview(page("/registry"), REGISTRY_HOME_META);
         // Logins all go through gift.directory, the one callback address registered with PayPal.
         if (parts[0] === "login") {
           if (url.hostname !== ROOT && !isWorkersDev(url.hostname)) return Response.redirect(`https://${ROOT}/login`, 302);
@@ -537,8 +561,8 @@ export default {
           if (url.hostname !== ROOT && !isWorkersDev(url.hostname) && url.hostname.endsWith("." + ROOT)) return Response.redirect(`https://${ROOT}/admin`, 302);
           return page("/admin");
         }
-        if (platform && (parts.length === 0 || parts[0] === "new")) return page("/platform");
-        if (parts.length === 0) return page("/");
+        if (platform && (parts.length === 0 || parts[0] === "new")) return withPreview(page("/platform"), PLATFORM_META);
+        if (parts.length === 0) return withPreview(page("/"), store && store.status === "active" ? storePreview(db, store, url) : null);
         return env.ASSETS.fetch(request);
       }
 
