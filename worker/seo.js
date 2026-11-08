@@ -118,15 +118,22 @@ const SLOT_WORDS = { ornament: ["ornament", "topper"], cap: ["cap", "hat"], sign
   hat: ["hat", "cap", "beanie", "knit", "toque", "headwear", "woolie"], beanie: ["beanie", "knit", "toque", "hat", "woolie"], blanket: ["blanket", "throw"],
   mug: ["mug", "tumbler", "cup", "flask"], ball: ["ball"], flag: ["flag", "banner"], "t-shirt": ["t-shirt", "tee"] };
 const slotWords = s => { const k = Object.keys(SLOT_WORDS).filter(w => s.toLowerCase().includes(w)).pop(); return k ? SLOT_WORDS[k] : null; };
+// Soccer pages also get a few gifts for any soccer fan (shown under their own heading), since licensed
+// gear for many clubs is thin in the catalog. These slots skip the team-name rule (`openSlots`).
+const SOCCER_EXTRA = [["soccer stadium wall art print", ["wall art", "print", "poster", "canvas"]], ["soccer tactics coaching board", ["tactic", "coach"]], ["soccer history book", ["book"]]];
+const SOCCER_LEAGUES = new Set(["MLS", "Clubs", "National"]);
 export const TEAM_PAGES = Object.entries(TEAMS).flatMap(([lg, teams]) => teams.map(t => {
   const full = teamName(t), nick = teamNick(full), L = LEAGUE[lg], name = L.label ? L.label(full) : full;
+  const extra = SOCCER_LEAGUES.has(lg) ? SOCCER_EXTRA : [], n = L.slots.length;
   return P(`gifts-for-${slugify(name)}-fans`, `Gifts for ${name} fans`, `a ${name} fan`, "Christmas", 100, {
-    topic: L.topic || `${lg} fans`, count: 7, minCount: L.min || 5, team: { league: lg, full, nick, shared: SHARED_NICK.has(nick) },
-    slots: L.slots.map(s => `${full} ${s}`),
-    ...(L.strict ? { slotMust: L.slots.map(slotWords) } : {}),
+    topic: L.topic || `${lg} fans`, count: n + extra.length, minCount: (L.min || 5) + (extra.length ? 2 : 0), team: { league: lg, full, nick, shared: SHARED_NICK.has(nick) },
+    slots: [...L.slots.map(s => `${full} ${s}`), ...extra.map(x => x[0])],
+    ...(L.strict ? { slotMust: [...L.slots.map(slotWords), ...extra.map(x => x[1])] } : {}),
+    ...(extra.length ? { openSlots: extra.map((_, k) => n + k), slotGroups: [...L.slots.map(() => `${name} gear`), ...extra.map(() => "For any soccer fan")] } : {}),
     require: [...new Set([...teamSpellings(full), ...(Array.isArray(t) ? t.slice(1) : [])])],
     exclude: ["gift card", "replica toy gun", "for dogs", "pet ", ...(L.exclude || [])],
-    notes: `officially licensed ${full} gear for a ${LEAGUE[lg].sport} fan; every product must be ${full} merchandise` });
+    notes: `officially licensed ${full} gear for a ${LEAGUE[lg].sport} fan; every product must be ${full} merchandise` +
+      (extra.length ? `, plus a short section of gifts any soccer fan would enjoy (stadium wall art, a tactics board, a soccer history book)` : "") });
 }));
 
 // Fantasy, fandom and character pages. Every product title must name the theme (`require`), each slot must be its
@@ -755,9 +762,11 @@ export function diversify(cards, cap = 3) {
 }
 // Per-page safety net: drop products whose title contains a phrase the page must not show
 // (e.g. a Marine Corps coin on the police page). Case-insensitive substring match.
-export function allowed(p, c) {
+// `slot`: on slot pages, an open slot (`openSlots`) skips `require` (general soccer-fan gifts on a club page).
+export function allowed(p, c, slot) {
   const t = String((c && c.title) || "").toLowerCase();
   if ((p.exclude || []).some(w => t.includes(String(w).toLowerCase()))) return false;
+  if (slot !== undefined && p.openSlots && p.openSlots.includes(slot)) return true;
   return !p.require || p.require.some(w => t.includes(String(w).toLowerCase()));
 }
 

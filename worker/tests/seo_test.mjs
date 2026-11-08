@@ -107,6 +107,13 @@ eq("without ids the page has no ad code at all", renderGuide(p, row, [], null, "
     eq("kids birthday pages keep adult items out", allowed(pageBySlug("gifts-for-9-year-old-girls"), { title: "Wine Glass Set for Women" }), false);
     eq("Ajax page drops Ajax cleaner", allowed(pageBySlug("gifts-for-afc-ajax-fans"), { title: "Ajax Dish Soap" }), false);
     eq("USMNT page keeps U.S. Soccer gear", allowed(pageBySlug("gifts-for-usmnt-fans"), { title: "U.S. Soccer 2026 Home Jersey" }), true);
+    { const lafc = pageBySlug("gifts-for-lafc-fans"), n = lafc.slots.length;
+      eq("soccer pages add general soccer-fan slots", lafc.slots.slice(-3)[0], "soccer stadium wall art print");
+      eq("team slot still needs the team name", allowed(lafc, { title: "Soccer Jersey Display Case" }, 0), false);
+      eq("open slot skips the team-name rule", allowed(lafc, { title: "Soccer Jersey Display Case" }, n - 3), true);
+      eq("open slot still applies excludes", allowed(lafc, { title: "Soccer Ball Gift Card" }, n - 3), false);
+      eq("open slots get their own heading", lafc.slotGroups[n - 1], "For any soccer fan");
+      eq("NFL pages have no open slots", pageBySlug("gifts-for-new-york-giants-fans").openSlots, undefined); }
     eq("MLS alias spellings count", allowed(pageBySlug("gifts-for-lafc-fans"), { title: "Los Angeles FC Club Scarf" }), true);
     eq("accents leave the slug", !!pageBySlug("gifts-for-cf-montreal-fans"), true);
     eq("pages use the full team name", !!pageBySlug("gifts-for-new-york-giants-fans") && !!pageBySlug("gifts-for-san-francisco-giants-fans") && !!pageBySlug("gifts-for-st-louis-cardinals-fans"), true);

@@ -76,7 +76,7 @@ async function buildGuide(db, env, p, { cardsOnly = false } = {}) {
     // Up to six candidates per slot; the AI picks the best-known, best-reviewed-sounding one by index and says why.
     // `slotMust[i]`: the product title must name that slot's kind (a scarf slot can't fill with a fourth jersey).
     const fits = (c, i) => !p.slotMust || !p.slotMust[i] || p.slotMust[i].some(w => String(c.title || "").toLowerCase().includes(w));
-    const cands = found.map((list, i) => mergeCards([list.filter(Boolean)]).filter(c => allowed(p, c) && fits(c, i)).slice(0, 6));
+    const cands = found.map((list, i) => mergeCards([list.filter(Boolean)]).filter(c => allowed(p, c, i) && fits(c, i)).slice(0, 6));
     let choice = [];
     try {
       const out = (await ai("You pick the single best gift in each category for a page titled \"" + p.keyword + "\". Prefer well-known brands and real, " +
