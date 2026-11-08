@@ -10,7 +10,7 @@ import { OWN_MAX, safeHttpsUrl, shopOrigin, shopifyCards, productFromHtml, parse
 import { ETSY_API, ETSY_NOTICE, etsyShopName, etsyShopUrl, pickShop, etsyCards } from "./etsy.js";
 import { cjSearch } from "./cj.js";
 import { TEE, teePromo } from "./promo.js";
-import { REG_MAX_ITEMS, REG_POOL_MIN_CENTS, validateRegistry, registrySlug, validateRegItem, publicRegistry, REG_AI_SYSTEM, regAiPrompt, parseRegAi } from "./registry.js";
+import { REG_MAX_ITEMS, REG_POOL_MIN_CENTS, validateRegistry, registrySlug, validateRegItem, publicRegistry, REG_AI_SYSTEM, regAiPrompt, parseRegAi, poolTarget } from "./registry.js";
 import { ASSIST_SYSTEM, MAX_STEPS, SHELF_MAX, storeBrief, assistPrompt, parseAssist, matchHide, pickShelf, describeStep, PICK_SYSTEM, pickPrompt, applyPicks, capKinds } from "./assistant.js";
 
 const now = () => new Date().toISOString();
@@ -550,8 +550,8 @@ export default {
           const recent = await db.prepare("SELECT COUNT(*) n FROM registries WHERE ip_hash=? AND created_at > ?").bind(ipHash, new Date(Date.now() - 3600e3).toISOString()).first();
           if (recent.n >= 5) return J({ error: "That's a lot of registries in an hour. Try again later." }, 429);
           const id = uid(), token = uid(), t = now(), r = v.registry, slug = registrySlug(r.title, shortId().slice(0, 4));
-          await db.prepare("INSERT INTO registries (id,slug,manage_hash,title,occasion,event_date,owner_name,paypal_email,message,ip_hash,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")
-            .bind(id, slug, await sha256(token), r.title, r.occasion, r.event_date, r.owner_name, r.paypal_email, r.message, ipHash, t, t).run();
+          await db.prepare("INSERT INTO registries (id,slug,manage_hash,title,occasion,event_date,owner_name,paypal_email,message,ship_pct,ip_hash,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)")
+            .bind(id, slug, await sha256(token), r.title, r.occasion, r.event_date, r.owner_name, r.paypal_email, r.message, r.ship_pct, ipHash, t, t).run();
           return J({ slug, manage_token: token, url: `${url.origin}/r/${slug}` }, 201);
         }
         const reg = parts[2] && await db.prepare("SELECT * FROM registries WHERE slug=?").bind(parts[2]).first();
@@ -584,7 +584,7 @@ export default {
           // The pool's manage token is the registry's, so the owner manages both with one private link.
           await db.prepare("INSERT INTO pools (id,manage_hash,title,occasion,organizer_name,organizer_email,product_json,target_cents,created_at,updated_at,store_id) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
             .bind(pid, reg.manage_hash, `${c.title.slice(0, 70)} for ${reg.title}`.slice(0, 120), reg.occasion, reg.owner_name, reg.paypal_email,
-              JSON.stringify({ title: c.title, url: c.url, image: c.image, merchant: c.merchant, price_cents: price, product_id: c.product_id }), price, t, t, null).run();
+              JSON.stringify({ title: c.title, url: c.url, image: c.image, merchant: c.merchant, price_cents: price, product_id: c.product_id }), poolTarget(price, reg.ship_pct), t, t, null).run();
           const set = await db.prepare("UPDATE registry_items SET pool_id=? WHERE registry_id=? AND item_id=? AND pool_id IS NULL").bind(pid, reg.id, parts[4]).run();
           if (!set.meta.changes) { await db.prepare("DELETE FROM pools WHERE id=?").bind(pid).run(); return J({ id: (await db.prepare("SELECT pool_id FROM registry_items WHERE registry_id=? AND item_id=?").bind(reg.id, parts[4]).first()).pool_id }); }
           return J({ id: pid }, 201);

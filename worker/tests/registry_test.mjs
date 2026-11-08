@@ -1,5 +1,5 @@
 // Gift registries: validation, addresses, what guests vs the owner see, and the AI step's output.
-import { validateRegistry, registrySlug, validateRegItem, publicRegistry, parseRegAi, OCCASIONS } from "../registry.js";
+import { validateRegistry, registrySlug, validateRegItem, publicRegistry, parseRegAi, OCCASIONS, poolTarget } from "../registry.js";
 
 let passed = 0, failed = 0;
 const ok = (n, c, d = "") => { c ? passed++ : (failed++, console.log(`FAIL  ${n}${d ? "  - " + d : ""}`)); };
@@ -47,6 +47,16 @@ eq("ai: price to cents", ai.items[1].max_cents, 8000);
 eq("ai: qty capped", ai.items[1].qty, 20);
 eq("ai: CJK stripped", ai.reply, "Sure, here.");
 eq("ai: garbage", parseRegAi(null).items.length, 0);
+
+eq("shipping & tax defaults to 10%", validateRegistry(good).registry.ship_pct, 10);
+eq("shipping & tax set", validateRegistry({ ...good, ship_pct: "15" }).registry.ship_pct, 15);
+ok("shipping & tax over 50% refused", validateRegistry({ ...good, ship_pct: 80 }).error);
+ok("negative refused", validateRegistry({ ...good, ship_pct: -1 }).error);
+eq("partial update without ship_pct leaves it alone", "ship_pct" in validateRegistry({ title: "x" }, { partial: true }).registry, false);
+eq("pool goal adds the estimate", poolTarget(13900, 10), 15290);
+eq("pool goal with 0%", poolTarget(13900, 0), 13900);
+eq("pool goal never over double", poolTarget(10000, 500), 15000);
+eq("guests see the estimate %", publicRegistry({ ...reg, ship_pct: 12 }, [], [], false).ship_pct, 12);
 
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

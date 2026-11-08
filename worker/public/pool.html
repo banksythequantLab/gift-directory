@@ -42,6 +42,7 @@ async function load() {
       <a href="${esc(p.product.url)}" target="_blank" rel="noopener sponsored" class="muted">See it at ${esc(p.product.merchant || "the store")}</a>
       <div style="margin:16px 0 6px;display:flex;justify-content:space-between"><b>${money(p.raised_cents)} raised</b><span class="muted">of ${money(p.target_cents)}</span></div>
       <div class="bar"><i style="width:${pct}%"></i></div>
+      ${p.product.price_cents && p.target_cents > p.product.price_cents ? `<div class="muted" style="font-size:.85rem;margin-top:4px">Goal: ${money(p.product.price_cents)} gift + ${money(p.target_cents - p.product.price_cents)} estimated shipping &amp; tax. Anything left over stays with ${esc(p.organizer_name)}, e.g. for a card.</div>` : ""}
       ${open ? `<form id="cf" style="margin-top:14px">
         <label for="amt">Your share</label>
         <div class="chips" id="amts">${[1000, 2500, 5000].filter(a => a <= left).map(a => `<button type="button" class="chip" data-a="${a}">${money(a)}</button>`).join("")}

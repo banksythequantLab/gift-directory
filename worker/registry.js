@@ -23,6 +23,11 @@ export function validateRegistry(b, { partial = false } = {}) {
     out.paypal_email = e || null;
   }
   if (!partial || b.message != null) out.message = clip(b.message, 400) || null;
+  if (!partial || b.ship_pct != null) {
+    const n = b.ship_pct == null || b.ship_pct === "" ? 10 : Number(b.ship_pct);
+    if (!Number.isFinite(n) || n < 0 || n > 50) return { error: "Shipping & tax should be between 0% and 50%." };
+    out.ship_pct = Math.round(n);
+  }
   return { registry: out };
 }
 
@@ -49,7 +54,7 @@ export function validateRegItem(b) {
 export function publicRegistry(r, items, claims = [], owner = false, pools = {}) {
   return {
     slug: r.slug, title: r.title, occasion: r.occasion, event_date: r.event_date, owner_name: r.owner_name, message: r.message,
-    group_gifts: !!r.paypal_email, owner, ...(owner ? { paypal_email: r.paypal_email || "" } : {}),
+    group_gifts: !!r.paypal_email, ship_pct: r.ship_pct ?? 10, owner, ...(owner ? { paypal_email: r.paypal_email || "" } : {}),
     items: items.map(i => {
       const p = i.pool_id && pools[i.pool_id], funded = !!p && (p.status === "funded" || p.raised_cents >= p.target_cents);
       return { item_id: i.item_id, ...JSON.parse(i.card_json), qty: i.qty, claimed: funded ? i.qty : Math.min(i.claimed, i.qty), note: i.note, pool_id: i.pool_id,
@@ -58,6 +63,9 @@ export function publicRegistry(r, items, claims = [], owner = false, pools = {})
     }),
   };
 }
+
+// A registry group gift's goal: the item total plus the registry's shipping & tax estimate, never more than double.
+export const poolTarget = (priceCents, pct = 10) => Math.min(priceCents * 2, priceCents + Math.round(priceCents * Math.max(0, Math.min(50, Number(pct) || 0)) / 100));
 
 // "Add a KitchenAid mixer and 6 cozy blankets under $80" -> searches, one per thing they want.
 export const REG_AI_SYSTEM = `You help someone fill a gift registry. They describe what they want; you turn it into product searches.

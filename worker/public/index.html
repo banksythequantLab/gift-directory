@@ -41,6 +41,8 @@
   <label for="ptitle">Gift title</label><input id="ptitle" required placeholder="For Maria — made partner">
   <label for="pname">Your name</label><input id="pname" required>
   <label for="pemail">Your PayPal email (contributions go here)</label><input id="pemail" type="email" required>
+  <label for="pextra">Add for shipping &amp; tax (estimate, $)</label><input id="pextra" type="number" min="0" step="1">
+  <div class="muted" style="font-size:.82rem;margin-top:4px" id="pgoal"></div>
   <div class="err" id="perr"></div>
   <div style="margin-top:14px;display:flex;gap:8px"><button class="btn" id="pgo" value="go">Create the share link</button><button class="btn sec" value="cancel" formnovalidate>Cancel</button></div>
 </form></dialog>
@@ -205,6 +207,11 @@ async function refresh() {
 
 function openPool(p) {
   chosen = p; $("#pgift").textContent = `${p.title} · ${money(p.price_cents)}`; $("#perr").textContent = "";
+  // Shipping and sales tax are charged at the store's checkout, so the goal includes an estimate (10%, editable, at most the gift's price again).
+  const maxExtra = Math.floor(p.price_cents / 100);
+  $("#pextra").max = maxExtra; $("#pextra").value = Math.min(maxExtra, Math.round(p.price_cents * 0.10 / 100));
+  const goal = () => { const x = Math.max(0, Math.min(maxExtra, Math.round(Number($("#pextra").value) || 0))); $("#pgoal").textContent = `Goal: ${money(p.price_cents)} gift + ${money(x * 100)} shipping & tax = ${money(p.price_cents + x * 100)}. Anything left over stays with you, e.g. for a card.`; };
+  $("#pextra").oninput = goal; goal();
   if (!$("#ptitle").value) $("#ptitle").value = `For ${brief.recipient || "them"}${brief.occasion ? " — " + String(brief.occasion).toLowerCase() : ""}`;
   $("#dlg").showModal();
 }
@@ -214,6 +221,7 @@ $("#pf").onsubmit = async e => {
   try {
     const r = await fetch("/api/pools", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
       title: $("#ptitle").value, occasion: brief.occasion || null, organizer_name: $("#pname").value, organizer_email: $("#pemail").value,
+      target_cents: chosen.price_cents + Math.max(0, Math.min(Math.floor(chosen.price_cents / 100), Math.round(Number($("#pextra").value) || 0))) * 100,
       product: { title: chosen.title, url: chosen.url, image: chosen.image, merchant: chosen.merchant, price_cents: chosen.price_cents, product_id: chosen.product_id } }) });
     const j = await r.json();
     if (!r.ok) throw new Error(j.error || "Couldn't create it");
