@@ -49,9 +49,20 @@ PayPal's `payee` field plus the capture response gives you a "pay a friend" grou
 
 ## What's next
 - Revenue share: affiliate commissions split with store owners via PayPal Payouts.
-- Registry reminders and a thank-you-note list for the couple.
+- Emailed registry reminders before the event date.
 - Custom domains for stores (Cloudflare for SaaS).
 - Deadlines that refund a group gift automatically if it isn't filled.
+
+## How to test (PayPal sandbox, about 5 minutes)
+Step-by-step guide: https://gift.directory/#judges
+
+- **Sandbox buyer (pays):** `BUYER_EMAIL` / `BUYER_PASSWORD`
+- **Sandbox receiver (organizer / registry PayPal email):** `sb-7bf7453357370@personal.example.com`
+
+1. Ask the AI gift finder at https://gifts.nota.lawyer for a gift.
+2. Tap **Group gift** on a pick, use the receiver email as organizer, open the share link and chip in with the buyer.
+3. Make a registry at https://gift.directory/registry and mark or pool an item from the share link.
+4. Launch a store at https://gift.directory using the buyer email, approve the $19/month sandbox subscription, then open **Edit this store**, where the AI assistant is.
 
 ## Built with
 paypal-orders-api · paypal-subscriptions-api · log-in-with-paypal · channel3 · cj-affiliate · etsy-api · nebius-token-factory · qwen · cloudflare-workers · cloudflare-d1 · javascript

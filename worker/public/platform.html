@@ -22,6 +22,17 @@
   <div class="card"><b>2. AI drafts the store</b><span class="muted">Name, address, occasions and look. Change anything.</span></div>
   <div class="card"><b>3. Publish with PayPal</b><span class="muted">$19/month. Live at yourname.gift.directory.</span></div>
 </div>
+<details class="card" id="judges" style="margin:0 0 14px">
+  <summary style="cursor:pointer;font-weight:700">Judging the PayPal AI Hackathon? Test it in 5 minutes</summary>
+  <p class="muted" style="margin:10px 0 6px">Everything runs on the PayPal <b>sandbox</b> — no real money moves. Pay with the sandbox buyer login from our Devpost "How to test" section (or any PayPal sandbox personal account).</p>
+  <ol style="margin:0;padding-left:20px;line-height:1.6">
+    <li><b>AI gift finder:</b> open <a href="https://gifts.nota.lawyer/" target="_blank" rel="noopener">Lawyer Gifts</a>, say who the gift is for (e.g. "a litigator who loves coffee, about $75"). Every pick is a real, in-stock product.</li>
+    <li><b>Group gift with PayPal:</b> on any pick, tap <b>Group gift</b> → enter a name and, as the organizer's PayPal, our sandbox receiver <code style="word-break:break-all">sb-7bf7453357370@personal.example.com</code> (PayPal won't let an account pay itself) → <b>Create the share link</b>. Open the link, chip in with the sandbox buyer, and watch the tally update. The goal includes an estimated shipping &amp; tax amount.</li>
+    <li><b>Gift registry:</b> <a href="/registry" target="_blank" rel="noopener">make a registry</a> (use the sandbox receiver above as its PayPal email), ask the AI to fill it, then open the share link in a private window and mark an item "I bought this" or go in together on a big item.</li>
+    <li><b>Launch your own store:</b> use the form below → <b>Draft my store</b> → enter the sandbox buyer's email as <b>Your email</b> → <b>Publish</b>, and approve the $19/month PayPal sandbox subscription. Your store goes live at <i>yourname</i>.gift.directory.</li>
+    <li><b>AI assistant for owners:</b> from your new store, tap <b>Edit this store</b> → sign in with PayPal (sandbox) → the <b>AI assistant</b> tab plans shelves and applies them when you say so.</li>
+  </ol>
+</details>
 <div id="msg"></div>
 
 <form id="s1" class="card">
@@ -59,6 +70,7 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const q = new URLSearchParams(location.search);
 let draft = null, niche = "";
+if (location.hash === "#judges") $("#judges").open = true;
 if (q.get("cancelled")) $("#msg").innerHTML = `<p class="muted">Subscription cancelled at PayPal — nothing was charged and your store wasn't published.</p>`;
 if (q.get("pending")) $("#msg").innerHTML = `<p class="muted">PayPal hasn't confirmed the subscription yet. Give it a minute and reload your store's address.</p>`;
 
