@@ -84,11 +84,33 @@ function draw() {
     <div class="muted">${esc(reg.owner_name)}'s registry · ${reg.items.length} gifts${reg.items.length ? `, ${left} still needed` : ""}</div>
     ${reg.message ? `<p style="margin:10px 0 0">${esc(reg.message)}</p>` : ""}
     <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><input readonly value="${esc(share)}" onclick="this.select()" style="flex:1;min-width:220px"><button class="btn sec" id="copy">Copy link</button></div>
+    <div class="small" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center"><span class="muted">Share:</span>
+      <a class="btn sec sm" href="mailto:?subject=${encodeURIComponent(reg.title)}&body=${encodeURIComponent(shareMsg(share))}">Email</a>
+      <a class="btn sec sm" href="sms:?&body=${encodeURIComponent(shareMsg(share))}">Text</a>
+      <a class="btn sec sm" href="https://wa.me/?text=${encodeURIComponent(shareMsg(share))}" target="_blank" rel="noopener">WhatsApp</a></div>
   </div>
-  ${reg.owner ? ownerPanel() : ""}
+  ${reg.owner ? ownerPanel() + thanksCard() : ""}
   <div class="items">${reg.items.map(itemCard).join("") || `<p class="muted">${reg.owner ? "No gifts yet. Add some above." : "No gifts on this registry yet."}</p>`}</div>`;
   $("#copy").onclick = () => { navigator.clipboard && navigator.clipboard.writeText(share); $("#copy").textContent = "Copied"; };
+  if ($("#copythanks")) $("#copythanks").onclick = () => { navigator.clipboard && navigator.clipboard.writeText(thanks().map(r => `${r.who}: ${r.what}`).join("\n")); $("#copythanks").textContent = "Copied"; };
   bindItems(); if (reg.owner) bindOwner();
+}
+const shareMsg = url => `${reg.title}: here's ${reg.owner_name}'s gift registry${reg.event_date ? ` (${new Date(reg.event_date + "T12:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric" })})` : ""}. Gifts come from all kinds of stores; tap "I bought this" so nobody doubles up. ${url}`;
+// The owner's thank-you list: who marked what as bought, and who chipped in to each group gift.
+function thanks() {
+  const rows = [];
+  for (const i of reg.items) {
+    for (const n of (i.claimed_by || []).filter(n => n !== "a group gift")) rows.push({ who: n, what: i.title });
+    for (const c of (i.pool && i.pool.contributors) || []) rows.push({ who: c.name, what: `${i.title} (group gift, ${money(c.amount_cents)})` });
+  }
+  return rows;
+}
+function thanksCard() {
+  const rows = thanks();
+  if (!rows.length) return "";
+  return `<div class="card" style="margin-bottom:16px"><b>Thank-you list</b> <span class="muted small">(${rows.length}; only you see this)</span>
+    <ul style="margin:8px 0 0;padding-left:20px">${rows.map(r => `<li class="small"><b>${esc(r.who)}</b> · ${esc(r.what)}</li>`).join("")}</ul>
+    <button class="btn sec sm" id="copythanks" style="margin-top:8px">Copy list</button></div>`;
 }
 function itemCard(i) {
   const done = i.claimed >= i.qty, pct = Math.round(100 * i.claimed / i.qty), total = (i.price_cents || 0) * i.qty;

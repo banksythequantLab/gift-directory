@@ -562,6 +562,9 @@ export default {
           const claims = owner ? (await db.prepare("SELECT item_id,name FROM registry_claims WHERE registry_id=? ORDER BY created_at").bind(reg.id).all()).results : [];
           const its = await items(), ids = its.map(i => i.pool_id).filter(Boolean), pools = {};
           if (ids.length) for (const p of (await db.prepare(`SELECT id,raised_cents,target_cents,status FROM pools WHERE id IN (${ids.map(() => "?").join(",")})`).bind(...ids).all()).results) pools[p.id] = p;
+          // For the owner's thank-you list: who chipped in to each group gift (names as they gave them, even if hidden from other guests).
+          if (owner && ids.length) for (const c of (await db.prepare(`SELECT pool_id,name,amount_cents FROM contributions WHERE status='paid' AND pool_id IN (${ids.map(() => "?").join(",")}) ORDER BY paid_at`).bind(...ids).all()).results)
+            if (pools[c.pool_id]) (pools[c.pool_id].contributors ||= []).push({ name: c.name || "A guest", amount_cents: c.amount_cents });
           return J(publicRegistry(reg, its, claims, owner, pools));
         }
         // Guests: "I bought this" (no login), and "chip in" on a big item, which opens a PayPal group gift.

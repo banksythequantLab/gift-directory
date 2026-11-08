@@ -841,7 +841,9 @@ const HOUSE_ADS = {
 <a class="btn" href="https://stormproof.us/?utm_source=gift.directory&amp;utm_medium=house_ad&amp;utm_campaign=${encodeURIComponent(slug)}" rel="noopener" style="display:inline-block;background:#1f3a5f;color:#fff;border-radius:10px;padding:10px 16px;font-weight:700;text-decoration:none">Download it free or get a loaded drive →</a>
 </aside>`,
 };
-export const houseAd = (topic, slug) => HOUSE_ADS[topic] ? HOUSE_ADS[topic](slug) : "";
+// Outdoors pages where a storm or no-signal kit fits the reader (campers, hikers, boaters…) also get the Storm Proof ad.
+const STORM_TOO = new Set(["gifts-for-campers", "gifts-for-hikers", "gifts-for-outdoorsmen", "gifts-for-boaters", "gifts-for-kayakers"]);
+export const houseAd = (topic, slug) => HOUSE_ADS[topic] ? HOUSE_ADS[topic](slug) : STORM_TOO.has(slug) ? HOUSE_ADS.Preparedness(slug) : "";
 export function renderGuide(p, row, related, storeUrl, ad = "", teams = "") {
   const g = JSON.parse(row.guide_json), cards = JSON.parse(row.cards_json || "[]");
   const url = `${ROOT}/gifts/${p.slug}`, updated = String(row.updated_at).slice(0, 10);

@@ -58,7 +58,7 @@ export function publicRegistry(r, items, claims = [], owner = false, pools = {})
     items: items.map(i => {
       const p = i.pool_id && pools[i.pool_id], funded = !!p && (p.status === "funded" || p.raised_cents >= p.target_cents);
       return { item_id: i.item_id, ...JSON.parse(i.card_json), qty: i.qty, claimed: funded ? i.qty : Math.min(i.claimed, i.qty), note: i.note, pool_id: i.pool_id,
-        ...(p ? { pool: { raised_cents: p.raised_cents, target_cents: p.target_cents, status: p.status } } : {}),
+        ...(p ? { pool: { raised_cents: p.raised_cents, target_cents: p.target_cents, status: p.status, ...(owner && p.contributors ? { contributors: p.contributors } : {}) } } : {}),
         ...(owner ? { claimed_by: [...claims.filter(c => c.item_id === i.item_id).map(c => c.name || "A guest"), ...(funded ? ["a group gift"] : [])] } : {}) };
     }),
   };

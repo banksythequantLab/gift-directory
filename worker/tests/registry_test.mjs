@@ -56,6 +56,9 @@ eq("partial update without ship_pct leaves it alone", "ship_pct" in validateRegi
 eq("pool goal adds the estimate", poolTarget(13900, 10), 15290);
 eq("pool goal with 0%", poolTarget(13900, 0), 13900);
 eq("pool goal never over double", poolTarget(10000, 500), 15000);
+const withC = { P1: { raised_cents: 4000, target_cents: 12999, status: "open", contributors: [{ name: "Sam", amount_cents: 4000 }] } };
+eq("owner sees group-gift contributors", publicRegistry(reg, rows, [], true, withC).items[1].pool.contributors[0].name, "Sam");
+ok("guests don't", !("contributors" in publicRegistry(reg, rows, [], false, withC).items[1].pool));
 eq("guests see the estimate %", publicRegistry({ ...reg, ship_pct: 12 }, [], [], false).ship_pct, 12);
 
 console.log(`${passed} passed, ${failed} failed`);
