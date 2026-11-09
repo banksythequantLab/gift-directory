@@ -51,13 +51,21 @@ export const LEGAL = {
       sec("We're not the seller", "gift.directory shows products sold by other retailers. When you buy, you buy from that retailer, on its terms. Prices, stock and details come from retailers through Channel3 and can change or be wrong; the retailer's site is what counts. AI suggestions and reasons are recommendations only.") +
       sec("Group gifts", "An organizer starts a group gift and receives contributions directly in their PayPal account. The organizer is responsible for using the money for the gift, ordering it, and refunding contributors if the gift doesn't happen. gift.directory does not hold, transfer or guarantee these funds. PayPal's terms apply to every payment.") +
       sec("Stores and subscriptions", "Store owners pay a monthly subscription through PayPal and may cancel at any time in PayPal; the store goes offline when the subscription ends. Owners are responsible for their store's name, content and curation, and must not use a store for anything unlawful, misleading, or infringing on others' rights. We may suspend stores that do.") +
+      "<!--shop-->" +
       sec("Commissions and ads", "We may earn a commission when you buy through a retailer link, and some pages may show advertisements. This doesn't change the price you pay.") +
       sec("No warranty", "The site is provided as is. To the fullest extent the law allows, Banksy AI LLC is not liable for indirect or consequential losses, or for products, retailers, payments between users, or third-party services.") +
       sec("Governing law", "These terms are governed by the laws of the State of New York.") +
       sec("Contact", `Questions: <a href="mailto:${CONTACT}">${CONTACT}</a>.`) },
 };
+// The shop's terms appear only once the shop is public (SHOP_PUBLIC=1). Draft for the owner's legal review.
+export const SHOP_TERMS = sec("The gift.directory shop",
+  "Items in the gift.directory shop are the exception to the section above: Banksy AI LLC is the seller. Each item is made to order and shipped by our print partner, Printful, to US addresses only. Prices are in US dollars; shipping is shown before you pay, and sales tax is added where we collect it (currently New Jersey). Payment is through PayPal.",
+  "<b>Your text.</b> You are responsible for the words you ask us to print. Don't submit anything unlawful, hateful, or that uses someone else's trademark, logo, or copyrighted work. We may decline an order we won't print and refund it in full. We print what the preview shows, so please check spelling and names before you pay.",
+  "<b>Changes and cancellations.</b> Write to us right away if you need to change or cancel an order. Once it has gone into production we can't change or cancel it.",
+  `<b>Returns and problems.</b> Because each item is made for you, we don't accept returns or exchanges for a change of mind, a size you chose, or text you typed. If an item arrives damaged, defective, or misprinted, or never arrives, email <a href=\"mailto:${CONTACT}\">${CONTACT}</a> within 30 days of delivery (or of the estimated delivery date) with your order number and a photo, and we'll reprint it or refund you.`,
+  "<b>Delivery.</b> Delivery dates are estimates from Printful and the carrier, not guarantees. A gift message, if you add one, is printed on the packing slip.");
 export const LEGAL_SLUGS = Object.keys(LEGAL);
-export function renderLegal(slug) {
+export function renderLegal(slug, { shop = false } = {}) {
   const p = LEGAL[slug];
-  return p ? shell(p.title, p.meta, `https://gift.directory/${slug}`, p.body) : null;
+  return p ? shell(p.title, p.meta, `https://gift.directory/${slug}`, p.body.replace("<!--shop-->", shop ? SHOP_TERMS : "")) : null;
 }

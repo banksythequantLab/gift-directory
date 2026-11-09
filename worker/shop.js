@@ -180,6 +180,25 @@ export function validateShopOrder(b, card) {
   return { order: { card, variant: v, qty, lines, tpl, gift_message: clip(b && b.gift_message, 200) || null, recipient: r.recipient } };
 }
 
+// ---------- sales tax ----------
+// What we collect, by ship-to state. The SHOP_TAX var (JSON, same shape) replaces this table, so a state is added
+// there once the business is registered in it. New Jersey: 6.625%; most clothing is exempt; delivery charges on a
+// taxable item are taxable. Elsewhere nothing is collected until a state is added.
+export const DEFAULT_TAX = { NJ: { rate: 0.06625, apparel_exempt: true, tax_shipping: true } };
+export function taxTable(json) {
+  if (!json) return DEFAULT_TAX;
+  try { const t = JSON.parse(json); return t && typeof t === "object" ? t : DEFAULT_TAX; } catch { return DEFAULT_TAX; }
+}
+const APPAREL = new Set(["tee", "hoodie"]);
+export const isApparel = card => APPAREL.has(card.ptype) || (card.kind === "fixed" && /\b(shirt|tee|t-shirt|hoodie|sweatshirt)\b/i.test(card.title || ""));
+export function salesTax(o, shippingCents, table = DEFAULT_TAX) {
+  const st = o.recipient.state_code, t = table[st];
+  if (!t || !(t.rate > 0)) return { cents: 0, rate: 0, state: st };
+  if (t.apparel_exempt && isApparel(o.card)) return { cents: 0, rate: 0, state: st, exempt: "clothing" };
+  const base = o.variant.price_cents * o.qty + (t.tax_shipping ? shippingCents : 0);
+  return { cents: Math.round(base * t.rate), rate: t.rate, state: st };
+}
+
 // Printful's shipping answer: the STANDARD rate if there is one, else the cheapest.
 export function pickRate(rates) {
   const rs = (Array.isArray(rates) ? rates : []).filter(r => r && Number(r.rate) >= 0);
@@ -249,13 +268,14 @@ function designMarkup(P, W, H, bw, els, top, xs) {
 }
 
 export function shopPayPalOrder(o, origin) {
-  const unit = o.variant.price_cents, sub = unit * o.qty, total = sub + o.shipping_cents, r = o.recipient;
+  const unit = o.variant.price_cents, sub = unit * o.qty, tax = o.tax_cents || 0, total = sub + o.shipping_cents + tax, r = o.recipient;
   const label = [o.variant.color, o.variant.size].filter(Boolean).join(" / ");
   return {
     intent: "CAPTURE",
     purchase_units: [{
       reference_id: o.id, custom_id: o.id, description: clip(`gift.directory: ${o.card.title}`, 127),
-      amount: { currency_code: "USD", value: usd(total), breakdown: { item_total: { currency_code: "USD", value: usd(sub) }, shipping: { currency_code: "USD", value: usd(o.shipping_cents) } } },
+      amount: { currency_code: "USD", value: usd(total), breakdown: { item_total: { currency_code: "USD", value: usd(sub) }, shipping: { currency_code: "USD", value: usd(o.shipping_cents) },
+        ...(tax ? { tax_total: { currency_code: "USD", value: usd(tax) } } : {}) } },
       items: [{ name: clip(`${o.card.title}${label ? " (" + label + ")" : ""}`, 127), quantity: String(o.qty), unit_amount: { currency_code: "USD", value: usd(unit) }, category: "PHYSICAL_GOODS", sku: `pf-${o.variant.id}` }],
       shipping: { name: { full_name: r.name }, address: { address_line_1: r.address1, ...(r.address2 ? { address_line_2: r.address2 } : {}), admin_area_2: r.city, admin_area_1: r.state_code, postal_code: r.zip, country_code: "US" } },
     }],
@@ -278,7 +298,7 @@ export function printfulOrder(row, printUrl) {
     external_id: row.id, shipping: "STANDARD",
     recipient: { name: r.name, address1: r.address1, ...(r.address2 ? { address2: r.address2 } : {}), city: r.city, state_code: r.state_code, country_code: "US", zip: r.zip, email: r.email },
     items: [item],
-    retail_costs: { currency: "USD", subtotal: usd(row.subtotal_cents), shipping: usd(row.shipping_cents), tax: "0.00" },
+    retail_costs: { currency: "USD", subtotal: usd(row.subtotal_cents), shipping: usd(row.shipping_cents), tax: usd(row.tax_cents || 0) },
     ...(row.gift_message ? { gift: { subject: "A gift for you", message: row.gift_message } } : {}),
     packing_slip: { store_name: "gift.directory", email: "hello@gift.directory", message: "Thank you for shopping gift.directory." },
   };
@@ -289,11 +309,11 @@ export function receiptEmail(row) {
   const r = JSON.parse(row.recipient_json), lines = row.lines_json ? JSON.parse(row.lines_json).filter(Boolean) : null;
   const what = `${row.title}${row.variant_label ? " (" + row.variant_label + ")" : ""} × ${row.qty}`;
   const subject = `Your gift.directory order: ${row.title}`;
-  const text = `Thanks for your order!\n\n${what}${lines ? `\nYour text: ${lines.join(" / ")}` : ""}\n\nItems: $${usd(row.subtotal_cents)}\nShipping: $${usd(row.shipping_cents)}\nTotal paid: $${usd(row.total_cents)}\n\n` +
+  const text = `Thanks for your order!\n\n${what}${lines ? `\nYour text: ${lines.join(" / ")}` : ""}\n\nItems: $${usd(row.subtotal_cents)}\nShipping: $${usd(row.shipping_cents)}${row.tax_cents ? `\nSales tax: $${usd(row.tax_cents)}` : ""}\nTotal paid: $${usd(row.total_cents)}\n\n` +
     `Shipping to: ${r.name}, ${r.address1}${r.address2 ? ", " + r.address2 : ""}, ${r.city}, ${r.state_code} ${r.zip}\n\nIt's printed to order by our partner Printful and shipped to that address. Order number: ${row.id}\nQuestions? Reply to hello@gift.directory.\n\n— gift.directory`;
   const html = `<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:520px;color:#1d2433;line-height:1.5">
 <p style="font-size:1.05rem"><b>Thanks for your order!</b></p><p>${escH(what)}${lines ? `<br>Your text: <b>${escH(lines.join(" / "))}</b>` : ""}</p>
-<p>Items: $${usd(row.subtotal_cents)}<br>Shipping: $${usd(row.shipping_cents)}<br><b>Total paid: $${usd(row.total_cents)}</b></p>
+<p>Items: $${usd(row.subtotal_cents)}<br>Shipping: $${usd(row.shipping_cents)}${row.tax_cents ? `<br>Sales tax: $${usd(row.tax_cents)}` : ""}<br><b>Total paid: $${usd(row.total_cents)}</b></p>
 <p>Shipping to: ${escH(r.name)}, ${escH(r.address1)}${r.address2 ? ", " + escH(r.address2) : ""}, ${escH(r.city)}, ${escH(r.state_code)} ${escH(r.zip)}</p>
 <p style="color:#6b7280">It's printed to order by our partner Printful and shipped to that address. Order number: ${escH(row.id)}. Questions? Write to hello@gift.directory.</p>
 <p style="color:#6b7280;font-size:.85rem">— gift.directory</p></div>`;

@@ -13,7 +13,7 @@ import { TEE, teePromo } from "./promo.js";
 import { REG_MAX_ITEMS, REG_POOL_MIN_CENTS, validateRegistry, registrySlug, validateRegItem, publicRegistry, REG_AI_SYSTEM, regAiPrompt, parseRegAi, poolTarget, reminderSendOn, validateReminder, reminderEmail } from "./registry.js";
 import { ASSIST_SYSTEM, MAX_STEPS, SHELF_MAX, storeBrief, assistPrompt, parseAssist, matchHide, pickShelf, describeStep, PICK_SYSTEM, pickPrompt, applyPicks, capKinds } from "./assistant.js";
 import { ogTags, poolMeta, registryMeta, storeMeta, PLATFORM_META, REGISTRY_HOME_META } from "./meta.js";
-import { shopCard, validateShopOrder, validateFields, pickRate, designSvg, PTYPES, TEMPLATES, SAMPLES, parseKind, rowKind, storeShopShelf, printSize, renderWidth, exampleFor, DESIGN_VERSION, shopPayPalOrder, printfulOrder, receiptEmail } from "./shop.js";
+import { shopCard, validateShopOrder, validateFields, pickRate, designSvg, PTYPES, TEMPLATES, SAMPLES, parseKind, rowKind, storeShopShelf, printSize, renderWidth, exampleFor, DESIGN_VERSION, salesTax, taxTable, shopPayPalOrder, printfulOrder, receiptEmail } from "./shop.js";
 import { svgToPng } from "./print.js";
 import STORE_MOCKUPS from "./shop-mockups.json";
 
@@ -541,7 +541,7 @@ export default {
       if (parts.length === 1 && LEGAL_SLUGS.includes(parts[0])) {
         if (url.hostname !== ROOT && !isWorkersDev(url.hostname)) return Response.redirect(`https://${ROOT}/${parts[0]}`, 301);
         configureAds(env);
-        return new Response(renderLegal(parts[0]), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=3600" } });
+        return new Response(renderLegal(parts[0], { shop: env.SHOP_PUBLIC === "1" }), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=3600" } });
       }
       // ---------- gift guides, sitemap, robots (the platform's own address) ----------
       if (parts[0] === "gifts" || url.pathname === "/sitemap.xml" || url.pathname === "/robots.txt") {
@@ -679,19 +679,19 @@ export default {
           if (v.error) return J({ error: v.error }, 400);
           const o = v.order, rate = await shopRate(env, o).catch(() => null);
           if (!rate) return J({ error: "We couldn't get a shipping rate for that address. Check the ZIP code." }, 502);
-          const sub = o.variant.price_cents * o.qty;
-          if (quote) return J({ subtotal_cents: sub, shipping_cents: rate.cents, total_cents: sub + rate.cents, rate });
+          const sub = o.variant.price_cents * o.qty, tax = salesTax(o, rate.cents, taxTable(env.SHOP_TAX));
+          if (quote) return J({ subtotal_cents: sub, shipping_cents: rate.cents, tax_cents: tax.cents, tax, total_cents: sub + rate.cents + tax.cents, rate });
           if (!paypalOn(env)) return J({ error: "PayPal is not configured." }, 503);
           const ipHash = await sha256("shop:" + (request.headers.get("cf-connecting-ip") || ""));
           const recent = await db.prepare("SELECT COUNT(*) n FROM shop_orders WHERE ip_hash=? AND created_at > ?").bind(ipHash, new Date(Date.now() - 3600e3).toISOString()).first();
           if (recent.n >= 15) return J({ error: "That's a lot of checkouts in an hour. Try again later." }, 429);
           const id = uid(), t = now(), label = [o.variant.color, o.variant.size].filter(Boolean).join(" / ");
-          const pp = await paypalFetch(env, "/v2/checkout/orders", { method: "POST", body: shopPayPalOrder({ ...o, id, shipping_cents: rate.cents }, url.origin), headers: { "PayPal-Request-Id": id } });
+          const pp = await paypalFetch(env, "/v2/checkout/orders", { method: "POST", body: shopPayPalOrder({ ...o, id, shipping_cents: rate.cents, tax_cents: tax.cents }, url.origin), headers: { "PayPal-Request-Id": id } });
           const href = pp.status < 300 && pp.body ? (link(pp.body, "payer-action") || link(pp.body, "approve") || {}).href : null;
           if (!href) return J({ error: "PayPal could not start the payment.", paypal_status: pp.status, detail: pp.body && pp.body.details }, 502);
-          await db.prepare("INSERT INTO shop_orders (id,pf_product_id,pf_sync_variant_id,pf_catalog_variant_id,kind,title,variant_label,qty,lines_json,gift_message,recipient_json,email,unit_cents,subtotal_cents,shipping_cents,total_cents,status,paypal_order_id,ip_hash,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',?,?,?,?)")
+          await db.prepare("INSERT INTO shop_orders (id,pf_product_id,pf_sync_variant_id,pf_catalog_variant_id,kind,title,variant_label,qty,lines_json,gift_message,recipient_json,email,unit_cents,subtotal_cents,shipping_cents,tax_cents,total_cents,status,paypal_order_id,ip_hash,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',?,?,?,?)")
             .bind(id, o.card.id, o.variant.id, o.variant.catalog_id, rowKind(o.card, o.tpl), o.card.title, label || null, o.qty, o.lines ? JSON.stringify(o.lines) : null, o.gift_message,
-              JSON.stringify(o.recipient), o.recipient.email, o.variant.price_cents, sub, rate.cents, sub + rate.cents, pp.body.id, ipHash, t, t).run();
+              JSON.stringify(o.recipient), o.recipient.email, o.variant.price_cents, sub, rate.cents, tax.cents, sub + rate.cents + tax.cents, pp.body.id, ipHash, t, t).run();
           return J({ url: href });
         }
         // PayPal sends the buyer back here: capture, then hand the order to Printful.
@@ -717,7 +717,7 @@ export default {
         }
         // The thank-you page's view of one order (no address: the id is the only key).
         if (parts[2] === "orders" && parts[3] && m === "GET") {
-          const o = await db.prepare("SELECT id,title,variant_label,qty,lines_json,subtotal_cents,shipping_cents,total_cents,status,pf_order_id FROM shop_orders WHERE id=?").bind(parts[3]).first();
+          const o = await db.prepare("SELECT id,title,variant_label,qty,lines_json,subtotal_cents,shipping_cents,tax_cents,total_cents,status,pf_order_id FROM shop_orders WHERE id=?").bind(parts[3]).first();
           if (!o) return J({ error: "not found" }, 404);
           return J({ ...o, lines: o.lines_json ? JSON.parse(o.lines_json) : null, lines_json: undefined, sent_to_printer: !!o.pf_order_id, live: env.PAYPAL_ENV === "live" });
         }

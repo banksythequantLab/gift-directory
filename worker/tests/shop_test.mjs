@@ -1,6 +1,6 @@
 // The direct shop: product cards from Printful, order checks, the design templates and print files, PayPal and Printful payloads.
 import { shopCard, shortTitle, kindOf, validateShopOrder, validateFields, pickRate, designSvg, designItems, parseKind, rowKind, TEMPLATES, SAMPLES, PTYPES,
-  shopPayPalOrder, printfulOrder, receiptEmail, storeShopShelf, STORE_SHELVES, printSize, renderWidth } from "../shop.js";
+  shopPayPalOrder, printfulOrder, receiptEmail, storeShopShelf, STORE_SHELVES, printSize, renderWidth, salesTax, taxTable } from "../shop.js";
 
 let passed = 0, failed = 0;
 const ok = (n, c, d = "") => { c ? passed++ : (failed++, console.log(`FAIL  ${n}${d ? "  - " + d : ""}`)); };
@@ -146,6 +146,30 @@ has("receipt subject", m.subject, "Custom Text Shirt");
 has("receipt total", m.text, "$59.75");
 has("receipt text lines", m.html, "WORLD&#39;S BEST / AUNT");
 has("receipt skips empty fields", receiptEmail({ ...row, lines_json: JSON.stringify(["Ann", "Nurse", ""]) }).text, "Your text: Ann / Nurse\n");
+
+// sales tax
+const njTo = st => ({ ...rcpt, state_code: st });
+const mugOrder = { card: mugCard, variant: { price_cents: 1699 }, qty: 2, recipient: njTo("NJ") };
+eq("NJ: non-clothing taxed with shipping at 6.625%", salesTax(mugOrder, 795), { cents: Math.round((3398 + 795) * 0.06625), rate: 0.06625, state: "NJ" });
+eq("NJ: tee is clothing, exempt", salesTax({ ...mugOrder, card: card }, 495).cents, 0);
+eq("NJ: hoodie exempt", salesTax({ ...mugOrder, card: { kind: "tpl", ptype: "hoodie" } }, 495).exempt, "clothing");
+eq("NJ: a fixed shirt is clothing", salesTax({ ...mugOrder, card: { kind: "fixed", title: "Outlast the Hurricane Shirt" } }, 495).cents, 0);
+ok("NJ: stocking is not clothing", salesTax({ ...mugOrder, card: { kind: "tpl", ptype: "stocking" } }, 0).cents > 0);
+eq("NY: not collected", salesTax({ ...mugOrder, recipient: njTo("NY") }, 795).cents, 0);
+eq("table from SHOP_TAX", salesTax({ ...mugOrder, recipient: njTo("NY") }, 0, taxTable('{"NY":{"rate":0.04}}')).cents, 136);
+eq("bad SHOP_TAX falls back to NJ only", Object.keys(taxTable("{nope")), ["NJ"]);
+eq("no shipping tax when the state says so", salesTax(mugOrder, 795, { NJ: { rate: 0.1 } }).cents, 340);
+const ppTax = shopPayPalOrder({ ...o, shipping_cents: 475, tax_cents: 300 }, "https://gift.directory").purchase_units[0].amount;
+eq("paypal total includes tax", [ppTax.value, ppTax.breakdown.tax_total.value], ["62.75", "3.00"]);
+ok("no tax line when none", !shopPayPalOrder(o, "https://gift.directory").purchase_units[0].amount.breakdown.tax_total);
+eq("printful retail tax", printfulOrder({ ...row, tax_cents: 300 }, "u").retail_costs.tax, "3.00");
+has("receipt shows tax", receiptEmail({ ...row, tax_cents: 300 }).text, "Sales tax: $3.00");
+ok("receipt has no tax line without tax", !receiptEmail(row).text.includes("Sales tax"));
+
+// the shop's terms show only when the shop is public
+const { renderLegal } = await import("../legal.js");
+ok("terms hide the shop section while the shop is hidden", !renderLegal("terms").includes("The gift.directory shop") && !renderLegal("terms").includes("<!--shop-->"));
+has("terms show the shop section when public", renderLegal("terms", { shop: true }), "we'll reprint it or refund you");
 
 // a store's "Personalize it" shelf
 const tcard = (id, tpl, ptype) => ({ id, kind: "tpl", tpl, ptype, title: `${tpl} ${ptype}`, image: `https://img/${id}.jpg`, price_cents: 1699 });

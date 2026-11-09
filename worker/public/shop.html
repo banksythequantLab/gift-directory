@@ -85,7 +85,7 @@ function detail(p) {
     <label for="re">Your email (for the receipt)</label><input id="re" type="email" autocomplete="email">
     <div class="sum" id="sum"></div><div class="err" id="err"></div>
     <button class="pp" id="pay">Pay with PayPal</button>
-    <p class="muted small">Sales tax is not added. Made to order: allow a few days to print, then shipping time.</p>
+    <p class="muted small">Sales tax is added where we collect it (New Jersey). Made to order: allow a few days to print, then shipping time.</p>
   </div></div>`;
   $("#back").onclick = e => { e.preventDefault(); history.pushState(null, "", "/shop"); list(); };
   const sizes = () => { const c = $("#color") ? $("#color").value : colors[0];
@@ -117,7 +117,7 @@ function detail(p) {
     if (!b.recipient.address1 || !b.recipient.city || !b.recipient.state_code || !/^\d{5}/.test(b.recipient.zip)) { $("#sum").innerHTML = `<span class="muted">Add the address to see shipping and the total.</span>`; return; }
     $("#sum").innerHTML = `<span class="muted">Getting shipping…</span>`;
     try { const j = await api("/quote", { method: "POST", body: JSON.stringify(b) });
-      $("#sum").innerHTML = `Items: ${money(j.subtotal_cents)}<br>Shipping (${esc(j.rate.name)}): ${money(j.shipping_cents)}<br><b>Total: ${money(j.total_cents)}</b>`; }
+      $("#sum").innerHTML = `Items: ${money(j.subtotal_cents)}<br>Shipping (${esc(j.rate.name)}): ${money(j.shipping_cents)}${j.tax_cents ? `<br>Sales tax (${esc(j.tax.state)}): ${money(j.tax_cents)}` : ""}<br><b>Total: ${money(j.total_cents)}</b>`; }
     catch (e) { $("#sum").innerHTML = ""; $("#err").textContent = e.message; }
   }
   ["#size", "#qty", "#ra", "#rc", "#rs", "#rz"].forEach(s => $(s).addEventListener("change", () => { clearTimeout(qt); qt = setTimeout(quote, 250); }));
@@ -134,7 +134,7 @@ async function thanks(id) {
     const paid = o.status === "paid";
     $("#app").innerHTML = `<h2>${paid ? "Thank you! Your order is in." : o.status === "cancelled" ? "This order was cancelled." : "We're still waiting on the payment."}</h2>
     <p>${esc(o.title)}${o.variant_label ? " (" + esc(o.variant_label) + ")" : ""} × ${o.qty}${o.lines ? `<br>Your text: <b>${esc(o.lines.filter(Boolean).join(" / "))}</b>` : ""}</p>
-    <p class="sum">Items: ${money(o.subtotal_cents)}<br>Shipping: ${money(o.shipping_cents)}<br><b>Total${paid ? " paid" : ""}: ${money(o.total_cents)}</b></p>
+    <p class="sum">Items: ${money(o.subtotal_cents)}<br>Shipping: ${money(o.shipping_cents)}${o.tax_cents ? `<br>Sales tax: ${money(o.tax_cents)}` : ""}<br><b>Total${paid ? " paid" : ""}: ${money(o.total_cents)}</b></p>
     ${paid ? `<p class="muted">${o.live ? "It goes to our print partner Printful now; your receipt is on its way by email." : "Test mode: the order was recorded but will not be printed or shipped."}</p>` : ""}
     <p class="muted small">Order number: ${esc(o.id)}</p><p><a href="/shop">Back to the shop</a></p>`;
   } catch (e) { $("#app").innerHTML = `<p class="err">We couldn't find that order.</p><p><a href="/shop">Back to the shop</a></p>`; }
