@@ -415,7 +415,6 @@ async function refreshBrowse(env, db, store) {
     .bind(store.id, JSON.stringify(r.cards), now()).run();
   return r.cards;
 }
-const BROWSE_FRESH_MS = 6 * 3600 * 1000;
 
 const PF_API = "https://api.printful.com";
 async function pf(env, path, { method = "GET", body } = {}) {
@@ -882,17 +881,8 @@ export default {
         if (!store || store.status !== "active") return J({ error: "This store isn't open." }, 404);
         const hit = await db.prepare("SELECT cards_json, created_at FROM browse_cache WHERE store_id=?").bind(store.id).first();
         const items = await storeItems(db, store.id);
-        if (hit) {
-          // Old grid: show it now and refresh behind the scenes. Pushing created_at to 10 minutes before expiry first
-          // keeps a burst of visitors from all starting the same refresh.
-          if (Date.now() - Date.parse(hit.created_at) >= BROWSE_FRESH_MS && env.CHANNEL3_API_KEY) {
-            const claim = await db.prepare("UPDATE browse_cache SET created_at=? WHERE store_id=? AND created_at=?")
-              .bind(new Date(Date.now() - BROWSE_FRESH_MS + 600e3).toISOString(), store.id, hit.created_at).run();
-            if (claim.meta.changes) ctx.waitUntil(refreshBrowse(env, db, store).catch(() => {}));
-            return J({ cards: withoutHidden(JSON.parse(hit.cards_json), items), cached: "refreshing" });
-          }
-          return J({ cards: withoutHidden(JSON.parse(hit.cards_json), items), cached: true });
-        }
+        // The saved grid stays until the store's settings change (that clears browse_cache); no timed refresh.
+        if (hit) return J({ cards: withoutHidden(JSON.parse(hit.cards_json), items), cached: true });
         if (!env.CHANNEL3_API_KEY) return J({ cards: [] });
         return J({ cards: withoutHidden(await refreshBrowse(env, db, store), items), cached: false });
       }
