@@ -397,6 +397,26 @@ function storeUrl(env, url, slug) {
   return isWorkersDev(url.hostname) ? `${url.origin}/?store=${slug}` : `https://${slug}.${ROOT}/`;
 }
 // ---------- the shop: Printful products sold directly, paid with PayPal ----------
+// Cloudflare's edge cache for computed results (kept per data center), under a synthetic URL. Search and AI answers
+// are reused for the same question in the same store; the store's settings stamp is part of every key, so an owner's
+// edit starts fresh answers. A miss or a cache error just means doing the work.
+const EDGE = "https://cache.gift.directory/";
+async function edgeGet(key) { try { const r = await caches.default.match(new Request(EDGE + key)); return r ? await r.json() : null; } catch { return null; } }
+function edgePut(ctx, key, data, ttl) {
+  ctx.waitUntil(caches.default.put(new Request(EDGE + key), new Response(JSON.stringify(data), { headers: { "content-type": "application/json", "cache-control": `max-age=${ttl}` } })).catch(() => {}));
+}
+const storeStamp = store => encodeURIComponent(`${store.id}@${store.updated_at || ""}`);
+// The front-page grid: a fresh round of searches for the store, saved to browse_cache.
+async function refreshBrowse(env, db, store) {
+  const cfg = JSON.parse(store.config_json);
+  const planSystem = cfg.house ? undefined : storePlanSystem({ ...cfg, name: store.name, niche: store.niche });
+  const r = await browseGifts(store.niche, { ai: aiFor(env), search: (q, b) => channel3Search(env, q, b), alsoSearch: q => cjSearch(env, q, { budget_cents: 15000 }, { limit: 30 }), planSystem, queries: cfg.browse_searches });
+  if (r.cards.length) await db.prepare("INSERT INTO browse_cache (store_id,cards_json,created_at) VALUES (?,?,?) ON CONFLICT(store_id) DO UPDATE SET cards_json=excluded.cards_json, created_at=excluded.created_at")
+    .bind(store.id, JSON.stringify(r.cards), now()).run();
+  return r.cards;
+}
+const BROWSE_FRESH_MS = 6 * 3600 * 1000;
+
 const PF_API = "https://api.printful.com";
 async function pf(env, path, { method = "GET", body } = {}) {
   const r = await fetch(PF_API + path, { method, body: body ? JSON.stringify(body) : undefined,
@@ -862,14 +882,19 @@ export default {
         if (!store || store.status !== "active") return J({ error: "This store isn't open." }, 404);
         const hit = await db.prepare("SELECT cards_json, created_at FROM browse_cache WHERE store_id=?").bind(store.id).first();
         const items = await storeItems(db, store.id);
-        if (hit && Date.now() - Date.parse(hit.created_at) < 6 * 3600 * 1000) return J({ cards: withoutHidden(JSON.parse(hit.cards_json), items), cached: true });
+        if (hit) {
+          // Old grid: show it now and refresh behind the scenes. Pushing created_at to 10 minutes before expiry first
+          // keeps a burst of visitors from all starting the same refresh.
+          if (Date.now() - Date.parse(hit.created_at) >= BROWSE_FRESH_MS && env.CHANNEL3_API_KEY) {
+            const claim = await db.prepare("UPDATE browse_cache SET created_at=? WHERE store_id=? AND created_at=?")
+              .bind(new Date(Date.now() - BROWSE_FRESH_MS + 600e3).toISOString(), store.id, hit.created_at).run();
+            if (claim.meta.changes) ctx.waitUntil(refreshBrowse(env, db, store).catch(() => {}));
+            return J({ cards: withoutHidden(JSON.parse(hit.cards_json), items), cached: "refreshing" });
+          }
+          return J({ cards: withoutHidden(JSON.parse(hit.cards_json), items), cached: true });
+        }
         if (!env.CHANNEL3_API_KEY) return J({ cards: [] });
-        const cfg = JSON.parse(store.config_json);
-        const planSystem = cfg.house ? undefined : storePlanSystem({ ...cfg, name: store.name, niche: store.niche });
-        const r = await browseGifts(store.niche, { ai: aiFor(env), search: (q, b) => channel3Search(env, q, b), alsoSearch: q => cjSearch(env, q, { budget_cents: 15000 }, { limit: 30 }), planSystem, queries: cfg.browse_searches });
-        if (r.cards.length) await db.prepare("INSERT INTO browse_cache (store_id,cards_json,created_at) VALUES (?,?,?) ON CONFLICT(store_id) DO UPDATE SET cards_json=excluded.cards_json, created_at=excluded.created_at")
-          .bind(store.id, JSON.stringify(r.cards), now()).run();
-        return J({ cards: withoutHidden(r.cards, items), cached: false });
+        return J({ cards: withoutHidden(await refreshBrowse(env, db, store), items), cached: false });
       }
 
       // ---------- the finder ----------
@@ -881,15 +906,17 @@ export default {
         const cfg = JSON.parse(store.config_json);
         const planSystem = cfg.house ? undefined : storePlanSystem({ ...cfg, name: store.name, niche: store.niche });
         const ownList = await ownProducts(db, store.id);
-        const b = v.brief;
-        const r = await findGifts(v.brief, { ai: aiFor(env), search: q => channel3Search(env, q, v.brief), alsoSearch: q => cjSearch(env, q, v.brief, { limit: 30 }), planSystem,
+        const b = v.brief, fkey = `find/${storeStamp(store)}/${await sha256(JSON.stringify(v.brief))}`;
+        let r = await edgeGet(fkey), fromCache = !!r;
+        if (!r) r = await findGifts(v.brief, { ai: aiFor(env), search: q => channel3Search(env, q, v.brief), alsoSearch: q => cjSearch(env, q, v.brief, { limit: 30 }), planSystem,
           extra: plan => ownMatches(ownList, [...plan.map(s => s.query), b.recipient, b.occasion, b.notes, ...(b.interests || [])], b.budget_cents) });
+        if (!fromCache && (r.picks || []).length) edgePut(ctx, fkey, r, 6 * 3600);
         const items = await storeItems(db, store.id);
         r.picks = withoutHidden(r.picks || [], items); r.more = withoutHidden(r.more || [], items);
         const id = uid();
         await db.prepare("INSERT INTO searches (id,brief_json,plan_json,picks_json,created_at,store_id) VALUES (?,?,?,?,?,?)")
           .bind(id, JSON.stringify(v.brief), JSON.stringify(r.plan), JSON.stringify(r.picks), now(), store.id).run();
-        return J({ search_id: id, ...r });
+        return J({ search_id: id, ...r, cached: fromCache });
       }
 
       // ---------- shopper search (the store's search bar) ----------
@@ -899,7 +926,10 @@ export default {
         if (q.length < 2) return J({ cards: [] });
         const items = await storeItems(db, store.id);
         const mineFirst = ownMatches(await ownProducts(db, store.id), [q], 50000, 12);
-        return J({ q, cards: withoutHidden(mergeCards([mineFirst, await searchCards(env, q)]), items) });
+        const skey = `search/${encodeURIComponent(q.toLowerCase())}`;
+        let found = await edgeGet(skey), fromCache = !!found;
+        if (!found) { found = await searchCards(env, q); if (found.length) edgePut(ctx, skey, found, 3600); }
+        return J({ q, cards: withoutHidden(mergeCards([mineFirst, found]), items), cached: fromCache });
       }
 
       // ---------- Log in with PayPal ----------
