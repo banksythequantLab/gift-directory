@@ -55,7 +55,8 @@ export function shopCard(d) {
   return {
     id: p.id, kind: tpl ? "tpl" : "fixed", title: shortTitle(name), subtitle: name.includes(",") ? rest : "",
     ...(tpl ? { tpl, ptype, fields: TEMPLATES[tpl].fields, design: TEMPLATES[tpl].name, print: { w: PTYPES[ptype].w, h: PTYPES[ptype].h, bg: PTYPES[ptype].bg } } : {}),
-    image: (prev && (prev.preview_url || prev.thumbnail_url)) || p.thumbnail_url || null,
+    // A product thumbnail (our mockup) beats the variant preview, which for API-made products is the bare print file.
+    image: (/\.(png|jpe?g|webp)$/i.test(p.thumbnail_url || "") && p.thumbnail_url) || (prev && (prev.preview_url || prev.thumbnail_url)) || null,
     price_cents: Math.min(...vs.map(v => cents(v.retail_price))),
     variants: vs.map(v => ({ id: v.id, catalog_id: v.variant_id, color: v.color || "", size: v.size || "", price_cents: cents(v.retail_price) })),
   };

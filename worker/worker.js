@@ -406,10 +406,12 @@ async function pf(env, path, { method = "GET", body } = {}) {
 }
 // The shelf: every product in the gift.directory Printful store, cached for 30 minutes.
 async function shopCards(env) {
-  const key = new Request(`https://cache.gift.directory/shop-cards/${env.PRINTFUL_STORE_ID}/v2`), cache = caches.default;
+  const key = new Request(`https://cache.gift.directory/shop-cards/${env.PRINTFUL_STORE_ID}/v3`), cache = caches.default;
   const hit = await cache.match(key); if (hit) return hit.json();
   const list = await pf(env, "/store/products?limit=100");
   const cards = (await Promise.all(list.map(p => pf(env, `/store/products/${p.id}`).then(shopCard).catch(() => null)))).filter(Boolean);
+  const T = ["role", "milestone", "roster", "text"], P = ["tee", "hoodie", "mug"], rank = c => c.kind === "tpl" ? T.indexOf(c.tpl) * 10 + P.indexOf(c.ptype) : 99;
+  cards.sort((a, b) => rank(a) - rank(b));   // the shelf by design, each as tee, hoodie, mug; fixed designs last
   await cache.put(key, new Response(JSON.stringify(cards), { headers: { "content-type": "application/json", "cache-control": "max-age=1800" } }));
   return cards;
 }
