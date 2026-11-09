@@ -88,13 +88,13 @@ export function parseRegAi(j) {
 export const REMIND_DAYS = 7;
 const day = d => new Date(Date.parse(d + "T00:00:00Z"));
 const ymd = d => d.toISOString().slice(0, 10);
-// When to send: 7 days before the event, or today if that day has passed. No date, or a past event: no reminder.
+// When to send: 7 days before the event, but never earlier than tomorrow (the daily send runs early in the morning UTC,
+// so "today" may already be past). It must still land before the event day: an event tomorrow or sooner gets no reminder.
 export function reminderSendOn(eventDate, today) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(eventDate || ""))) return null;
-  const ev = day(eventDate), t = day(today);
-  if (!(ev > t)) return null;
-  const s = new Date(ev.getTime() - REMIND_DAYS * 864e5);
-  return ymd(s > t ? s : t);
+  const ev = day(eventDate), tomorrow = new Date(day(today).getTime() + 864e5);
+  const s = new Date(Math.max(ev.getTime() - REMIND_DAYS * 864e5, tomorrow.getTime()));
+  return s < ev ? ymd(s) : null;
 }
 export function validateReminder(b) {
   const email = String((b && b.email) || "").trim().toLowerCase();

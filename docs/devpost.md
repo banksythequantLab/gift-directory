@@ -16,7 +16,7 @@ I'm a New York attorney. Clients want to thank their lawyer, firms want to thank
 - Make a free registry at gift.directory/registry, no account needed. Add gifts by telling the AI what you want ("a KitchenAid stand mixer, 2 cozy throw blankets under $80 and a burr coffee grinder"), by searching hundreds of stores, or by pasting any product link.
 - Guests open one link, buy from whichever store sells it, and tap "I bought this" so nothing is doubled. The owner sees who bought what; other guests don't.
 - Big items get **"Go in together"**: a PayPal group gift for that item, paid straight to the couple. Once it's fully funded, the item shows as bought.
-- Share by Email, Text or WhatsApp in one tap. The owner also gets a ready-made **thank-you list** of who gave what, to copy into their notes.
+- Share by Email, Text or WhatsApp in one tap. The owner also gets a ready-made **thank-you list** of who gave what, to copy into their notes. Guests can ask for **one reminder email** a week before the date (sent with Cloudflare Email Service); the address is deleted as soon as it goes out.
 
 **Running a store:**
 - Type who your store is for. The AI drafts the whole store (name, web address, tagline, occasions, search guidance, color), and you can edit anything with a live preview.
@@ -34,7 +34,7 @@ I'm a New York attorney. Clients want to thank their lawyer, firms want to thank
 - **Channel3** product search, **CJ Affiliate** (GraphQL product search with tracked links) and the **Etsy Open API** for live prices, stock and retailer links.
 - **AI (Qwen3-235B on Nebius Token Factory)** for drafting stores, planning searches, picking gifts, the store assistant and the registry helper. The model may only pick products the searches actually returned, by ID or position. Anything it invents is dropped, and every price and link comes from the retailer data, never from the model.
 - Link previews are written into each shared page's `<head>` on the server with Cloudflare's HTMLRewriter, from the live pool, registry or store.
-- 492 automated tests run against real SQLite built from the production migrations.
+- 495 automated tests run against real SQLite built from the production migrations.
 
 ## Challenges we ran into
 - **Paying someone who isn't us.** I tested sending contributions directly to another account's PayPal (`payee`). When the organizer's email had no PayPal account, the capture came back `PENDING / UNILATERAL`: the contributor had paid, but the money was waiting to be claimed. I changed the tally to count it and show the organizer a "claim your money" notice.
@@ -52,7 +52,6 @@ PayPal's `payee` field plus the capture response gives you a "pay a friend" grou
 
 ## What's next
 - Revenue share: affiliate commissions split with store owners via PayPal Payouts.
-- Emailed registry reminders before the event date.
 - Custom domains for stores (Cloudflare for SaaS).
 - Deadlines that refund a group gift automatically if it isn't filled.
 

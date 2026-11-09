@@ -8,8 +8,11 @@ const has = (n, s, sub) => ok(n, String(s).includes(sub), `missing ${JSON.string
 
 eq("a week before", REMIND_DAYS, 7);
 eq("event far off: 7 days before", reminderSendOn("2026-12-20", "2026-11-08"), "2026-12-13");
-eq("event in 3 days: send on the next run", reminderSendOn("2026-11-11", "2026-11-08"), "2026-11-08");
-eq("event exactly 7 days out: today", reminderSendOn("2026-11-15", "2026-11-08"), "2026-11-08");
+eq("event in 3 days: tomorrow's run", reminderSendOn("2026-11-11", "2026-11-08"), "2026-11-09");
+eq("event exactly 8 days out: 7 days before", reminderSendOn("2026-11-16", "2026-11-08"), "2026-11-09");
+eq("event exactly 7 days out: tomorrow", reminderSendOn("2026-11-15", "2026-11-08"), "2026-11-09");
+eq("event in 2 days: tomorrow", reminderSendOn("2026-11-10", "2026-11-08"), "2026-11-09");
+eq("event tomorrow: no reminder (it would land on the day)", reminderSendOn("2026-11-09", "2026-11-08"), null);
 eq("event today: no reminder", reminderSendOn("2026-11-08", "2026-11-08"), null);
 eq("past event: no reminder", reminderSendOn("2026-10-01", "2026-11-08"), null);
 eq("no date: no reminder", reminderSendOn(null, "2026-11-08"), null);
