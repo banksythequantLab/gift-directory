@@ -13,7 +13,7 @@ import { TEE, teePromo } from "./promo.js";
 import { REG_MAX_ITEMS, REG_POOL_MIN_CENTS, validateRegistry, registrySlug, validateRegItem, publicRegistry, REG_AI_SYSTEM, regAiPrompt, parseRegAi, poolTarget, reminderSendOn, validateReminder, reminderEmail } from "./registry.js";
 import { ASSIST_SYSTEM, MAX_STEPS, SHELF_MAX, storeBrief, assistPrompt, parseAssist, matchHide, pickShelf, describeStep, PICK_SYSTEM, pickPrompt, applyPicks, capKinds } from "./assistant.js";
 import { ogTags, poolMeta, registryMeta, storeMeta, PLATFORM_META, REGISTRY_HOME_META } from "./meta.js";
-import { shopCard, validateShopOrder, pickRate, textPrintSvg, PRINT_W, shopPayPalOrder, printfulOrder, receiptEmail } from "./shop.js";
+import { shopCard, validateShopOrder, validateFields, pickRate, designSvg, PTYPES, TEMPLATES, SAMPLES, parseKind, rowKind, shopPayPalOrder, printfulOrder, receiptEmail } from "./shop.js";
 import { svgToPng } from "./print.js";
 
 const now = () => new Date().toISOString();
@@ -406,7 +406,7 @@ async function pf(env, path, { method = "GET", body } = {}) {
 }
 // The shelf: every product in the gift.directory Printful store, cached for 30 minutes.
 async function shopCards(env) {
-  const key = new Request(`https://cache.gift.directory/shop-cards/${env.PRINTFUL_STORE_ID}/v1`), cache = caches.default;
+  const key = new Request(`https://cache.gift.directory/shop-cards/${env.PRINTFUL_STORE_ID}/v2`), cache = caches.default;
   const hit = await cache.match(key); if (hit) return hit.json();
   const list = await pf(env, "/store/products?limit=100");
   const cards = (await Promise.all(list.map(p => pf(env, `/store/products/${p.id}`).then(shopCard).catch(() => null)))).filter(Boolean);
@@ -637,17 +637,33 @@ export default {
       if (parts[1] === "shop") {
         if (!env.PRINTFUL_TOKEN || !env.PRINTFUL_STORE_ID) return J({ error: "The shop isn't set up yet." }, 503);
         if (parts[2] === "products" && m === "GET") return J({ products: await shopCards(env), live: env.PAYPAL_ENV === "live", public: env.SHOP_PUBLIC === "1" });
-        // The print file Printful downloads for a paid custom-text order.
+        // The print file Printful downloads for a paid order of a template product.
         if (parts[2] === "print" && parts[3] && m === "GET") {
           const o = await db.prepare("SELECT kind, lines_json, status FROM shop_orders WHERE id=?").bind(parts[3].replace(/\.png$/, "")).first();
-          if (!o || o.kind !== "text" || o.status !== "paid") return new Response("not found", { status: 404 });
-          return new Response(await svgToPng(textPrintSvg(JSON.parse(o.lines_json)), PRINT_W), { headers: { "content-type": "image/png", "cache-control": "public, max-age=86400" } });
+          const k = o && o.status === "paid" && parseKind(o.kind);
+          if (!k) return new Response("not found", { status: 404 });
+          return new Response(await svgToPng(designSvg(k.tpl, k.ptype, JSON.parse(o.lines_json)), PTYPES[k.ptype].w), { headers: { "content-type": "image/png", "cache-control": "public, max-age=86400" } });
+        }
+        // A template's sample design at full print size (what the Printful product was set up with).
+        if (parts[2] === "sample" && TEMPLATES[parts[3]] && PTYPES[(parts[4] || "").replace(/\.png$/, "")] && m === "GET") {
+          const pt = parts[4].replace(/\.png$/, "");
+          return new Response(await svgToPng(designSvg(parts[3], pt, SAMPLES[parts[3]]), PTYPES[pt].w), { headers: { "content-type": "image/png", "cache-control": "public, max-age=86400" } });
+        }
+        // The live preview while the buyer types: the real print file, small. ?f=<field>&f=<field>...
+        if (parts[2] === "preview" && parts[3] && m === "GET") {
+          const c = (await shopCards(env)).find(x => x.id === Number(parts[3].replace(/\.png$/, "")));
+          if (!c || c.kind !== "tpl") return new Response("not found", { status: 404 });
+          const v = validateFields(c.tpl, url.searchParams.getAll("f"));
+          if (v.error) return J({ error: v.error }, 400);
+          const cache = caches.default, key = new Request(url.toString()), hit = await cache.match(key); if (hit) return hit;
+          const res = new Response(await svgToPng(designSvg(c.tpl, c.ptype, v.lines), 600), { headers: { "content-type": "image/png", "cache-control": "public, max-age=86400" } });
+          await cache.put(key, res.clone()); return res;
         }
         if ((parts[2] === "quote" || parts[2] === "checkout") && m === "POST") {
           const b = (await readJson(request)) || {};
           const card = (await shopCards(env)).find(c => c.id === Number(b.product_id));
           const quote = parts[2] === "quote";   // shipping needs only the address; the rest is checked at checkout
-          const v = validateShopOrder(quote ? { ...b, lines: b.lines && b.lines[0] ? b.lines : ["quote"], recipient: { ...(b.recipient || {}), name: "quote", email: "quote@gift.directory" } } : b, card);
+          const v = validateShopOrder(quote ? { ...b, lines: card && card.tpl ? SAMPLES[card.tpl] : null, recipient: { ...(b.recipient || {}), name: "quote", email: "quote@gift.directory" } } : b, card);
           if (v.error) return J({ error: v.error }, 400);
           const o = v.order, rate = await shopRate(env, o).catch(() => null);
           if (!rate) return J({ error: "We couldn't get a shipping rate for that address. Check the ZIP code." }, 502);
@@ -662,7 +678,7 @@ export default {
           const href = pp.status < 300 && pp.body ? (link(pp.body, "payer-action") || link(pp.body, "approve") || {}).href : null;
           if (!href) return J({ error: "PayPal could not start the payment.", paypal_status: pp.status, detail: pp.body && pp.body.details }, 502);
           await db.prepare("INSERT INTO shop_orders (id,pf_product_id,pf_sync_variant_id,pf_catalog_variant_id,kind,title,variant_label,qty,lines_json,gift_message,recipient_json,email,unit_cents,subtotal_cents,shipping_cents,total_cents,status,paypal_order_id,ip_hash,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',?,?,?,?)")
-            .bind(id, o.card.id, o.variant.id, o.variant.catalog_id, o.card.kind, o.card.title, label || null, o.qty, o.lines ? JSON.stringify(o.lines) : null, o.gift_message,
+            .bind(id, o.card.id, o.variant.id, o.variant.catalog_id, rowKind(o.card), o.card.title, label || null, o.qty, o.lines ? JSON.stringify(o.lines) : null, o.gift_message,
               JSON.stringify(o.recipient), o.recipient.email, o.variant.price_cents, sub, rate.cents, sub + rate.cents, pp.body.id, ipHash, t, t).run();
           return J({ url: href });
         }

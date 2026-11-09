@@ -11,15 +11,50 @@ const cents = v => Math.round(Number(v) * 100);
 export const shortTitle = name => clip(String(name || "").split(",")[0], 80);
 export const kindOf = name => /custom text/i.test(name) ? "text" : /photo/i.test(name) ? "photo" : "fixed";
 
-// One card per Printful sync product (from GET /store/products/{id}). Photo shirts wait for uploads, so they're skipped.
+// ---------- design templates: the buyer fills in a few fields, we render the print file ----------
+export const TEMPLATES = {
+  text: { name: "Custom text", keepCase: true, fields: [
+    { label: "Line 1", max: 22, req: true, ph: "WORLD'S BEST" }, { label: "Line 2 (optional)", max: 22, ph: "AUNT" }] },
+  role: { name: "Name & role", fields: [
+    { label: "Name", max: 22, req: true, ph: "Dr. Maria Lopez" }, { label: "Role or title", max: 28, req: true, ph: "Emergency Medicine" },
+    { label: "Since (optional)", max: 16, ph: "Est. 2026" }] },
+  milestone: { name: "Milestone", fields: [
+    { label: "The milestone", max: 18, req: true, ph: "Made Partner" }, { label: "Year (optional)", max: 12, ph: "2026" },
+    { label: "Name (optional)", max: 24, ph: "Maria Lopez" }] },
+  roster: { name: "Family & team", fields: [
+    { label: "Family or team name", max: 18, req: true, ph: "The Smiths" }, { label: "Event (optional)", max: 26, ph: "Thanksgiving 2026" },
+    { label: "Names (optional)", max: 80, ph: "Ann, Bob, Cal, Dee" }] },
+};
+export const SAMPLES = { text: ["YOUR TEXT", "HERE"], role: ["Dr. Maria Lopez", "Emergency Medicine", "Est. 2026"],
+  milestone: ["Made Partner", "2026", "Maria Lopez"], roster: ["The Smiths", "Thanksgiving 2026", "Ann, Bob, Cal, Dee, Eve"] };
+// Print areas from Printful's printfiles: tee front 12x16 in and hoodie front 14x14 in at 150 dpi (designs sit
+// high, above the hoodie pocket); mug wrap 9x3.5 in at 300 dpi with the design on both sides.
+export const PTYPES = {
+  tee: { placement: "front", w: 1800, h: 2400, ink: "#ffffff", bg: "#222222", box: { y: 200, w: 1650 } },
+  hoodie: { placement: "front", w: 2100, h: 2100, ink: "#ffffff", bg: "#222222", box: { y: 260, w: 1600 } },
+  mug: { placement: "default", w: 2700, h: 1050, ink: "#1d2433", bg: "#ffffff", box: { w: 1100 }, center: true, copies: [675, 2025] },
+};
+// What an order row's `kind` means: "fixed", "tpl:<template>:<product type>", or the first shop's "text" (custom-text tee).
+export function parseKind(kind) {
+  if (kind === "text") return { tpl: "text", ptype: "tee" };
+  const m = /^tpl:(\w+):(\w+)$/.exec(String(kind || ""));
+  return m && TEMPLATES[m[1]] && PTYPES[m[2]] ? { tpl: m[1], ptype: m[2] } : null;
+}
+export const rowKind = card => card.kind === "tpl" ? `tpl:${card.tpl}:${card.ptype}` : "fixed";
+
+// One card per Printful sync product (from GET /store/products/{id}). Template products carry external_id
+// "gd-tpl-<template>-<product type>". Photo shirts wait for uploads, so they're skipped.
 export function shopCard(d) {
   const p = d.sync_product, vs = (d.sync_variants || []).filter(v => !v.is_ignored && v.availability_status !== "discontinued");
-  const kind = kindOf(p.name);
-  if (kind === "photo" || !vs.length) return null;
+  const m = /^gd-tpl-(\w+)-(\w+)$/.exec(String(p.external_id || ""));
+  let tpl = m && TEMPLATES[m[1]] && PTYPES[m[2]] ? m[1] : null, ptype = tpl ? m[2] : null;
+  if (!tpl && kindOf(p.name) === "text") { tpl = "text"; ptype = "tee"; }
+  if ((!tpl && kindOf(p.name) === "photo") || !vs.length) return null;
   const prev = vs.map(v => (v.files || []).find(f => f.type === "preview")).find(Boolean);
   const name = String(p.name || ""), rest = clip(name.slice(name.indexOf(",") + 1), 140);
   return {
-    id: p.id, kind, title: shortTitle(name), subtitle: name.includes(",") ? rest : "",
+    id: p.id, kind: tpl ? "tpl" : "fixed", title: shortTitle(name), subtitle: name.includes(",") ? rest : "",
+    ...(tpl ? { tpl, ptype, fields: TEMPLATES[tpl].fields, design: TEMPLATES[tpl].name, print: { w: PTYPES[ptype].w, h: PTYPES[ptype].h, bg: PTYPES[ptype].bg } } : {}),
     image: (prev && (prev.preview_url || prev.thumbnail_url)) || p.thumbnail_url || null,
     price_cents: Math.min(...vs.map(v => cents(v.retail_price))),
     variants: vs.map(v => ({ id: v.id, catalog_id: v.variant_id, color: v.color || "", size: v.size || "", price_cents: cents(v.retail_price) })),
@@ -44,13 +79,16 @@ export function validateRecipient(r) {
   return { recipient: o };
 }
 
-// The buyer's two lines for a custom-text shirt.
-export function validateLines(lines) {
-  const ls = (Array.isArray(lines) ? lines : []).slice(0, 2).map(l => String(l ?? "").replace(/\s+/g, " ").trim());
-  if (!ls[0]) return { error: "Type at least the first line for your shirt." };
-  if (ls.some(l => l.length > MAX_LINE)) return { error: `Keep each line to ${MAX_LINE} characters.` };
-  if (ls.some(l => !PRINTABLE.test(l))) return { error: "Use letters, numbers and common punctuation (no emoji)." };
-  return { lines: ls.filter(Boolean) };
+// The buyer's fields for a template, kept in field order (an empty optional field stays "").
+export function validateFields(tpl, vals) {
+  const T = TEMPLATES[tpl]; if (!T) return { error: "That design isn't available." };
+  const vs = T.fields.map((f, i) => String((Array.isArray(vals) ? vals[i] : "") ?? "").replace(/\s+/g, " ").trim());
+  for (const [i, f] of T.fields.entries()) {
+    if (f.req && !vs[i]) return { error: `Fill in "${f.label}".` };
+    if (vs[i].length > f.max) return { error: `Keep "${f.label.replace(/ \(optional\)$/, "")}" to ${f.max} characters.` };
+    if (!PRINTABLE.test(vs[i])) return { error: "Use letters, numbers and common punctuation (no emoji)." };
+  }
+  return { lines: vs };
 }
 
 // Everything a checkout needs, checked against the live product.
@@ -62,7 +100,7 @@ export function validateShopOrder(b, card) {
   if (!(qty >= 1 && qty <= 10)) return { error: "Quantity should be 1 to 10." };
   const r = validateRecipient(b && b.recipient); if (r.error) return r;
   let lines = null;
-  if (card.kind === "text") { const l = validateLines(b.lines); if (l.error) return l; lines = l.lines; }
+  if (card.kind === "tpl") { const l = validateFields(card.tpl, b.lines); if (l.error) return l; lines = l.lines; }
   return { order: { card, variant: v, qty, lines, gift_message: clip(b && b.gift_message, 200) || null, recipient: r.recipient } };
 }
 
@@ -74,14 +112,45 @@ export function pickRate(rates) {
   return { id: r.id, name: clip(r.name, 120), cents: cents(r.rate), min_days: r.minDeliveryDays ?? null, max_days: r.maxDeliveryDays ?? null };
 }
 
+// ---------- the print file ----------
 const xml = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" }[c]));
-// The custom-text print file: white, heavy, centered, high on the chest. 12x16 in at 150 dpi, transparent.
-export const PRINT_W = 1800, PRINT_H = 2400;
-export function textPrintSvg(lines) {
-  const ls = lines.filter(Boolean).slice(0, 2), longest = Math.max(...ls.map(l => l.length), 4);
-  const fs = Math.max(120, Math.min(300, Math.floor(1650 / (longest * 0.7)))), gap = Math.round(fs * 1.12), top = 260 + fs;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${PRINT_W}" height="${PRINT_H}" viewBox="0 0 ${PRINT_W} ${PRINT_H}">` +
-    ls.map((l, i) => `<text x="${PRINT_W / 2}" y="${top + i * gap}" text-anchor="middle" font-family="Inter Display" font-weight="900" font-size="${fs}" fill="#ffffff">${xml(l)}</text>`).join("") + `</svg>`;
+const W_EM = 0.7;   // average advance of Inter Display Black capitals, a little generous so text never runs off the print area
+const fitFs = (t, maxFs, bw, ls = 0) => Math.max(1, Math.min(Math.round(maxFs), Math.floor(bw / (Math.max(String(t).length, 1) * (W_EM + ls)))));
+function wrap(words, n) {
+  const out = []; let cur = "";
+  for (const w of words) { const next = cur ? cur + " · " + w : w; if (next.length > n && cur) { out.push(cur); cur = w; } else cur = next; }
+  if (cur) out.push(cur); return out;
+}
+// The design as a stack of lines and rules; sizes come from the width of the print box.
+export function designItems(tpl, vals, bw) {
+  const v = (vals || []).map(x => String(x ?? "").trim()), up = s => s.toUpperCase(), it = [];
+  const line = (t, maxFs, ls = 0) => { if (t) it.push({ t, fs: fitFs(t, maxFs, bw, ls), ls }); };
+  const rule = () => it.push({ rule: true });
+  if (tpl === "text") {
+    const ls = v.filter(Boolean).slice(0, 2), fs = fitFs("x".repeat(Math.max(...ls.map(l => l.length), 4)), bw * 0.18, bw);
+    ls.forEach(t => it.push({ t, fs, ls: 0 }));
+  } else if (tpl === "role") {
+    line(up(v[0]), bw * 0.16); rule(); line(up(v[1]), bw * 0.072, 0.12); line(up(v[2] || ""), bw * 0.05, 0.2);
+  } else if (tpl === "milestone") {
+    line(up(v[0]), bw * 0.15); line(v[1] || "", bw * 0.2); if (v[2]) { rule(); line(up(v[2]), bw * 0.05, 0.15); }
+  } else if (tpl === "roster") {
+    line(up(v[0]), bw * 0.15); line(up(v[1] || ""), bw * 0.058, 0.12);
+    const names = up(v[2] || "").split(/\s*[,;/]\s*|\s{2,}/).filter(Boolean);
+    if (names.length) { rule(); const ls = wrap(names, 28).slice(0, 4), fs = fitFs("x".repeat(Math.max(...ls.map(l => l.length))), bw * 0.05, bw, 0.04); ls.forEach(t => it.push({ t, fs, ls: 0.04 })); }
+  }
+  return it;
+}
+export function designSvg(tpl, ptype, vals) {
+  const P = PTYPES[ptype], bw = P.box.w, els = []; let y = 0;
+  for (const i of designItems(tpl, vals, bw)) {
+    if (i.rule) { const rh = Math.max(4, Math.round(bw * 0.006)); y += Math.round(bw * 0.03); els.push({ rule: true, y, rh }); y += rh + Math.round(bw * 0.045); }
+    else { const base = y + (els.length && !els[els.length - 1].rule && els[els.length - 1].fs !== i.fs ? Math.round(i.fs * 0.3) : 0) + Math.round(i.fs * 0.74); els.push({ ...i, y: base }); y = base + Math.round(i.fs * 0.34); }
+  }
+  const top = P.center ? Math.round((P.h - y) / 2) : P.box.y, xs = P.copies || [P.w / 2];
+  const body = xs.map(cx => els.map(e => e.rule
+    ? `<rect x="${Math.round(cx - bw * 0.18)}" y="${top + e.y}" width="${Math.round(bw * 0.36)}" height="${e.rh}" fill="${P.ink}"/>`
+    : `<text x="${Math.round(cx + e.ls * e.fs / 2)}" y="${top + e.y}" text-anchor="middle" font-family="Inter Display" font-weight="900" font-size="${e.fs}"${e.ls ? ` letter-spacing="${Math.round(e.ls * e.fs)}"` : ""} fill="${P.ink}">${xml(e.t)}</text>`).join("")).join("");
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${P.w}" height="${P.h}" viewBox="0 0 ${P.w} ${P.h}">${body}</svg>`;
 }
 
 export function shopPayPalOrder(o, origin) {
@@ -102,12 +171,12 @@ export function shopPayPalOrder(o, origin) {
   };
 }
 
-// The Printful order once PayPal has captured. Custom text is ordered from the catalog with our print file;
-// fixed designs by their synced variant. `confirm` stays false unless the shop is live and fulfilment is on.
+// The Printful order once PayPal has captured. Template products are ordered from the catalog with our print
+// file in the product's placement; fixed designs by their synced variant. Created as a draft unless confirmed.
 export function printfulOrder(row, printUrl) {
-  const r = JSON.parse(row.recipient_json);
-  const item = row.kind === "text"
-    ? { variant_id: row.pf_catalog_variant_id, quantity: row.qty, retail_price: usd(row.unit_cents), name: row.title, files: [{ type: "front", url: printUrl }] }
+  const r = JSON.parse(row.recipient_json), k = parseKind(row.kind);
+  const item = k
+    ? { variant_id: row.pf_catalog_variant_id, quantity: row.qty, retail_price: usd(row.unit_cents), name: row.title, files: [{ type: PTYPES[k.ptype].placement, url: printUrl }] }
     : { sync_variant_id: row.pf_sync_variant_id, quantity: row.qty, retail_price: usd(row.unit_cents) };
   return {
     external_id: row.id, shipping: "STANDARD",
@@ -121,7 +190,7 @@ export function printfulOrder(row, printUrl) {
 
 const escH = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 export function receiptEmail(row) {
-  const r = JSON.parse(row.recipient_json), lines = row.lines_json ? JSON.parse(row.lines_json) : null;
+  const r = JSON.parse(row.recipient_json), lines = row.lines_json ? JSON.parse(row.lines_json).filter(Boolean) : null;
   const what = `${row.title}${row.variant_label ? " (" + row.variant_label + ")" : ""} × ${row.qty}`;
   const subject = `Your gift.directory order: ${row.title}`;
   const text = `Thanks for your order!\n\n${what}${lines ? `\nYour text: ${lines.join(" / ")}` : ""}\n\nItems: $${usd(row.subtotal_cents)}\nShipping: $${usd(row.shipping_cents)}\nTotal paid: $${usd(row.total_cents)}\n\n` +
