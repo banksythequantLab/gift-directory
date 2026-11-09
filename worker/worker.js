@@ -13,8 +13,9 @@ import { TEE, teePromo } from "./promo.js";
 import { REG_MAX_ITEMS, REG_POOL_MIN_CENTS, validateRegistry, registrySlug, validateRegItem, publicRegistry, REG_AI_SYSTEM, regAiPrompt, parseRegAi, poolTarget, reminderSendOn, validateReminder, reminderEmail } from "./registry.js";
 import { ASSIST_SYSTEM, MAX_STEPS, SHELF_MAX, storeBrief, assistPrompt, parseAssist, matchHide, pickShelf, describeStep, PICK_SYSTEM, pickPrompt, applyPicks, capKinds } from "./assistant.js";
 import { ogTags, poolMeta, registryMeta, storeMeta, PLATFORM_META, REGISTRY_HOME_META } from "./meta.js";
-import { shopCard, validateShopOrder, validateFields, pickRate, designSvg, PTYPES, TEMPLATES, SAMPLES, parseKind, rowKind, storeShopShelf, shopPayPalOrder, printfulOrder, receiptEmail } from "./shop.js";
+import { shopCard, validateShopOrder, validateFields, pickRate, designSvg, PTYPES, TEMPLATES, SAMPLES, parseKind, rowKind, storeShopShelf, printSize, renderWidth, exampleFor, shopPayPalOrder, printfulOrder, receiptEmail } from "./shop.js";
 import { svgToPng } from "./print.js";
+import STORE_MOCKUPS from "./shop-mockups.json";
 
 const now = () => new Date().toISOString();
 // Guide price/stock refresh budget (see the /gifts/<slug> route): ~570 pages every 14 days is ~40 a day, ~280 searches.
@@ -406,11 +407,12 @@ async function pf(env, path, { method = "GET", body } = {}) {
 }
 // The shelf: every product in the gift.directory Printful store, cached for 30 minutes.
 async function shopCards(env) {
-  const key = new Request(`https://cache.gift.directory/shop-cards/${env.PRINTFUL_STORE_ID}/v3`), cache = caches.default;
+  const key = new Request(`https://cache.gift.directory/shop-cards/${env.PRINTFUL_STORE_ID}/v4`), cache = caches.default;
   const hit = await cache.match(key); if (hit) return hit.json();
   const list = await pf(env, "/store/products?limit=100");
   const cards = (await Promise.all(list.map(p => pf(env, `/store/products/${p.id}`).then(shopCard).catch(() => null)))).filter(Boolean);
-  const T = ["role", "milestone", "roster", "text"], P = ["tee", "hoodie", "mug"], rank = c => c.kind === "tpl" ? T.indexOf(c.tpl) * 10 + P.indexOf(c.ptype) : 99;
+  const T = ["role", "milestone", "roster", "text"], P = ["tee", "hoodie", "mug"], I = Object.keys(PTYPES);
+  const rank = c => c.kind !== "tpl" ? 999 : c.tpls && c.tpls.length > 1 ? 100 + I.indexOf(c.ptype) : T.indexOf(c.tpl) * 10 + P.indexOf(c.ptype);
   cards.sort((a, b) => rank(a) - rank(b));   // the shelf by design, each as tee, hoodie, mug; fixed designs last
   await cache.put(key, new Response(JSON.stringify(cards), { headers: { "content-type": "application/json", "cache-control": "max-age=1800" } }));
   return cards;
@@ -641,24 +643,32 @@ export default {
         if (parts[2] === "products" && m === "GET") return J({ products: await shopCards(env), live: env.PAYPAL_ENV === "live", public: env.SHOP_PUBLIC === "1" });
         // The print file Printful downloads for a paid order of a template product.
         if (parts[2] === "print" && parts[3] && m === "GET") {
-          const o = await db.prepare("SELECT kind, lines_json, status FROM shop_orders WHERE id=?").bind(parts[3].replace(/\.png$/, "")).first();
+          const o = await db.prepare("SELECT kind, lines_json, status, pf_catalog_variant_id FROM shop_orders WHERE id=?").bind(parts[3].replace(/\.png$/, "")).first();
           const k = o && o.status === "paid" && parseKind(o.kind);
           if (!k) return new Response("not found", { status: 404 });
-          return new Response(await svgToPng(designSvg(k.tpl, k.ptype, JSON.parse(o.lines_json)), PTYPES[k.ptype].w), { headers: { "content-type": "image/png", "cache-control": "public, max-age=86400" } });
+          const [w, h] = printSize(k.ptype, o.pf_catalog_variant_id);
+          return new Response(await svgToPng(designSvg(k.tpl, k.ptype, JSON.parse(o.lines_json), [w, h]), renderWidth(w, h)), { headers: { "content-type": "image/png", "cache-control": "public, max-age=86400" } });
         }
         // A template's sample design at full print size (what the Printful product was set up with).
         if (parts[2] === "sample" && TEMPLATES[parts[3]] && PTYPES[(parts[4] || "").replace(/\.png$/, "")] && m === "GET") {
           const pt = parts[4].replace(/\.png$/, "");
-          return new Response(await svgToPng(designSvg(parts[3], pt, SAMPLES[parts[3]]), PTYPES[pt].w), { headers: { "content-type": "image/png", "cache-control": "public, max-age=86400" } });
+          return new Response(await svgToPng(designSvg(parts[3], pt, SAMPLES[parts[3]]), renderWidth(PTYPES[pt].w, PTYPES[pt].h)), { headers: { "content-type": "image/png", "cache-control": "public, max-age=86400" } });
+        }
+        // A pick-your-design item's example at print size.
+        if (parts[2] === "sample" && parts[3] === "item" && PTYPES[(parts[4] || "").replace(/\.png$/, "")] && m === "GET") {
+          const pt = parts[4].replace(/\.png$/, ""), ex = exampleFor(pt) || { tpl: "role", vals: SAMPLES.role };
+          return new Response(await svgToPng(designSvg(ex.tpl, pt, ex.vals), renderWidth(PTYPES[pt].w, PTYPES[pt].h)), { headers: { "content-type": "image/png", "cache-control": "public, max-age=3600" } });
         }
         // The live preview while the buyer types: the real print file, small. ?f=<field>&f=<field>...
         if (parts[2] === "preview" && parts[3] && m === "GET") {
           const c = (await shopCards(env)).find(x => x.id === Number(parts[3].replace(/\.png$/, "")));
           if (!c || c.kind !== "tpl") return new Response("not found", { status: 404 });
-          const v = validateFields(c.tpl, url.searchParams.getAll("f"));
+          const t = (c.tpls || [c.tpl]).includes(url.searchParams.get("t")) ? url.searchParams.get("t") : c.tpl;
+          const v = validateFields(t, url.searchParams.getAll("f"));
           if (v.error) return J({ error: v.error }, 400);
           const cache = caches.default, key = new Request(url.toString()), hit = await cache.match(key); if (hit) return hit;
-          const res = new Response(await svgToPng(designSvg(c.tpl, c.ptype, v.lines), 600), { headers: { "content-type": "image/png", "cache-control": "public, max-age=86400" } });
+          // ?full=1 renders at print size (used to make product mockups); otherwise a small preview.
+          const res = new Response(await svgToPng(designSvg(t, c.ptype, v.lines), url.searchParams.get("full") === "1" ? renderWidth(PTYPES[c.ptype].w, PTYPES[c.ptype].h) : 600), { headers: { "content-type": "image/png", "cache-control": "public, max-age=86400" } });
           await cache.put(key, res.clone()); return res;
         }
         if ((parts[2] === "quote" || parts[2] === "checkout") && m === "POST") {
@@ -680,7 +690,7 @@ export default {
           const href = pp.status < 300 && pp.body ? (link(pp.body, "payer-action") || link(pp.body, "approve") || {}).href : null;
           if (!href) return J({ error: "PayPal could not start the payment.", paypal_status: pp.status, detail: pp.body && pp.body.details }, 502);
           await db.prepare("INSERT INTO shop_orders (id,pf_product_id,pf_sync_variant_id,pf_catalog_variant_id,kind,title,variant_label,qty,lines_json,gift_message,recipient_json,email,unit_cents,subtotal_cents,shipping_cents,total_cents,status,paypal_order_id,ip_hash,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',?,?,?,?)")
-            .bind(id, o.card.id, o.variant.id, o.variant.catalog_id, rowKind(o.card), o.card.title, label || null, o.qty, o.lines ? JSON.stringify(o.lines) : null, o.gift_message,
+            .bind(id, o.card.id, o.variant.id, o.variant.catalog_id, rowKind(o.card, o.tpl), o.card.title, label || null, o.qty, o.lines ? JSON.stringify(o.lines) : null, o.gift_message,
               JSON.stringify(o.recipient), o.recipient.email, o.variant.price_cents, sub, rate.cents, sub + rate.cents, pp.body.id, ipHash, t, t).run();
           return J({ url: href });
         }
@@ -842,7 +852,7 @@ export default {
         if (!store) return J({ error: "No store here." }, 404);
         const user = await currentUser(db, request);
         // Our own shop's personalized products, once the shop is public (SHOP_PUBLIC=1); a Printful hiccup just leaves the shelf out.
-        const shopShelf = env.SHOP_PUBLIC === "1" && env.PRINTFUL_TOKEN ? await shopCards(env).then(c => storeShopShelf(c, store.slug, `https://${ROOT}`)).catch(() => null) : null;
+        const shopShelf = env.SHOP_PUBLIC === "1" && env.PRINTFUL_TOKEN ? await shopCards(env).then(c => storeShopShelf(c, store.slug, `https://${ROOT}`, STORE_MOCKUPS)).catch(() => null) : null;
         return withCookie(Promise.resolve(J({ ...publicStore(store), shelves: [...(shopShelf ? [shopShelf] : []), ...await ownShelf(db, store.id), ...shelves(await storeItems(db, store.id))],
           promo: teeOn(store) ? await teePrice(env).then(c => c < 0 ? null : teePromo(store, c)) : null, can_edit: ownsStore(user, store) })), setCookie);
       }

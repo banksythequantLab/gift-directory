@@ -59,16 +59,21 @@ window.onpopstate = () => { const p = new URLSearchParams(location.search).get("
 
 function detail(p) {
   const colors = [...new Set(p.variants.map(v => v.color))];
-  const text = p.kind === "tpl", mug = p.ptype === "mug";
+  const text = p.kind === "tpl", wrap = ["mug", "rocks", "wine", "tumbler", "bowl"].includes(p.ptype), light = text && /^#(f|e)/i.test(p.print.bg);
+  const pre = new URLSearchParams(location.search), fromLink = pre.get("p") === String(p.id);
+  let tpl = text ? ((p.tpls || []).includes(fromLink && pre.get("t")) ? pre.get("t") : p.tpl) : null;
+  const fieldsOf = () => ((p.designs || []).find(d => d.tpl === tpl) || { fields: p.fields }).fields;
+  const exOf = () => p.example && p.example.tpl === tpl ? p.example.vals : null;
   $("#app").innerHTML = `<p><a href="/shop" id="back">← All products</a></p><div class="buy">
-  <div>${text ? `<div class="pv" style="background:${p.print.bg};aspect-ratio:${p.print.w}/${p.print.h}${mug ? ";border:1px solid var(--line)" : ""}"><img id="pvimg" alt="Preview of your design"></div>
-    <p class="muted small">Preview of the print${mug ? " (it goes on both sides of the mug)" : ""}.</p>` : ""}
+  <div>${text ? `<div class="pv" style="background:${p.print.bg};aspect-ratio:${p.print.w}/${p.print.h}${light ? ";border:1px solid var(--line)" : ""}"><img id="pvimg" alt="Preview of your design"></div>
+    <p class="muted small">Preview of the print${wrap ? " (printed on both sides)" : ""}.</p>` : ""}
     ${p.image ? `<img src="${esc(p.image)}" alt="${esc(p.title)}" style="${text ? "margin-top:10px" : ""}">` : ""}</div>
   <div><h2 style="margin-top:0">${esc(p.title)}</h2>${p.subtitle ? `<p class="muted">${esc(p.subtitle)}</p>` : ""}
     ${colors.length > 1 ? `<label for="color">Color</label><select id="color">${colors.map(c => `<option>${esc(c)}</option>`).join("")}</select>` : ""}
     <label for="size">Size</label><select id="size"></select>
     <label for="qty">Quantity</label><input id="qty" type="number" min="1" max="10" value="1">
-    ${text ? p.fields.map((f, i) => `<label for="f${i}">${esc(f.label)}</label><input id="f${i}" maxlength="${f.max}" placeholder="${esc(f.ph)}">`).join("") : ""}
+    ${text && p.designs && p.designs.length > 1 ? `<label for="dz">Design</label><select id="dz">${p.designs.map(d => `<option value="${d.tpl}"${d.tpl === tpl ? " selected" : ""}>${esc(d.name)}</option>`).join("")}</select>` : ""}
+    ${text ? `<div id="fields"></div>` : ""}
     <label for="gm">Gift message (optional, printed on the packing slip)</label><textarea id="gm" maxlength="200" rows="2"></textarea>
     <h3>Ship to</h3>
     <label for="rn">Name</label><input id="rn" autocomplete="name">
@@ -87,19 +92,24 @@ function detail(p) {
     $("#size").innerHTML = p.variants.filter(v => v.color === c).map(v => `<option value="${v.id}">${esc(v.size || "One size")}${v.price_cents !== p.price_cents ? " — " + money(v.price_cents) : ""}</option>`).join(""); };
   if ($("#color")) $("#color").onchange = () => { sizes(); quote(); };
   sizes();
-  // Arriving from a store's "Personalize it" shelf: the store's example is filled in, ready to edit.
-  const pre = new URLSearchParams(location.search);
-  if (text && pre.get("p") === String(p.id)) pre.getAll("f").forEach((v, i) => { if ($("#f" + i)) $("#f" + i).value = v.slice(0, p.fields[i].max); });
-  const vals = () => p.fields.map((_, i) => $("#f" + i).value);
+  const vals = () => fieldsOf().map((_, i) => $("#f" + i).value);
+  // The preview is the real print file, rendered small by the server. Untouched, it shows the product's example;
+  // otherwise empty required fields show their placeholder.
+  let pt = null; const prev = () => { clearTimeout(pt); pt = setTimeout(() => {
+    const vs = vals(), ex = exOf(), q = new URLSearchParams([["t", tpl]]);
+    const show = !vs.some(v => v.trim()) && ex ? ex : vs.map((v, i) => v.trim() || (fieldsOf()[i].req ? (ex && ex[i]) || fieldsOf()[i].ph : ""));
+    show.forEach(v => q.append("f", v));
+    $("#pvimg").src = `/api/shop/preview/${p.id}.png?${q}`; }, 350); };
+  const renderFields = (vs = []) => { const ex = exOf();
+    $("#fields").innerHTML = fieldsOf().map((f, i) => `<label for="f${i}">${esc(f.label)}</label><input id="f${i}" maxlength="${f.max}" placeholder="${esc((ex && ex[i]) || f.ph)}" value="${esc((vs[i] || "").slice(0, f.max))}">`).join("");
+    fieldsOf().forEach((_, i) => $("#f" + i).addEventListener("input", prev)); prev(); };
   if (text) {
-    // The preview is the real print file, rendered small by the server; empty required fields show their example.
-    let pt = null; const prev = () => { clearTimeout(pt); pt = setTimeout(() => {
-      const q = new URLSearchParams(); vals().forEach((v, i) => q.append("f", v.trim() || (p.fields[i].req ? p.fields[i].ph : "")));
-      $("#pvimg").src = `/api/shop/preview/${p.id}.png?${q}`; }, 350); };
-    p.fields.forEach((_, i) => $("#f" + i).addEventListener("input", prev)); prev();
+    // Arriving from a store's "Personalize it" shelf: the store's example is filled in, ready to edit.
+    renderFields(fromLink ? pre.getAll("f") : []);
+    if ($("#dz")) $("#dz").onchange = () => { tpl = $("#dz").value; renderFields(); };
   }
   const body = () => ({ product_id: p.id, variant_id: Number($("#size").value), qty: Number($("#qty").value || 1),
-    lines: text ? vals() : undefined, gift_message: $("#gm").value,
+    tpl: tpl || undefined, lines: text ? vals() : undefined, gift_message: $("#gm").value,
     recipient: { name: $("#rn").value, address1: $("#ra").value, address2: $("#rb").value, city: $("#rc").value, state_code: $("#rs").value, zip: $("#rz").value, email: $("#re").value } });
   let qt = null;
   async function quote() {

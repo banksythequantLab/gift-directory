@@ -1,6 +1,6 @@
 // The direct shop: product cards from Printful, order checks, the design templates and print files, PayPal and Printful payloads.
 import { shopCard, shortTitle, kindOf, validateShopOrder, validateFields, pickRate, designSvg, designItems, parseKind, rowKind, TEMPLATES, SAMPLES, PTYPES,
-  shopPayPalOrder, printfulOrder, receiptEmail, storeShopShelf, STORE_SHELVES } from "../shop.js";
+  shopPayPalOrder, printfulOrder, receiptEmail, storeShopShelf, STORE_SHELVES, printSize, renderWidth } from "../shop.js";
 
 let passed = 0, failed = 0;
 const ok = (n, c, d = "") => { c ? passed++ : (failed++, console.log(`FAIL  ${n}${d ? "  - " + d : ""}`)); };
@@ -71,13 +71,37 @@ for (const t of Object.keys(TEMPLATES)) for (const f of TEMPLATES[t].fields) ok(
 // designs: nothing may run past the print box at the longest allowed text
 const longest = t => TEMPLATES[t].fields.map(f => "W".repeat(f.max));
 for (const t of Object.keys(TEMPLATES)) for (const p of Object.keys(PTYPES)) {
-  const bw = PTYPES[p].box.w, its = designItems(t, longest(t), bw).filter(i => !i.rule);
+  const P = PTYPES[p], bw = Math.round(P.w * P.bw), its = designItems(t, longest(t), bw).filter(i => !i.rule);
   ok(`${t}/${p}: every line fits the box`, its.every(i => i.t.length * i.fs * (0.7 + i.ls) <= bw + 1), JSON.stringify(its.map(i => [i.t.length, i.fs])));
-  const svg = designSvg(t, p, SAMPLES[t]);
-  has(`${t}/${p}: print size`, svg, `width="${PTYPES[p].w}" height="${PTYPES[p].h}"`);
-  const ys = [...svg.matchAll(/ y="(\d+)"/g)].map(m => Number(m[1]));
-  ok(`${t}/${p}: inside the print area`, ys.every(y => y > 0 && y < PTYPES[p].h), String(ys));
+  for (const vals of [SAMPLES[t], longest(t)]) {
+    const svg = designSvg(t, p, vals);
+    has(`${t}/${p}: print size`, svg, `width="${P.w}" height="${P.h}"`);
+    const ys = [...svg.matchAll(/<text [^>]* y="(\d+)"/g)].map(m => Number(m[1])), fss = [...svg.matchAll(/font-size="(\d+)"/g)].map(m => Number(m[1]));
+    ok(`${t}/${p}: inside the print area`, ys.every((y, i) => y - fss[i] * 0.74 >= 0 && y < P.h), `${ys} / h ${P.h}`);
+  }
 }
+// per-variant print sizes, render cap, backgrounds, two-sided items
+eq("variant print size", printSize("deskmat", 22327), [9921, 5197]);
+eq("default print size", printSize("deskmat", 1), [5610, 3839]);
+has("variant size in the svg", designSvg("role", "deskmat", SAMPLES.role, [9921, 5197]), 'width="9921" height="5197"');
+ok("render capped at 3600 on the long side", renderWidth(9921, 5197) === 3600 && renderWidth(1800, 2400) === 1800 && renderWidth(1076, 2085) === 1076);
+has("puzzle prints on a background", designSvg("roster", "puzzle", SAMPLES.roster), '<rect width="4200" height="3300" fill="#1f3a5f"/>');
+ok("tee has no background", !designSvg("role", "tee", SAMPLES.role).includes('<rect width='));
+eq("can cooler prints front and back", printfulOrder({ id: "x", kind: "tpl:roster:cooler", pf_catalog_variant_id: 19461, title: "t", qty: 1, unit_cents: 1, subtotal_cents: 1, shipping_cents: 1, recipient_json: JSON.stringify(rcpt) }, "u").items[0].files.map(f => f.type), ["front", "back"]);
+for (const p of Object.keys(PTYPES)) if (PTYPES[p].example) ok(`${p} example is valid`, !validateFields(PTYPES[p].example.tpl, PTYPES[p].example.vals).error, validateFields(PTYPES[p].example.tpl, PTYPES[p].example.vals).error);
+const wine = designSvg("roster", "wine", ["The Smiths", "Lake Weekend 2026", "Ann, Ben, Cara, Dev, Eve, Fay, Gus"]);
+has("short print area keeps the main line", wine, ">THE SMITHS<");
+ok("short print area drops lines too small to print", [...wine.matchAll(/font-size="(\d+)"/g)].every(m => Number(m[1]) >= 39), wine.slice(0, 300));
+eq("tee keeps every line", (designSvg("roster", "tee", ["The Smiths", "Lake Weekend 2026", "Ann, Ben, Cara"]).match(/<text /g) || []).length, 3);
+// a pick-your-design item
+const item = shopCard({ sync_product: { id: 20, name: "Personalized Rocks Glass, 10.5 oz", external_id: "gd-item-rocks", thumbnail_url: "https://img/r.jpg" }, sync_variants: [sv(8, "10.5 oz", "22.99")] });
+eq("item card", [item.kind, item.ptype, item.tpl, item.tpls.length, item.designs.length], ["tpl", "rocks", "milestone", 4, 4]);
+eq("item carries its example", item.example.vals[0], "Made Partner");
+eq("unknown item type is fixed", shopCard({ sync_product: { id: 21, name: "X", external_id: "gd-item-nope" }, sync_variants: [sv(8, "M", "9")] }).kind, "fixed");
+const pick = validateShopOrder({ ...good, product_id: 20, variant_id: 8, tpl: "role", lines: ["Ann Lee", "Nurse", ""] }, item);
+eq("buyer's design choice kept", [pick.order.tpl, rowKind(item, pick.order.tpl)], ["role", "tpl:role:rocks"]);
+eq("design not offered falls back to the default", validateShopOrder({ ...good, product_id: 20, variant_id: 8, tpl: "nope", lines: ["Retired"] }, item).order.tpl, "milestone");
+has("chosen design's fields are checked", validateShopOrder({ ...good, product_id: 20, variant_id: 8, tpl: "role", lines: ["Ann Lee"] }, item).error, "Role or title");
 has("svg escapes", designSvg("text", "tee", ["A & <B>", "TWO"]), "A &amp; &lt;B&gt;");
 ok("text keeps case", designSvg("text", "tee", ["Hello", ""]).includes(">Hello<"));
 ok("role upper-cases", designSvg("role", "tee", ["Ann Lee", "Nurse", ""]).includes(">ANN LEE<"));
@@ -140,6 +164,12 @@ eq("card marked as ours", [nurse.cards[0].own, nurse.cards[0].merchant, nurse.ca
 ok("fixed products not on the shelf", !nurse.cards.some(c => c.product_id === "shop:10"));
 eq("missing products are skipped", storeShopShelf([tcard(1, "role", "tee")], "lawyers").cards.length, 1);
 eq("empty shop, no shelf", storeShopShelf([], "lawyers"), null);
+const withItems = [...shopCards, { ...tcard(30, "milestone", "rocks"), tpls: Object.keys(TEMPLATES) }, { ...tcard(31, "role", "deskmat"), tpls: Object.keys(TEMPLATES) }];
+const law = storeShopShelf(withItems, "lawyers");
+eq("store's items join its shelf", law.cards.length, 10);
+eq("item link opens the right design", law.cards[8].url, "https://gift.directory/shop?p=30&t=milestone&f=Made+Partner&f=2026&f=Jane+Doe%2C+Esq.");
+eq("nurse shelf skips items the shop doesn't have", storeShopShelf(withItems, "nurses").cards.length, 8);
+eq("store mockup used when there is one", storeShopShelf(shopCards, "nurses", "https://gift.directory", { nurses: { 2: "https://m/n2.jpg" } }).cards.map(c => c.image).slice(0, 2), ["https://img/1.jpg", "https://m/n2.jpg"]);
 
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
