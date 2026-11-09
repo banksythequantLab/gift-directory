@@ -45,15 +45,15 @@ export const PTYPES = {
     example: { tpl: "role", vals: ["Bella", "Good Girl", "Est. 2021"] } },
   stocking: { placement: "front", w: 3184, h: 3246, ink: "#2b2118", bg: "#efe6d6", bw: 0.72,
     example: { tpl: "text", vals: ["Ava", ""] } },
-  rocks: { placement: "default", w: 3060, h: 600, ink: DARK, bg: "#eef3f6", bw: 0.33, copies: [0.25, 0.75],
+  rocks: { placement: "default", w: 3060, h: 600, ink: DARK, bg: "#eef3f6", bw: 0.5, copies: [0.5],
     example: { tpl: "milestone", vals: ["Made Partner", "2026", "Jane Doe, Esq."] } },
-  wine: { placement: "default", w: 3176, h: 413, ink: DARK, bg: "#eef3f6", bw: 0.3, copies: [0.25, 0.75],
+  wine: { placement: "default", w: 3176, h: 413, ink: DARK, bg: "#eef3f6", bw: 0.45, copies: [0.5],
     example: { tpl: "milestone", vals: ["Retired", "2026", ""] } },
-  tumbler: { placement: "default", w: 3017, h: 1200, ink: DARK, bg: "#ffffff", bw: 0.38, copies: [0.25, 0.75],
+  tumbler: { placement: "default", w: 3017, h: 1200, ink: DARK, bg: "#ffffff", bw: 0.3, copies: [0.5],
     example: { tpl: "role", vals: ["Jane Doe, RN", "Emergency Nursing", "Est. 2026"] } },
   cooler: { placements: ["front", "back"], w: 1260, h: 1528, sizes: { 19461: [1260, 1528], 19462: [1076, 2085] }, ink: DARK, bg: "#ffffff", bw: 0.85,
     example: { tpl: "roster", vals: ["The Smiths", "Lake Weekend 2026", ""] } },
-  bowl: { placement: "default", w: 6496, h: 803, ink: DARK, bg: "#ffffff", bw: 0.2, copies: [0.25, 0.75],
+  bowl: { placement: "default", w: 6496, h: 803, ink: DARK, bg: "#ffffff", bw: 0.3, copies: [0.5],
     example: { tpl: "role", vals: ["Bella", "Good Girl", ""] } },
   board: { placement: "front", dpi: 200, w: 3150, h: 2350, sizes: { 23468: [3150, 2350], 23469: [2250, 1650] }, ink: DARK, bg: "#ffffff", fill: "#ffffff", bw: 0.6,
     example: { tpl: "roster", vals: ["The Smiths", "Est. 2015", ""] } },
@@ -68,6 +68,8 @@ export const PTYPES = {
 export const printSize = (ptype, catalogVariant) => (PTYPES[ptype].sizes && PTYPES[ptype].sizes[catalogVariant]) || [PTYPES[ptype].w, PTYPES[ptype].h];
 // Rendering width for a print file: full size up to 3600 px on the long side (Workers memory); Printful scales up.
 export const renderWidth = (w, h) => Math.round(w * Math.min(1, 3600 / Math.max(w, h)));
+// Bump when any design or print layout changes, so cached previews are redrawn.
+export const DESIGN_VERSION = 2;
 export const exampleFor = ptype => PTYPES[ptype].example || null;
 // What an order row's `kind` means: "fixed", "tpl:<template>:<product type>", or the first shop's "text" (custom-text tee).
 export function parseKind(kind) {

@@ -13,7 +13,7 @@ import { TEE, teePromo } from "./promo.js";
 import { REG_MAX_ITEMS, REG_POOL_MIN_CENTS, validateRegistry, registrySlug, validateRegItem, publicRegistry, REG_AI_SYSTEM, regAiPrompt, parseRegAi, poolTarget, reminderSendOn, validateReminder, reminderEmail } from "./registry.js";
 import { ASSIST_SYSTEM, MAX_STEPS, SHELF_MAX, storeBrief, assistPrompt, parseAssist, matchHide, pickShelf, describeStep, PICK_SYSTEM, pickPrompt, applyPicks, capKinds } from "./assistant.js";
 import { ogTags, poolMeta, registryMeta, storeMeta, PLATFORM_META, REGISTRY_HOME_META } from "./meta.js";
-import { shopCard, validateShopOrder, validateFields, pickRate, designSvg, PTYPES, TEMPLATES, SAMPLES, parseKind, rowKind, storeShopShelf, printSize, renderWidth, exampleFor, shopPayPalOrder, printfulOrder, receiptEmail } from "./shop.js";
+import { shopCard, validateShopOrder, validateFields, pickRate, designSvg, PTYPES, TEMPLATES, SAMPLES, parseKind, rowKind, storeShopShelf, printSize, renderWidth, exampleFor, DESIGN_VERSION, shopPayPalOrder, printfulOrder, receiptEmail } from "./shop.js";
 import { svgToPng } from "./print.js";
 import STORE_MOCKUPS from "./shop-mockups.json";
 
@@ -407,7 +407,7 @@ async function pf(env, path, { method = "GET", body } = {}) {
 }
 // The shelf: every product in the gift.directory Printful store, cached for 30 minutes.
 async function shopCards(env) {
-  const key = new Request(`https://cache.gift.directory/shop-cards/${env.PRINTFUL_STORE_ID}/v4`), cache = caches.default;
+  const key = new Request(`https://cache.gift.directory/shop-cards/${env.PRINTFUL_STORE_ID}/v7`), cache = caches.default;
   const hit = await cache.match(key); if (hit) return hit.json();
   const list = await pf(env, "/store/products?limit=100");
   const cards = (await Promise.all(list.map(p => pf(env, `/store/products/${p.id}`).then(shopCard).catch(() => null)))).filter(Boolean);
@@ -666,7 +666,7 @@ export default {
           const t = (c.tpls || [c.tpl]).includes(url.searchParams.get("t")) ? url.searchParams.get("t") : c.tpl;
           const v = validateFields(t, url.searchParams.getAll("f"));
           if (v.error) return J({ error: v.error }, 400);
-          const cache = caches.default, key = new Request(url.toString()), hit = await cache.match(key); if (hit) return hit;
+          const cache = caches.default, key = new Request(`${url.toString()}&dv=${DESIGN_VERSION}`), hit = await cache.match(key); if (hit) return hit;
           // ?full=1 renders at print size (used to make product mockups); otherwise a small preview.
           const res = new Response(await svgToPng(designSvg(t, c.ptype, v.lines), url.searchParams.get("full") === "1" ? renderWidth(PTYPES[c.ptype].w, PTYPES[c.ptype].h) : 600), { headers: { "content-type": "image/png", "cache-control": "public, max-age=86400" } });
           await cache.put(key, res.clone()); return res;

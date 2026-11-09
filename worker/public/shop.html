@@ -59,7 +59,7 @@ window.onpopstate = () => { const p = new URLSearchParams(location.search).get("
 
 function detail(p) {
   const colors = [...new Set(p.variants.map(v => v.color))];
-  const text = p.kind === "tpl", wrap = ["mug", "rocks", "wine", "tumbler", "bowl"].includes(p.ptype), light = text && /^#(f|e)/i.test(p.print.bg);
+  const text = p.kind === "tpl", wrap = p.ptype === "mug", light = text && /^#(f|e)/i.test(p.print.bg);
   const pre = new URLSearchParams(location.search), fromLink = pre.get("p") === String(p.id);
   let tpl = text ? ((p.tpls || []).includes(fromLink && pre.get("t")) ? pre.get("t") : p.tpl) : null;
   const fieldsOf = () => ((p.designs || []).find(d => d.tpl === tpl) || { fields: p.fields }).fields;
