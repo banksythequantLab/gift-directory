@@ -1,6 +1,6 @@
 // The direct shop: product cards from Printful, order checks, the design templates and print files, PayPal and Printful payloads.
 import { shopCard, shortTitle, kindOf, validateShopOrder, validateFields, pickRate, designSvg, designItems, parseKind, rowKind, TEMPLATES, SAMPLES, PTYPES,
-  shopPayPalOrder, printfulOrder, receiptEmail } from "../shop.js";
+  shopPayPalOrder, printfulOrder, receiptEmail, storeShopShelf, STORE_SHELVES } from "../shop.js";
 
 let passed = 0, failed = 0;
 const ok = (n, c, d = "") => { c ? passed++ : (failed++, console.log(`FAIL  ${n}${d ? "  - " + d : ""}`)); };
@@ -122,6 +122,24 @@ has("receipt subject", m.subject, "Custom Text Shirt");
 has("receipt total", m.text, "$59.75");
 has("receipt text lines", m.html, "WORLD&#39;S BEST / AUNT");
 has("receipt skips empty fields", receiptEmail({ ...row, lines_json: JSON.stringify(["Ann", "Nurse", ""]) }).text, "Your text: Ann / Nurse\n");
+
+// a store's "Personalize it" shelf
+const tcard = (id, tpl, ptype) => ({ id, kind: "tpl", tpl, ptype, title: `${tpl} ${ptype}`, image: `https://img/${id}.jpg`, price_cents: 1699 });
+const shopCards = [tcard(1, "role", "tee"), tcard(2, "role", "mug"), tcard(3, "role", "hoodie"), tcard(4, "milestone", "tee"), tcard(5, "milestone", "mug"),
+  tcard(6, "text", "tee"), tcard(7, "text", "mug"), tcard(8, "roster", "tee"), tcard(9, "roster", "hoodie"), { id: 10, kind: "fixed", title: "Hurricane" }];
+eq("no shelf for other stores", storeShopShelf(shopCards, "friend-gifts"), null);
+for (const slug of Object.keys(STORE_SHELVES)) {
+  const sh = storeShopShelf(shopCards, slug);
+  eq(`${slug}: eight personalized products`, sh.cards.length, 8);
+  for (const t of Object.keys(STORE_SHELVES[slug])) ok(`${slug}/${t} example is valid`, !validateFields(t, STORE_SHELVES[slug][t]).error, validateFields(t, STORE_SHELVES[slug][t]).error);
+}
+const nurse = storeShopShelf(shopCards, "nurses");
+eq("shelf title", nurse.title, "Personalize it");
+eq("link opens the product with the store's example", nurse.cards[0].url, "https://gift.directory/shop?p=1&f=Jane+Doe%2C+RN&f=Emergency+Nursing&f=Est.+2026");
+eq("card marked as ours", [nurse.cards[0].own, nurse.cards[0].merchant, nurse.cards[0].product_id], [true, "gift.directory", "shop:1"]);
+ok("fixed products not on the shelf", !nurse.cards.some(c => c.product_id === "shop:10"));
+eq("missing products are skipped", storeShopShelf([tcard(1, "role", "tee")], "lawyers").cards.length, 1);
+eq("empty shop, no shelf", storeShopShelf([], "lawyers"), null);
 
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

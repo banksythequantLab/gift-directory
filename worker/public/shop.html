@@ -87,6 +87,9 @@ function detail(p) {
     $("#size").innerHTML = p.variants.filter(v => v.color === c).map(v => `<option value="${v.id}">${esc(v.size || "One size")}${v.price_cents !== p.price_cents ? " — " + money(v.price_cents) : ""}</option>`).join(""); };
   if ($("#color")) $("#color").onchange = () => { sizes(); quote(); };
   sizes();
+  // Arriving from a store's "Personalize it" shelf: the store's example is filled in, ready to edit.
+  const pre = new URLSearchParams(location.search);
+  if (text && pre.get("p") === String(p.id)) pre.getAll("f").forEach((v, i) => { if ($("#f" + i)) $("#f" + i).value = v.slice(0, p.fields[i].max); });
   const vals = () => p.fields.map((_, i) => $("#f" + i).value);
   if (text) {
     // The preview is the real print file, rendered small by the server; empty required fields show their example.

@@ -13,7 +13,7 @@ import { TEE, teePromo } from "./promo.js";
 import { REG_MAX_ITEMS, REG_POOL_MIN_CENTS, validateRegistry, registrySlug, validateRegItem, publicRegistry, REG_AI_SYSTEM, regAiPrompt, parseRegAi, poolTarget, reminderSendOn, validateReminder, reminderEmail } from "./registry.js";
 import { ASSIST_SYSTEM, MAX_STEPS, SHELF_MAX, storeBrief, assistPrompt, parseAssist, matchHide, pickShelf, describeStep, PICK_SYSTEM, pickPrompt, applyPicks, capKinds } from "./assistant.js";
 import { ogTags, poolMeta, registryMeta, storeMeta, PLATFORM_META, REGISTRY_HOME_META } from "./meta.js";
-import { shopCard, validateShopOrder, validateFields, pickRate, designSvg, PTYPES, TEMPLATES, SAMPLES, parseKind, rowKind, shopPayPalOrder, printfulOrder, receiptEmail } from "./shop.js";
+import { shopCard, validateShopOrder, validateFields, pickRate, designSvg, PTYPES, TEMPLATES, SAMPLES, parseKind, rowKind, storeShopShelf, shopPayPalOrder, printfulOrder, receiptEmail } from "./shop.js";
 import { svgToPng } from "./print.js";
 
 const now = () => new Date().toISOString();
@@ -841,7 +841,9 @@ export default {
         if (platform) return J({ platform: true });
         if (!store) return J({ error: "No store here." }, 404);
         const user = await currentUser(db, request);
-        return withCookie(Promise.resolve(J({ ...publicStore(store), shelves: [...await ownShelf(db, store.id), ...shelves(await storeItems(db, store.id))],
+        // Our own shop's personalized products, once the shop is public (SHOP_PUBLIC=1); a Printful hiccup just leaves the shelf out.
+        const shopShelf = env.SHOP_PUBLIC === "1" && env.PRINTFUL_TOKEN ? await shopCards(env).then(c => storeShopShelf(c, store.slug, `https://${ROOT}`)).catch(() => null) : null;
+        return withCookie(Promise.resolve(J({ ...publicStore(store), shelves: [...(shopShelf ? [shopShelf] : []), ...await ownShelf(db, store.id), ...shelves(await storeItems(db, store.id))],
           promo: teeOn(store) ? await teePrice(env).then(c => c < 0 ? null : teePromo(store, c)) : null, can_edit: ownsStore(user, store) })), setCookie);
       }
 

@@ -62,6 +62,30 @@ export function shopCard(d) {
   };
 }
 
+// ---------- the "Personalize it" shelf in a store (shown only when SHOP_PUBLIC is on) ----------
+// Each store gets the shop's template products, opened with an example written for its people.
+export const STORE_SHELVES = {
+  lawyers: { role: ["Jane Doe, Esq.", "Attorney at Law", "Admitted 2026"], milestone: ["Made Partner", "2026", "Jane Doe, Esq."],
+    text: ["OBJECTION!", "SUSTAINED"], roster: ["Doe & Partners", "Firm Retreat 2026", "Ann, Ben, Cara, Dev"] },
+  nurses: { role: ["Jane Doe, RN", "Emergency Nursing", "Est. 2026"], milestone: ["Finally an RN", "2026", "Jane Doe"],
+    text: ["NURSE BY DAY", "CAFFEINATED BY NIGHT"], roster: ["4 West Night Crew", "Nurses Week 2026", "Ann, Ben, Cara, Dev"] },
+  "firefighter-gifts": { role: ["Capt. Jane Doe", "Engine Company 12", "Est. 2026"], milestone: ["Retired", "2026", "Capt. Jane Doe"],
+    text: ["FIRST IN", "LAST OUT"], roster: ["Engine 12", "Station 12 Family", "Ann, Ben, Cara, Dev"] },
+};
+const SHELF_PICKS = [["role", "tee"], ["role", "mug"], ["role", "hoodie"], ["milestone", "tee"], ["milestone", "mug"], ["text", "tee"], ["text", "mug"], ["roster", "tee"]];
+export function storeShopShelf(cards, slug, origin = "https://gift.directory") {
+  const ex = STORE_SHELVES[slug]; if (!ex) return null;
+  const out = [];
+  for (const [t, p] of SHELF_PICKS) {
+    const c = cards.find(x => x.kind === "tpl" && x.tpl === t && x.ptype === p);
+    if (!c || !ex[t] || validateFields(t, ex[t]).error) continue;
+    const q = new URLSearchParams([["p", String(c.id)], ...ex[t].map(v => ["f", v])]);
+    out.push({ product_id: `shop:${c.id}`, title: c.title, brand: "Personalized for you", image: c.image, price_cents: c.price_cents, was_cents: null,
+      merchant: "gift.directory", url: `${origin}/shop?${q}`, own: true, available: true, features: ["Personalizable"] });
+  }
+  return out.length ? { title: "Personalize it", cards: out, note: "Made to order with their name or your words, printed and shipped by Printful." } : null;
+}
+
 export const STATES = "AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY".split(" ");
 const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,190}\.[a-z]{2,}$/i;
 // Characters the bundled print font has (Latin-1 + curly quotes, dashes, ellipsis).
