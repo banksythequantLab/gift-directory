@@ -2,7 +2,7 @@
 // crawlers read them). Operator: Banksy AI LLC. Draft for the owner's legal review.
 import { shell } from "./seo.js";
 
-const UPDATED = "November 8, 2026";
+const UPDATED = "November 9, 2026";
 const CONTACT = "hello@gift.directory";
 const h1 = t => `<h1 style="font-family:Georgia,serif;margin:6px 0 10px">${t}</h1>`;
 const sec = (t, ...ps) => `<h2 style="font-family:Georgia,serif;margin-top:22px">${t}</h2>${ps.map(p => `<p style="max-width:780px">${p}</p>`).join("")}`;
@@ -32,6 +32,7 @@ export const LEGAL = {
         "<b>What you type to find a gift</b>: the occasion, who it's for, budget and interests. We use it to search for products and pick suggestions, and keep it to improve results. Please don't type sensitive personal information into these fields.",
         "<b>Group gifts</b>: the organizer's name and PayPal email, the gift chosen, and each contributor's name (unless they choose to hide it), message and amount. Names and messages appear on the group-gift page for anyone with the link. The organizer's email is never shown publicly.",
         "<b>Gift registries</b>: the registry's name, date, the owner's name and (optionally) PayPal email, the gifts on it, and the names guests give when they mark a gift as bought (shown only to the owner). If a guest asks for a reminder, we keep their email only until we send that one reminder a week before the date (sent through Cloudflare), then delete it; every reminder has an unsubscribe link that deletes it immediately.",
+        "<b>Shop orders</b>: when you buy from the gift.directory shop, we keep what you ordered (including any text you chose), the shipping name and address, your email for the receipt, and the PayPal reference. We send the order and address to our print partner Printful, which makes and ships it.",
         "<b>Stores</b>: the owner's email, store settings and PayPal subscription details. When you log in with PayPal, PayPal tells us your verified email address(es), name and PayPal account ID. We never receive your PayPal password.",
         "<b>Payments</b> are handled by PayPal. We receive confirmation of a payment (amount, status and a PayPal reference), never your card or bank details. PayPal's own privacy statement applies to what you give PayPal.",
         "<b>Technical data</b>: like most sites, our hosting provider (Cloudflare) processes IP addresses and request details to deliver and protect the site.") +
@@ -39,7 +40,7 @@ export const LEGAL = {
         "We use a small number of cookies: a login cookie for store owners, and on test addresses a cookie remembering which store you picked. Store owners' browsers may also keep a private link to manage their store or group gift.",
         "<b>Advertising.</b> Gift-guide pages may show ads from Google AdSense. Google and its partners use cookies to serve ads based on your visits to this and other websites. You can opt out of personalized advertising at <a href=\"https://adssettings.google.com\" rel=\"nofollow\">Google Ads Settings</a> or <a href=\"https://www.aboutads.info/choices/\" rel=\"nofollow\">aboutads.info</a>. Learn more in <a href=\"https://policies.google.com/technologies/partner-sites\" rel=\"nofollow\">how Google uses information from sites that use its services</a>.") +
       sec("Retailer links and commissions", "Product links go to the retailer's own site, where their privacy policy applies. Some links are tracked so we can earn a commission when you buy; the retailer or our product-data partner (Channel3) may set their own cookies for that.") +
-      sec("Who we share with", "We share data only as needed to run the service: PayPal (payments, subscriptions, login), Cloudflare (hosting and database), Channel3 (product search, which receives search terms but not your name or email), and our AI provider (which receives the gift details you type, to suggest products). We don't sell your personal information.") +
+      sec("Who we share with", "We share data only as needed to run the service: PayPal (payments, subscriptions, login), Cloudflare (hosting, database and email), Printful (making and shipping shop orders), Channel3 (product search, which receives search terms but not your name or email), and our AI provider (which receives the gift details you type, to suggest products). We don't sell your personal information.") +
       sec("How long we keep it", "We keep group-gift and store records while they are active and for a reasonable period afterwards for records and disputes. Login sessions expire after 14 days. You can ask us to delete your information at any time.") +
       sec("Your choices", `Email <a href="mailto:${CONTACT}">${CONTACT}</a> to see, correct or delete your information. Depending on where you live, you may have additional rights under local law, and we will honor them.`) +
       sec("Children", "gift.directory is not directed to children under 13, and we don't knowingly collect their information.") +

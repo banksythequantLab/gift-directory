@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shop — gift.directory</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="description" content="Gift shirts made to order and shipped by Printful, paid with PayPal.">
+<link rel="stylesheet" href="/style.css"><link rel="icon" href="/favicon.ico" sizes="any"><link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<style>
+.wrap{max-width:1100px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+.prod{cursor:pointer}.prod img{width:100%;aspect-ratio:1;object-fit:contain;background:#fff;border-radius:10px}.prod .t{font-weight:600;margin:8px 0 2px}
+.note{background:#fff7e0;border:1px solid #f0d58a;border-radius:10px;padding:10px 14px;margin:10px 0}
+.buy{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px;align-items:start}
+@media(max-width:760px){.buy{grid-template-columns:1fr}}
+.buy img{width:100%;border-radius:12px;background:#fff}
+.tee{position:relative;aspect-ratio:3/4;background:#1d2433;border-radius:12px;display:flex;flex-direction:column;align-items:center;padding-top:16%;color:#fff;font-family:"Inter Display",Inter,system-ui,sans-serif;font-weight:900;text-align:center;overflow:hidden}
+.tee span{display:block;line-height:1.1;max-width:92%;word-break:break-word}
+label{display:block;margin:10px 0 4px;font-weight:600;font-size:.9rem}input,select,textarea{width:100%;box-sizing:border-box}
+.row2{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px}.sum{margin:12px 0;line-height:1.7}.err{color:#b42318;margin:8px 0}
+.pp{background:#ffc439;color:#111;border:0;border-radius:24px;padding:12px 20px;font-weight:700;width:100%;cursor:pointer;font-size:1rem}
+.pp[disabled]{opacity:.5;cursor:default}
+</style></head>
+<body><div class="wrap">
+<header class="top"><h1><a href="/" style="color:inherit;text-decoration:none">gift.directory</a></h1><span class="tag">Shop</span></header>
+<div id="banner"></div>
+<div id="app"><p class="muted">Loading…</p></div>
+<footer>Made to order and shipped by our print partner Printful. Paid securely with PayPal. US shipping only for now.
+<div style="margin-top:6px"><a href="/gifts">Gift guides</a> · <a href="/about">About</a> · <a href="/contact">Contact</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></div></footer>
+</div>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const money = c => "$" + (c / 100).toFixed(2);
+const STATES = "AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY".split(" ");
+const MAX = 22;
+const q = new URLSearchParams(location.search);
+let products = [], live = false;
+const api = async (path, opt = {}) => {
+  const r = await fetch("/api/shop" + path, { ...opt, headers: { "content-type": "application/json" } });
+  const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || "Something went wrong"); return j;
+};
+function banner() {
+  $("#banner").innerHTML = live ? "" : `<div class="note"><b>Test mode.</b> Payments use the PayPal sandbox and orders are not printed or shipped.</div>`;
+}
+async function start() {
+  try { const j = await api("/products"); products = j.products || []; live = !!j.live; }
+  catch (e) { $("#app").innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
+  banner();
+  if (q.get("order")) return thanks(q.get("order"));
+  if (q.get("p")) { const p = products.find(x => String(x.id) === q.get("p")); if (p) return detail(p); }
+  list(q.get("cancelled") ? `<div class="note">Payment cancelled. Nothing was charged.</div>` : "");
+}
+function list(top = "") {
+  $("#app").innerHTML = top + `<h2>Shirts made to order</h2><p class="muted">Printed and shipped for you by Printful.</p>` +
+    (products.length ? `<div class="grid">${products.map(p => `<div class="card prod" data-p="${p.id}">
+      ${p.image ? `<img src="${esc(p.image)}" alt="" loading="lazy">` : ""}<div class="t">${esc(p.title)}</div>
+      <div class="muted">${p.kind === "text" ? "Your words, printed. " : ""}From ${money(p.price_cents)}</div></div>`).join("")}</div>` : `<p class="muted">Nothing for sale right now.</p>`);
+  document.querySelectorAll("[data-p]").forEach(el => el.onclick = () => {
+    history.pushState(null, "", "?p=" + el.dataset.p); detail(products.find(x => String(x.id) === el.dataset.p));
+  });
+}
+window.onpopstate = () => { const p = new URLSearchParams(location.search).get("p"); const x = p && products.find(y => String(y.id) === p); x ? detail(x) : list(); };
+
+function detail(p) {
+  const colors = [...new Set(p.variants.map(v => v.color))];
+  const text = p.kind === "text";
+  $("#app").innerHTML = `<p><a href="/shop" id="back">← All shirts</a></p><div class="buy">
+  <div>${text ? `<div class="tee" id="tee"><span id="t1"></span><span id="t2"></span></div><p class="muted small">Preview. White heavy lettering, centered high on the chest.</p>` : ""}
+    ${p.image ? `<img src="${esc(p.image)}" alt="${esc(p.title)}" style="${text ? "margin-top:10px" : ""}">` : ""}</div>
+  <div><h2 style="margin-top:0">${esc(p.title)}</h2>${p.subtitle ? `<p class="muted">${esc(p.subtitle)}</p>` : ""}
+    ${colors.length > 1 ? `<label for="color">Color</label><select id="color">${colors.map(c => `<option>${esc(c)}</option>`).join("")}</select>` : ""}
+    <label for="size">Size</label><select id="size"></select>
+    <label for="qty">Quantity</label><input id="qty" type="number" min="1" max="10" value="1">
+    ${text ? `<label for="l1">Line 1</label><input id="l1" maxlength="${MAX}" placeholder="WORLD'S BEST">
+      <label for="l2">Line 2 (optional)</label><input id="l2" maxlength="${MAX}" placeholder="AUNT">` : ""}
+    <label for="gm">Gift message (optional, printed on the packing slip)</label><textarea id="gm" maxlength="200" rows="2"></textarea>
+    <h3>Ship to</h3>
+    <label for="rn">Name</label><input id="rn" autocomplete="name">
+    <label for="ra">Street address</label><input id="ra" autocomplete="address-line1">
+    <label for="rb">Apt, suite (optional)</label><input id="rb" autocomplete="address-line2">
+    <div class="row2"><div><label for="rc">City</label><input id="rc" autocomplete="address-level2"></div>
+      <div><label for="rs">State</label><select id="rs" autocomplete="address-level1"><option value=""></option>${STATES.map(s => `<option>${s}</option>`).join("")}</select></div>
+      <div><label for="rz">ZIP</label><input id="rz" inputmode="numeric" autocomplete="postal-code"></div></div>
+    <label for="re">Your email (for the receipt)</label><input id="re" type="email" autocomplete="email">
+    <div class="sum" id="sum"></div><div class="err" id="err"></div>
+    <button class="pp" id="pay">Pay with PayPal</button>
+    <p class="muted small">Sales tax is not added. Made to order: allow a few days to print, then shipping time.</p>
+  </div></div>`;
+  $("#back").onclick = e => { e.preventDefault(); history.pushState(null, "", "/shop"); list(); };
+  const sizes = () => { const c = $("#color") ? $("#color").value : colors[0];
+    $("#size").innerHTML = p.variants.filter(v => v.color === c).map(v => `<option value="${v.id}">${esc(v.size || "One size")}${v.price_cents !== p.price_cents ? " — " + money(v.price_cents) : ""}</option>`).join(""); };
+  if ($("#color")) $("#color").onchange = () => { sizes(); quote(); };
+  sizes();
+  if (text) { const prev = () => { const a = $("#l1").value.trim(), b = $("#l2").value.trim(), n = Math.max(a.length, b.length, 4);
+      const fs = Math.max(120, Math.min(300, Math.floor(1650 / (n * 0.7)))) / 1800 * $("#tee").clientWidth;
+      $("#t1").textContent = a || "YOUR TEXT"; $("#t2").textContent = b; $("#tee").style.fontSize = fs + "px"; };
+    $("#l1").oninput = $("#l2").oninput = prev; prev(); window.onresize = prev; }
+  const body = () => ({ product_id: p.id, variant_id: Number($("#size").value), qty: Number($("#qty").value || 1),
+    lines: text ? [$("#l1").value, $("#l2").value] : undefined, gift_message: $("#gm").value,
+    recipient: { name: $("#rn").value, address1: $("#ra").value, address2: $("#rb").value, city: $("#rc").value, state_code: $("#rs").value, zip: $("#rz").value, email: $("#re").value } });
+  let qt = null;
+  async function quote() {
+    const b = body(); $("#err").textContent = "";
+    if (!b.recipient.address1 || !b.recipient.city || !b.recipient.state_code || !/^\d{5}/.test(b.recipient.zip)) { $("#sum").innerHTML = `<span class="muted">Add the address to see shipping and the total.</span>`; return; }
+    $("#sum").innerHTML = `<span class="muted">Getting shipping…</span>`;
+    try { const j = await api("/quote", { method: "POST", body: JSON.stringify(b) });
+      $("#sum").innerHTML = `Items: ${money(j.subtotal_cents)}<br>Shipping (${esc(j.rate.name)}): ${money(j.shipping_cents)}<br><b>Total: ${money(j.total_cents)}</b>`; }
+    catch (e) { $("#sum").innerHTML = ""; $("#err").textContent = e.message; }
+  }
+  ["#size", "#qty", "#ra", "#rc", "#rs", "#rz"].forEach(s => $(s).addEventListener("change", () => { clearTimeout(qt); qt = setTimeout(quote, 250); }));
+  quote();
+  $("#pay").onclick = async () => {
+    $("#err").textContent = ""; $("#pay").disabled = true; $("#pay").textContent = "Opening PayPal…";
+    try { const j = await api("/checkout", { method: "POST", body: JSON.stringify(body()) }); location.href = j.url; }
+    catch (e) { $("#err").textContent = e.message; $("#pay").disabled = false; $("#pay").textContent = "Pay with PayPal"; }
+  };
+}
+
+async function thanks(id) {
+  try { const o = await api("/orders/" + encodeURIComponent(id));
+    const paid = o.status === "paid";
+    $("#app").innerHTML = `<h2>${paid ? "Thank you! Your order is in." : o.status === "cancelled" ? "This order was cancelled." : "We're still waiting on the payment."}</h2>
+    <p>${esc(o.title)}${o.variant_label ? " (" + esc(o.variant_label) + ")" : ""} × ${o.qty}${o.lines ? `<br>Your text: <b>${esc(o.lines.join(" / "))}</b>` : ""}</p>
+    <p class="sum">Items: ${money(o.subtotal_cents)}<br>Shipping: ${money(o.shipping_cents)}<br><b>Total${paid ? " paid" : ""}: ${money(o.total_cents)}</b></p>
+    ${paid ? `<p class="muted">${o.live ? "It goes to our print partner Printful now; your receipt is on its way by email." : "Test mode: the order was recorded but will not be printed or shipped."}</p>` : ""}
+    <p class="muted small">Order number: ${esc(o.id)}</p><p><a href="/shop">Back to the shop</a></p>`;
+  } catch (e) { $("#app").innerHTML = `<p class="err">We couldn't find that order.</p><p><a href="/shop">Back to the shop</a></p>`; }
+}
+start();
+</script></body></html>

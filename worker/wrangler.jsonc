@@ -17,7 +17,9 @@
     "run_worker_first": ["/api/*", "/g/*", "/r/*", "/registry", "/", "/new", "/favicon.svg", "/login", "/admin", "/gifts", "/gifts/*", "/sitemap.xml", "/robots.txt", "/ads.txt", "/about", "/contact", "/privacy", "/terms", "/cdbf5866d78ab29c85ad2021cc135597.txt"]
   },
   // Registry reminders (Cloudflare Email Service; gift.directory onboarded 2026-11-09). Only this sender is allowed.
-  "send_email": [{ "name": "EMAIL", "allowed_sender_addresses": ["reminders@gift.directory"] }],
+  "send_email": [{ "name": "EMAIL", "allowed_sender_addresses": ["reminders@gift.directory", "orders@gift.directory"] }],
+  // The shop's print font is bundled as bytes (print.js); .wasm imports are compiled modules by default.
+  "rules": [{ "type": "Data", "globs": ["**/*.otf"], "fallthrough": true }],
   // Daily re-sync of store owners' Shopify catalogs (08:23 UTC).
   "triggers": { "crons": ["23 8 * * *"] },
   "d1_databases": [
@@ -30,7 +32,12 @@
     "PAYPAL_PLAN_ID": "P-10T383300X8815800NLWMZCY",
     // Live $19/month plan (fill in from scripts/setup-plan.mjs run with PAYPAL_ENV=live). Used only when PAYPAL_ENV is "live".
     "PAYPAL_LIVE_PLAN_ID": "",
-    "TEXT_MODEL": "Qwen/Qwen3-235B-A22B-Instruct-2507"
+    "TEXT_MODEL": "Qwen/Qwen3-235B-A22B-Instruct-2507",
+    // The shop: Printful store "gift.directory" (Manual order / API). Secret PRINTFUL_TOKEN holds the API token.
+    // SHOP_PUBLIC "1" links the shop from stores; SHOP_FULFILL "1" (live PayPal only) confirms Printful orders instead of leaving drafts.
+    "PRINTFUL_STORE_ID": "19038070",
+    "SHOP_PUBLIC": "",
+    "SHOP_FULFILL": ""
   }
   // Secrets (wrangler secret put): PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, CHANNEL3_API_KEY, NEBIUS_API_KEY
 }

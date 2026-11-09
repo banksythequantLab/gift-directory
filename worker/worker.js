@@ -13,6 +13,8 @@ import { TEE, teePromo } from "./promo.js";
 import { REG_MAX_ITEMS, REG_POOL_MIN_CENTS, validateRegistry, registrySlug, validateRegItem, publicRegistry, REG_AI_SYSTEM, regAiPrompt, parseRegAi, poolTarget, reminderSendOn, validateReminder, reminderEmail } from "./registry.js";
 import { ASSIST_SYSTEM, MAX_STEPS, SHELF_MAX, storeBrief, assistPrompt, parseAssist, matchHide, pickShelf, describeStep, PICK_SYSTEM, pickPrompt, applyPicks, capKinds } from "./assistant.js";
 import { ogTags, poolMeta, registryMeta, storeMeta, PLATFORM_META, REGISTRY_HOME_META } from "./meta.js";
+import { shopCard, validateShopOrder, pickRate, textPrintSvg, PRINT_W, shopPayPalOrder, printfulOrder, receiptEmail } from "./shop.js";
+import { svgToPng } from "./print.js";
 
 const now = () => new Date().toISOString();
 // Guide price/stock refresh budget (see the /gifts/<slug> route): ~570 pages every 14 days is ~40 a day, ~280 searches.
@@ -393,6 +395,43 @@ const isWorkersDev = h => h.endsWith(".workers.dev");
 function storeUrl(env, url, slug) {
   return isWorkersDev(url.hostname) ? `${url.origin}/?store=${slug}` : `https://${slug}.${ROOT}/`;
 }
+// ---------- the shop: Printful products sold directly, paid with PayPal ----------
+const PF_API = "https://api.printful.com";
+async function pf(env, path, { method = "GET", body } = {}) {
+  const r = await fetch(PF_API + path, { method, body: body ? JSON.stringify(body) : undefined,
+    headers: { Authorization: `Bearer ${env.PRINTFUL_TOKEN}`, "X-PF-Store-Id": String(env.PRINTFUL_STORE_ID), "content-type": "application/json" } });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(`Printful ${r.status}: ${String((j.error && j.error.message) || j.result || "").slice(0, 200)}`);
+  return j.result;
+}
+// The shelf: every product in the gift.directory Printful store, cached for 30 minutes.
+async function shopCards(env) {
+  const key = new Request(`https://cache.gift.directory/shop-cards/${env.PRINTFUL_STORE_ID}/v1`), cache = caches.default;
+  const hit = await cache.match(key); if (hit) return hit.json();
+  const list = await pf(env, "/store/products?limit=100");
+  const cards = (await Promise.all(list.map(p => pf(env, `/store/products/${p.id}`).then(shopCard).catch(() => null)))).filter(Boolean);
+  await cache.put(key, new Response(JSON.stringify(cards), { headers: { "content-type": "application/json", "cache-control": "max-age=1800" } }));
+  return cards;
+}
+async function shopRate(env, o) {
+  const r = o.recipient;
+  return pickRate(await pf(env, "/shipping/rates", { method: "POST", body: {
+    recipient: { address1: r.address1, city: r.city, country_code: "US", state_code: r.state_code, zip: r.zip },
+    items: [{ variant_id: String(o.variant.catalog_id), quantity: o.qty }], currency: "USD" } }));
+}
+// After PayPal captures: create the Printful order (a draft unless the shop is live and fulfilment is switched on),
+// then email the receipt. Failures are noted on the order for a person to fix; the money is already safe in PayPal.
+async function shopFulfill(env, db, row) {
+  const confirm = env.SHOP_FULFILL === "1" && env.PAYPAL_ENV === "live";
+  try {
+    const r = await pf(env, `/orders${confirm ? "?confirm=1" : ""}`, { method: "POST", body: printfulOrder(row, `https://${ROOT}/api/shop/print/${row.id}.png`) });
+    await db.prepare("UPDATE shop_orders SET pf_order_id=?, pf_status=?, updated_at=? WHERE id=?").bind(r.id, r.status, now(), row.id).run();
+  } catch (e) { await db.prepare("UPDATE shop_orders SET note=?, updated_at=? WHERE id=?").bind(String(e.message || e).slice(0, 300), now(), row.id).run(); }
+  if (env.EMAIL && !/@[^@]*example\.com$/i.test(row.email)) {
+    const msg = receiptEmail(row); if (env.PAYPAL_ENV !== "live") msg.subject = "[Test order, not shipped] " + msg.subject;
+    try { await env.EMAIL.send({ to: row.email, from: "orders@gift.directory", ...msg }); } catch {}
+  }
+}
 // Registry reminders that are due: send each once, then delete the row (and with it the guest's email).
 // A send that fails stays for tomorrow's run; one for an event that has already happened is dropped.
 const REMIND_FROM = "reminders@gift.directory";
@@ -592,6 +631,69 @@ export default {
         if (platform && (parts.length === 0 || parts[0] === "new")) return withPreview(page("/platform"), PLATFORM_META);
         if (parts.length === 0) return withPreview(page("/"), store && store.status === "active" ? storePreview(db, store, url) : null);
         return env.ASSETS.fetch(request);
+      }
+
+      // ---------- the shop (Printful print-on-demand, paid with PayPal; hidden unless SHOP_PUBLIC) ----------
+      if (parts[1] === "shop") {
+        if (!env.PRINTFUL_TOKEN || !env.PRINTFUL_STORE_ID) return J({ error: "The shop isn't set up yet." }, 503);
+        if (parts[2] === "products" && m === "GET") return J({ products: await shopCards(env), live: env.PAYPAL_ENV === "live", public: env.SHOP_PUBLIC === "1" });
+        // The print file Printful downloads for a paid custom-text order.
+        if (parts[2] === "print" && parts[3] && m === "GET") {
+          const o = await db.prepare("SELECT kind, lines_json, status FROM shop_orders WHERE id=?").bind(parts[3].replace(/\.png$/, "")).first();
+          if (!o || o.kind !== "text" || o.status !== "paid") return new Response("not found", { status: 404 });
+          return new Response(await svgToPng(textPrintSvg(JSON.parse(o.lines_json)), PRINT_W), { headers: { "content-type": "image/png", "cache-control": "public, max-age=86400" } });
+        }
+        if ((parts[2] === "quote" || parts[2] === "checkout") && m === "POST") {
+          const b = (await readJson(request)) || {};
+          const card = (await shopCards(env)).find(c => c.id === Number(b.product_id));
+          const quote = parts[2] === "quote";   // shipping needs only the address; the rest is checked at checkout
+          const v = validateShopOrder(quote ? { ...b, lines: b.lines && b.lines[0] ? b.lines : ["quote"], recipient: { ...(b.recipient || {}), name: "quote", email: "quote@gift.directory" } } : b, card);
+          if (v.error) return J({ error: v.error }, 400);
+          const o = v.order, rate = await shopRate(env, o).catch(() => null);
+          if (!rate) return J({ error: "We couldn't get a shipping rate for that address. Check the ZIP code." }, 502);
+          const sub = o.variant.price_cents * o.qty;
+          if (quote) return J({ subtotal_cents: sub, shipping_cents: rate.cents, total_cents: sub + rate.cents, rate });
+          if (!paypalOn(env)) return J({ error: "PayPal is not configured." }, 503);
+          const ipHash = await sha256("shop:" + (request.headers.get("cf-connecting-ip") || ""));
+          const recent = await db.prepare("SELECT COUNT(*) n FROM shop_orders WHERE ip_hash=? AND created_at > ?").bind(ipHash, new Date(Date.now() - 3600e3).toISOString()).first();
+          if (recent.n >= 15) return J({ error: "That's a lot of checkouts in an hour. Try again later." }, 429);
+          const id = uid(), t = now(), label = [o.variant.color, o.variant.size].filter(Boolean).join(" / ");
+          const pp = await paypalFetch(env, "/v2/checkout/orders", { method: "POST", body: shopPayPalOrder({ ...o, id, shipping_cents: rate.cents }, url.origin), headers: { "PayPal-Request-Id": id } });
+          const href = pp.status < 300 && pp.body ? (link(pp.body, "payer-action") || link(pp.body, "approve") || {}).href : null;
+          if (!href) return J({ error: "PayPal could not start the payment.", paypal_status: pp.status, detail: pp.body && pp.body.details }, 502);
+          await db.prepare("INSERT INTO shop_orders (id,pf_product_id,pf_sync_variant_id,pf_catalog_variant_id,kind,title,variant_label,qty,lines_json,gift_message,recipient_json,email,unit_cents,subtotal_cents,shipping_cents,total_cents,status,paypal_order_id,ip_hash,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',?,?,?,?)")
+            .bind(id, o.card.id, o.variant.id, o.variant.catalog_id, o.card.kind, o.card.title, label || null, o.qty, o.lines ? JSON.stringify(o.lines) : null, o.gift_message,
+              JSON.stringify(o.recipient), o.recipient.email, o.variant.price_cents, sub, rate.cents, sub + rate.cents, pp.body.id, ipHash, t, t).run();
+          return J({ url: href });
+        }
+        // PayPal sends the buyer back here: capture, then hand the order to Printful.
+        if (parts[2] === "return" && m === "GET") {
+          const orderId = url.searchParams.get("token");
+          const row = orderId && await db.prepare("SELECT * FROM shop_orders WHERE paypal_order_id=?").bind(orderId).first();
+          if (!row) return Response.redirect(`${url.origin}/shop`, 303);
+          if (row.status === "pending") {
+            const r = await paypalFetch(env, `/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`, { method: "POST", body: {}, headers: { "PayPal-Request-Id": `cap-${row.id}`, Prefer: "return=representation" } });
+            let cap = r.status < 300 ? readCapture(r.body) : null;
+            if (!cap) { const g = await paypalFetch(env, `/v2/checkout/orders/${encodeURIComponent(orderId)}`); cap = g.status < 300 ? readCapture(g.body) : null; }
+            if (cap && cap.status === "COMPLETED") {
+              const u = await db.prepare("UPDATE shop_orders SET status='paid', updated_at=? WHERE id=? AND status='pending'").bind(now(), row.id).run();
+              if (u.meta.changes) await shopFulfill(env, db, { ...row, status: "paid" });
+            } else await db.prepare("UPDATE shop_orders SET note=?, updated_at=? WHERE id=?").bind(`capture: ${cap ? cap.status : "HTTP " + r.status}`, now(), row.id).run();
+          }
+          return Response.redirect(`${url.origin}/shop?order=${row.id}`, 303);
+        }
+        if (parts[2] === "cancel" && m === "GET") {
+          const orderId = url.searchParams.get("token");
+          if (orderId) await db.prepare("UPDATE shop_orders SET status='cancelled', updated_at=? WHERE paypal_order_id=? AND status='pending'").bind(now(), orderId).run();
+          return Response.redirect(`${url.origin}/shop?cancelled=1`, 303);
+        }
+        // The thank-you page's view of one order (no address: the id is the only key).
+        if (parts[2] === "orders" && parts[3] && m === "GET") {
+          const o = await db.prepare("SELECT id,title,variant_label,qty,lines_json,subtotal_cents,shipping_cents,total_cents,status,pf_order_id FROM shop_orders WHERE id=?").bind(parts[3]).first();
+          if (!o) return J({ error: "not found" }, 404);
+          return J({ ...o, lines: o.lines_json ? JSON.parse(o.lines_json) : null, lines_json: undefined, sent_to_printer: !!o.pf_order_id, live: env.PAYPAL_ENV === "live" });
+        }
+        return J({ error: "not found" }, 404);
       }
 
       // ---------- gift registries (any store; guests mark what they bought; big items can be group gifts) ----------
