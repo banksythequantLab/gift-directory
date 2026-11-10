@@ -15,6 +15,7 @@ import { ASSIST_SYSTEM, MAX_STEPS, SHELF_MAX, storeBrief, assistPrompt, parseAss
 import { ogTags, poolMeta, registryMeta, storeMeta, PLATFORM_META, REGISTRY_HOME_META } from "./meta.js";
 import { shopCard, validateShopOrder, validateFields, pickRate, designSvg, PTYPES, TEMPLATES, SAMPLES, parseKind, rowKind, storeShopShelf, printSize, renderWidth, exampleFor, DESIGN_VERSION, salesTax, taxTable, shopPayPalOrder, printfulOrder, receiptEmail, imageInfo, PHOTO_ID, PHOTO_MIN, PHOTO_GOOD, PHOTO_MAX_BYTES } from "./shop.js";
 import { svgToPng } from "./print.js";
+import { renderSVG } from "uqr";
 import STORE_MOCKUPS from "./shop-mockups.json";
 
 const now = () => new Date().toISOString();
@@ -792,6 +793,12 @@ export default {
           await db.prepare("INSERT INTO registries (id,slug,manage_hash,title,occasion,event_date,owner_name,paypal_email,message,ship_pct,ip_hash,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)")
             .bind(id, slug, await sha256(token), r.title, r.occasion, r.event_date, r.owner_name, r.paypal_email, r.message, r.ship_pct, ipHash, t, t).run();
           return J({ slug, manage_token: token, url: `${url.origin}/r/${slug}` }, 201);
+        }
+        // The registry's link as a QR code (SVG), for printed cards at showers and parties.
+        if (parts[3] === "qr.svg" && parts[2] && m === "GET") {
+          const r = await db.prepare("SELECT slug FROM registries WHERE slug=?").bind(parts[2]).first();
+          if (!r) return new Response("not found", { status: 404 });
+          return new Response(renderSVG(`${url.origin}/r/${r.slug}`, { ecc: "M", border: 2, pixelSize: 8 }), { headers: { "content-type": "image/svg+xml", "cache-control": "public, max-age=86400" } });
         }
         // One-click unsubscribe from a registry reminder (the link in the email). Deleting the row deletes the address.
         if (parts[2] === "unsubscribe" && m === "GET") {

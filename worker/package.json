@@ -13,6 +13,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@resvg/resvg-wasm": "2.6.2"
+    "@resvg/resvg-wasm": "2.6.2",
+    "uqr": "^0.1.2"
   }
 }

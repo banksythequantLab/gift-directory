@@ -10,6 +10,9 @@
 .tabs2{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.tabs2 button{border:1px solid var(--line);background:#fff;border-radius:99px;padding:6px 12px;cursor:pointer}.tabs2 .on{background:var(--accent);color:#fff;border-color:var(--accent)}
 .sug{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}.sug .card{padding:8px}.sug img{width:100%;aspect-ratio:1;object-fit:contain;background:#fff;border-radius:8px}
 .small{font-size:.82rem}
+/* The QR card prints alone, centered on the page. */
+@media print{body.printqr *{visibility:hidden}body.printqr .qrprint,body.printqr .qrprint *{visibility:visible}
+body.printqr .qrprint{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}body.printqr .qrprint img{width:3.2in!important;height:3.2in!important}}
 </style></head>
 <body><div class="wrap">
 <header class="top"><h1><a href="/" style="color:inherit;text-decoration:none">gift.directory</a></h1><span class="tag">Gift registry</span></header>
@@ -87,11 +90,25 @@ function draw() {
     <div class="small" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center"><span class="muted">Share:</span>
       <a class="btn sec sm" href="mailto:?subject=${encodeURIComponent(reg.title)}&body=${encodeURIComponent(shareMsg(share))}">Email</a>
       <a class="btn sec sm" href="sms:?&body=${encodeURIComponent(shareMsg(share))}">Text</a>
-      <a class="btn sec sm" href="https://wa.me/?text=${encodeURIComponent(shareMsg(share))}" target="_blank" rel="noopener">WhatsApp</a></div>
+      <a class="btn sec sm" href="https://wa.me/?text=${encodeURIComponent(shareMsg(share))}" target="_blank" rel="noopener">WhatsApp</a>
+      ${navigator.share ? `<button class="btn sec sm" id="nshare">More…</button>` : ""}
+      <button class="btn sec sm" id="qrb" aria-expanded="false" aria-controls="qrcard">QR code</button></div>
+  </div>
+  <div id="qrcard" class="card" style="display:none;text-align:center;margin-bottom:14px">
+    <div class="qrprint"><h2 style="font-family:Georgia,serif;margin:0 0 4px">${esc(reg.title)}</h2>
+      <p class="muted" style="margin:0 0 10px">Scan to see ${esc(reg.owner_name)}'s registry${date ? " · " + esc(date) : ""}</p>
+      <img src="/api/registry/${encodeURIComponent(reg.slug)}/qr.svg" alt="QR code that opens this registry" width="220" height="220" style="width:220px;height:220px">
+      <p style="margin:8px 0 0">${esc(share.replace(/^https?:\/\//, ""))}</p></div>
+    <div style="margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button class="btn" id="qrprint">Print card</button>
+      <a class="btn sec" href="/api/registry/${encodeURIComponent(reg.slug)}/qr.svg" download="registry-qr.svg">Download QR</a></div>
   </div>
   ${reg.owner ? ownerPanel() + thanksCard() : remindCard(date)}
   <div class="items">${reg.items.map(itemCard).join("") || `<p class="muted">${reg.owner ? "No gifts yet. Add some above." : "No gifts on this registry yet."}</p>`}</div>`;
   $("#copy").onclick = () => { navigator.clipboard && navigator.clipboard.writeText(share); $("#copy").textContent = "Copied"; };
+  // The phone's own share sheet (Messages, WhatsApp, Instagram, etc.) where the browser has one.
+  if ($("#nshare")) $("#nshare").onclick = () => navigator.share({ title: reg.title, text: `${reg.title} — ${reg.owner_name}'s gift registry`, url: share }).catch(() => {});
+  $("#qrb").onclick = () => { const c = $("#qrcard"), open = c.style.display === "none"; c.style.display = open ? "" : "none"; $("#qrb").setAttribute("aria-expanded", String(open)); };
+  $("#qrprint").onclick = () => { document.body.classList.add("printqr"); window.print(); setTimeout(() => document.body.classList.remove("printqr"), 1000); };
   if ($("#copythanks")) $("#copythanks").onclick = () => { navigator.clipboard && navigator.clipboard.writeText(thanks().map(r => `${r.who}: ${r.what}`).join("\n")); $("#copythanks").textContent = "Copied"; };
   bindItems(); if (reg.owner) bindOwner();
   if ($("#rf")) $("#rf").onsubmit = async e => {
