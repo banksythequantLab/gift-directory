@@ -305,9 +305,9 @@ export const PAGES = [
     const RET = ["retire"], COFFEE = ["sampler", "whole bean", "ground coffee", "coffee gift", "variety pack", "k-cup"], CANDLE = ["soy", "wick", "wax"];
     const FIX = {
       "lawyer-retirement-gifts": { 0: ["engraved crystal gavel", ["gavel"]], 3: ["personalized retirement plaque", RET] },
-      "doctor-retirement-gifts": { 0: ["doctor shadow box", ["shadow box"]], 1: ["personalized retirement plaque", RET] },
+      "doctor-retirement-gifts": { 0: ["doctor shadow box", ["shadow box"]], 1: ["personalized retirement plaque", RET], x: ["farmhouse", "shelf"] },
       "firefighter-retirement-gifts": { 1: ["personalized retirement plaque", RET], 6: ["firefighter challenge coin", ["fire"]] },
-      "police-retirement-gifts": { 0: ["police shadow box", ["shadow box"]], 1: ["personalized retirement plaque", RET], 7: ["police challenge coin", ["police", "law enforcement", "blue line"]], x: ["mirror"] },
+      "police-retirement-gifts": { 0: ["police shadow box", ["shadow box"]], 1: ["personalized retirement plaque", RET], 7: ["police challenge coin", ["police", "law enforcement", "blue line"]], x: ["mirror", "farmhouse", "shelf"] },
       "military-retirement-gifts": { 0: ["military shadow box display case", ["shadow box", "display case"]], 2: ["personalized retirement plaque", RET] },
       "pharmacist-retirement-gifts": { 0: ["personalized retirement plaque", RET] },
       "medical-school-graduation-gifts": { 0: ["Littmann stethoscope", ["littmann"]], 3: ["caduceus medical lapel pin", ["caduceus", "medical"]], 5: ["doctor shadow box frame", ["doctor", "physician", "medical", "md"]] },
@@ -329,7 +329,7 @@ export const PAGES = [
       "closing-gifts-for-home-buyers": { 0: ["personalized cutting board", ["cutting board", "charcuterie"]], 1: ["custom doormat", ["doormat", "door mat"]], 3: ["personalized address plaque", ["address", "house number", "plaque"]], 6: ["scented soy candle", CANDLE] },
       "christmas-gifts-for-realtors": { 2: ["car seat organizer", ["organizer"]], 6: ["gourmet coffee sampler", COFFEE] },
       "thank-you-gifts-for-police-officers": { 0: ["thin blue line mug", ["blue line", "police"]], 2: ["gourmet coffee sampler", COFFEE], 6: ["thin blue line flag", ["blue line"]] },
-      "christmas-gifts-for-police-officers": { 1: ["thin blue line ornament", ["blue line", "police"]], 6: ["police shadow box", ["shadow box"]] },
+      "christmas-gifts-for-police-officers": { 1: ["thin blue line ornament", ["blue line", "police"]], 6: ["police shadow box", ["shadow box"]], x: ["farmhouse", "shelf"] },
     };
     const G = (slug, keyword, recipient, occasion, budget, topic, slots, extra = {}) => {
       const f = FIX[slug] || {}, sl = slots.map((q, i) => f[i] ? f[i][0] : q), must = slots.map((_, i) => f[i] ? f[i][1] : null);
