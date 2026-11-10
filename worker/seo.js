@@ -298,6 +298,69 @@ export const PAGES = [
   P("scales-of-justice-gifts", "Scales of justice gifts", "a lawyer", "any occasion", 300, { store: "lawyers", topic: "Law", notes: "scales of justice, Lady Justice, gavel themed gifts" }),
   P("gifts-for-female-lawyers", "Gifts for female lawyers", "a woman who is a lawyer", "Christmas", 200, { store: "lawyers", topic: "Law" }),
   P("law-office-secret-santa-gifts", "Secret Santa gifts for a law office", "a coworker at a law firm", "Secret Santa", 30, { store: "lawyers", topic: "Law" }),
+  // ---- profession guides by occasion: retirement, graduation, Secret Santa, boss & coworker (Nov 2026) ----
+  ...(() => {
+    const X = ["saw:","billy the puppet","horror","skull","jekyll","electric shock","shock flashlight","prank","fart","smart ass","replacement","refill","bulk","gift card"];
+    const G = (slug, keyword, recipient, occasion, budget, topic, slots, extra = {}) => P(slug, keyword, recipient, occasion, budget, { topic, count: 8, minCount: 6, exclude: X, slots, ...extra });
+    return [
+      // retirement
+      G("lawyer-retirement-gifts", "Retirement gifts for lawyers", "a retiring lawyer", "retirement", 250, "Law",
+        ["engraved crystal gavel","fountain pen","leather journal","personalized retirement plaque","whiskey decanter set","golf gift set","scales of justice sculpture","travel weekender bag"], { store: "lawyers" }),
+      G("doctor-retirement-gifts", "Retirement gifts for doctors", "a retiring doctor", "retirement", 250, "Nurses & healthcare",
+        ["stethoscope shadow box","personalized retirement plaque","leather journal","history of medicine book","whiskey decanter set","golf gift set","travel weekender bag","massage gun"], { store: "nurses" }),
+      G("teacher-retirement-gifts", "Teacher retirement gifts", "a retiring teacher", "retirement", 100, "Professions",
+        ["personalized teacher retirement sign","retirement journal","teacher retirement ornament","gardening tool set","plush robe","1000 piece jigsaw puzzle","book lover gift set","weekender bag"]),
+      G("firefighter-retirement-gifts", "Firefighter retirement gifts", "a retiring firefighter", "retirement", 200, "Professions",
+        ["firefighter shadow box","personalized retirement plaque","firefighter axe wall decor","whiskey decanter set","leather journal","grilling tool set","firefighter challenge coin","fishing gear gift set"], { store: "firefighter-gifts" }),
+      G("police-retirement-gifts", "Police retirement gifts", "a retiring police officer", "retirement", 200, "Professions",
+        ["police badge shadow box","personalized retirement plaque","thin blue line flag","whiskey decanter set","leather journal","grilling tool set","fishing gear gift set","police challenge coin"]),
+      G("military-retirement-gifts", "Military retirement gifts", "a military service member who is retiring", "retirement", 200, "Professions",
+        ["military shadow box","folded flag display case","personalized retirement plaque","whiskey decanter set","challenge coin display","leather journal","engraved pocket knife","weekender bag"]),
+      G("pharmacist-retirement-gifts", "Pharmacist retirement gifts", "a retiring pharmacist", "retirement", 150, "Nurses & healthcare",
+        ["personalized retirement plaque","mortar and pestle decor","retirement journal","gardening tool set","whiskey decanter set","plush robe","1000 piece jigsaw puzzle","weekender bag"]),
+      // graduation
+      G("nursing-school-graduation-gifts", "Nursing school graduation gifts", "a new nursing school graduate", "graduation", 100, "Nurses & healthcare",
+        ["Littmann stethoscope","nurse badge reel","compression socks","insulated tumbler","nursing clipboard","personalized nurse ornament","nurse tote bag","stethoscope case"], { store: "nurses" }),
+      G("medical-school-graduation-gifts", "Medical school graduation gifts", "a new medical school graduate", "graduation", 250, "Nurses & healthcare",
+        ["Littmann Cardiology stethoscope","leather padfolio","engraved pen set","white coat pin","insulated tumbler","doctor shadow box frame","noise cancelling earbuds","leather backpack"]),
+      G("police-academy-graduation-gifts", "Police academy graduation gifts", "a new police academy graduate", "graduation", 150, "Professions",
+        ["tactical flashlight","thin blue line ring","duty bag","tactical pen","insulated tumbler","police challenge coin","personalized badge frame","boot dryer"]),
+      G("fire-academy-graduation-gifts", "Fire academy graduation gifts", "a new fire academy graduate", "graduation", 150, "Professions",
+        ["firefighter flashlight","firefighter gear bag","personalized firefighter ornament","firefighter challenge coin","insulated tumbler","firefighter bracelet","boot dryer","Maltese cross keychain"], { store: "firefighter-gifts" }),
+      G("pharmacy-school-graduation-gifts", "Pharmacy school graduation gifts", "a new pharmacy school graduate", "graduation", 150, "Nurses & healthcare",
+        ["mortar and pestle gift","leather padfolio","engraved pen set","insulated tumbler","pharmacist mug","pharmacy reference book","personalized name plate","laptop backpack"]),
+      G("dental-school-graduation-gifts", "Dental school graduation gifts", "a new dental school graduate", "graduation", 200, "Nurses & healthcare",
+        ["leather padfolio","engraved pen set","tooth shaped desk decor","insulated tumbler","dentist mug","personalized name plate","noise cancelling earbuds","laptop backpack"]),
+      G("high-school-graduation-gifts", "High school graduation gifts", "a high school graduate heading to college", "graduation", 100, "Life events",
+        ["laptop backpack","noise cancelling earbuds","dorm room shower caddy","portable charger","instant camera","weighted blanket","mini fridge","graduation keepsake box"]),
+      // Secret Santa by profession
+      G("secret-santa-gifts-for-nurses", "Secret Santa gifts for nurses under $25", "a nurse coworker", "Secret Santa", 25, "Nurses & healthcare",
+        ["badge reel","compression socks","hand cream set","insulated tumbler","nurse pen set","lip balm set","nurse keychain","snack gift box"], { store: "nurses" }),
+      G("secret-santa-gifts-for-teachers", "Secret Santa gifts for teachers under $25", "a teacher coworker", "Secret Santa", 25, "Professions",
+        ["teacher mug","gel pen set","hand cream set","insulated tumbler","teacher planner stickers","scented candle","desk plant","cozy socks"]),
+      G("secret-santa-gifts-for-doctors", "Secret Santa gifts for doctors under $25", "a doctor coworker", "Secret Santa", 25, "Nurses & healthcare",
+        ["insulated tumbler","doctor mug","pen set","coffee gift set","desk fidget toy","cozy socks","phone stand","snack gift box"]),
+      G("secret-santa-gifts-for-firefighters", "Secret Santa gifts for firefighters under $25", "a firefighter coworker", "Secret Santa", 25, "Professions",
+        ["firefighter mug","firefighter keychain","hot sauce gift set","tactical flashlight","beef jerky gift box","firefighter socks","insulated tumbler","multitool"], { store: "firefighter-gifts" }),
+      G("secret-santa-gifts-for-police-officers", "Secret Santa gifts for police officers under $25", "a police officer coworker", "Secret Santa", 25, "Professions",
+        ["thin blue line mug","tactical pen","beef jerky gift box","insulated tumbler","police keychain","coffee gift set","tactical flashlight","cozy socks"]),
+      // boss & coworkers
+      G("gifts-for-your-boss-under-50", "Gifts for your boss under $50", "my boss", "Christmas", 50, "Work & office",
+        ["leather journal","coffee gift set","insulated tumbler","desk plant","engraved pen","wireless charging pad","gourmet chocolate box","scented candle"]),
+      G("gifts-for-female-boss", "Gifts for a female boss", "my boss, a woman", "Christmas", 75, "Work & office",
+        ["leather journal","scented candle","silk scarf","insulated tumbler","gourmet chocolate box","desk plant","jewelry dish","tea gift set"]),
+      G("gifts-for-male-boss", "Gifts for a male boss", "my boss, a man", "Christmas", 75, "Work & office",
+        ["leather journal","whiskey stones set","engraved pen","insulated tumbler","coffee gift set","desk organizer","wireless charging pad","golf balls gift set"]),
+      G("farewell-gifts-for-coworkers", "Farewell gifts for a coworker who is leaving", "a coworker who is leaving the job", "farewell", 50, "Work & office",
+        ["personalized farewell card","leather journal","insulated tumbler","desk plant","going away keychain","scented candle","coffee gift set","photo frame"]),
+      G("gifts-for-nurse-managers", "Gifts for nurse managers", "my nurse manager", "thank you", 75, "Nurses & healthcare",
+        ["leather padfolio","insulated tumbler","nurse leader mug","hand cream set","desk plant","scented candle","engraved pen","tea gift set"], { store: "nurses" }),
+      G("gifts-for-principals", "Gifts for school principals", "a school principal", "Christmas", 75, "Professions",
+        ["leather padfolio","engraved desk name plate","insulated tumbler","principal mug","desk plant","leather journal","coffee gift set","engraved pen"]),
+      G("gifts-for-legal-assistants", "Gifts for legal assistants", "a legal assistant at the firm", "Christmas", 50, "Law",
+        ["desk organizer","insulated tumbler","mug warmer","gel pen set","hand cream set","desk plant","scented candle","ergonomic wrist rest"], { store: "lawyers" }),
+    ];
+  })(),
   // nurses & healthcare
   P("christmas-gifts-for-nurses", "Christmas gifts for nurses", "a nurse", "Christmas", 100, { store: "nurses", topic: "Nurses & healthcare" }),
   P("nurse-appreciation-gifts", "Nurse appreciation gifts", "a nurse", "thank you", 75, { topic: "Nurses & healthcare", count: 8, minCount: 6, store: "nurses",
@@ -803,6 +866,15 @@ export function groupCards(cards) {
   const out = new Map(); for (const c of cards) { const k = c.group || "More ideas"; if (!out.has(k)) out.set(k, []); out.get(k).push(c); }
   return [...out.entries()];
 }
+// One pick as schema.org Product with its live offer. Only what the card really has: no ratings or reviews are
+// claimed (the catalog doesn't give us any, and Google penalizes made-up ones).
+export function productLd(c) {
+  const price = Number(c.price_cents) > 0 ? (c.price_cents / 100).toFixed(2) : null;
+  return { "@type": "Product", name: c.title, ...(c.image ? { image: c.image } : {}), ...(c.brand ? { brand: { "@type": "Brand", name: c.brand } } : {}),
+    ...(c.reason ? { description: c.reason } : {}),
+    ...(price ? { offers: { "@type": "Offer", url: c.url, price, priceCurrency: "USD", availability: "https://schema.org/InStock",
+      ...(c.merchant ? { seller: { "@type": "Organization", name: c.merchant } } : {}) } } : { url: c.url }) };
+}
 function card(c) {
   return `<article class="card gift">${c.image ? `<img src="${esc(c.image)}" alt="${esc(c.title)}" loading="lazy" width="300" height="300">` : ""}
 <h3>${esc(c.title)}</h3><div class="muted" style="font-size:.82rem">${esc(c.brand || "")}${c.brand ? " · " : ""}${esc(c.merchant)}</div>
@@ -876,7 +948,7 @@ ${teams}
 ${g.faq.length ? `<h2 style="font-family:Georgia,serif">Questions people ask</h2>${g.faq.map(f => `<h3>${esc(f.q)}</h3><p>${esc(f.a)}</p>`).join("")}` : ""}
 <h2 style="font-family:Georgia,serif">More gift guides</h2><nav class="rel">${related.map(r => `<a href="/gifts/${r.slug}">${esc(r.keyword)}</a>`).join("")}</nav>`;
   const ld = [
-    { "@context": "https://schema.org", "@type": "ItemList", name: p.keyword, url, itemListElement: cards.map((c, i) => ({ "@type": "ListItem", position: i + 1, url: c.url, name: c.title })) },
+    { "@context": "https://schema.org", "@type": "ItemList", name: p.keyword, url, numberOfItems: cards.length, itemListElement: cards.map((c, i) => ({ "@type": "ListItem", position: i + 1, item: productLd(c) })) },
     ...(g.faq.length ? [{ "@context": "https://schema.org", "@type": "FAQPage", mainEntity: g.faq.map(f => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })) }] : []),
     { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [{ "@type": "ListItem", position: 1, name: "Gift guides", item: `${ROOT}/gifts` }, { "@type": "ListItem", position: 2, name: p.keyword, item: url }] },
   ];

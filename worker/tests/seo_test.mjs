@@ -1,5 +1,5 @@
 // Gift guides: page list, the ad slot (bottom only), rendering.
-import { PAGES, adSlot, renderGuide, parseGuide, houseAd } from "../seo.js";
+import { PAGES, adSlot, renderGuide, parseGuide, houseAd, productLd } from "../seo.js";
 
 let passed = 0, failed = 0;
 const ok = (n, c, d = "") => { c ? passed++ : (failed++, console.log(`FAIL  ${n}${d ? "  — " + d : ""}`)); };
@@ -133,5 +133,20 @@ eq("no storm ad elsewhere", houseAd("Holidays", "x"), "");
   const h = renderGuide(pp, { guide_json: JSON.stringify({ intro: ["i"], faq: [], meta: "m" }), cards_json: "[]", updated_at: "2026-11-07T00:00:00Z" }, [], null);
   ok("storm ad in the body, not the head", h.indexOf("stormproof.us") > h.indexOf("</head>")); }
 
+// Product markup on guide picks: the live offer, never a rating.
+{
+  const ld = productLd({ title: "Parker Sonnet", image: "https://img/p.jpg", brand: "Parker", price_cents: 14999, url: "https://buy/x", merchant: "staples.com", reason: "Classic." });
+  ok("product ld type", ld["@type"] === "Product" && ld.name === "Parker Sonnet");
+  ok("product ld offer", ld.offers.price === "149.99" && ld.offers.priceCurrency === "USD" && ld.offers.url === "https://buy/x" && /InStock$/.test(ld.offers.availability));
+  ok("product ld never claims ratings", !("aggregateRating" in ld) && !("review" in ld));
+  const free = productLd({ title: "X", price_cents: 0, url: "https://buy/y" });
+  ok("no offer without a price", !free.offers && free.url === "https://buy/y" && !free.brand && !free.image);
+  const p = PAGES.find(x => x.slug === "lawyer-retirement-gifts");
+  ok("new guide defined", p && p.slots.length === 8 && p.store === "lawyers" && p.occasion === "retirement");
+  const html = renderGuide(p, { guide_json: JSON.stringify({ intro: ["Hi."], faq: [], meta: "m" }), cards_json: JSON.stringify([{ title: "Gavel", price_cents: 5000, url: "https://buy/g", merchant: "m.com" }]), updated_at: "2026-11-10T00:00:00Z" }, [], null);
+  ok("guide page carries Product items", html.includes('"item":{"@type":"Product","name":"Gavel"') && html.includes('"numberOfItems":1'));
+  const slugs = PAGES.map(x => x.slug);
+  ok("guide slugs unique", new Set(slugs).size === slugs.length);
+}
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
