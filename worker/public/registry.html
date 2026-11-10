@@ -16,8 +16,10 @@ body.printqr .qrprint{position:fixed;inset:0;display:flex;flex-direction:column;
 </style></head>
 <body><div class="wrap">
 <header class="top"><h1><a href="/" style="color:inherit;text-decoration:none">gift.directory</a></h1><span class="tag">Gift registry</span></header>
+<main id="main">
 <div id="msg"></div>
 <div id="app"><p class="muted">Loading…</p></div>
+</main>
 <footer>Gifts link to the store that sells them; group gifts are paid through PayPal straight to the registry's owner. We may earn a commission when you buy through retailer links.
 <div style="margin-top:6px"><a href="/gifts">Gift guides</a> · <a href="/about">About</a> · <a href="/contact">Contact</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></div></footer>
 </div>
@@ -44,15 +46,15 @@ function createForm() {
   $("#app").innerHTML = `<h2 style="font-family:Georgia,serif;margin-top:0">One registry, every store</h2>
   <p class="muted" style="max-width:720px">Most registries lock you into one store. Here you add gifts from hundreds of retailers, Etsy shops, or any product link, and tell the AI what you want in plain English. Guests mark what they bought so nothing is doubled, and big gifts can be split by a group, paid through PayPal straight to you. Free, no account needed.</p>
   <form class="card" id="cf" style="max-width:640px">
-    <label>Registry name</label><input id="c_title" maxlength="80" placeholder="Maria & Sam's wedding" required>
-    <div class="row"><div><label>Occasion</label><select id="c_occ">${OCC.map(o => `<option>${o}</option>`).join("")}</select></div>
-      <div><label>Date (optional)</label><input id="c_date" type="date"></div></div>
-    <label>Your name</label><input id="c_name" maxlength="60" placeholder="Maria" required>
-    <label>Your PayPal email (optional, for group gifts)</label><input id="c_pp" type="email" maxlength="200" placeholder="you@example.com">
+    <label for="c_title">Registry name</label><input id="c_title" maxlength="80" placeholder="Maria & Sam's wedding" required>
+    <div class="row"><div><label for="c_occ">Occasion</label><select id="c_occ">${OCC.map(o => `<option>${o}</option>`).join("")}</select></div>
+      <div><label for="c_date">Date (optional)</label><input id="c_date" type="date"></div></div>
+    <label for="c_name">Your name</label><input id="c_name" maxlength="60" placeholder="Maria" required>
+    <label for="c_pp">Your PayPal email (optional, for group gifts)</label><input id="c_pp" type="email" maxlength="200" placeholder="you@example.com">
     <p class="muted small" style="margin:4px 0 0">Only used to receive group-gift contributions. Guests never see it.</p>
-    <label>Add for shipping &amp; tax on group gifts (%)</label><input id="c_ship" type="number" min="0" max="50" step="1" value="10" style="max-width:140px">
+    <label for="c_ship">Add for shipping &amp; tax on group gifts (%)</label><input id="c_ship" type="number" min="0" max="50" step="1" value="10" style="max-width:140px">
     <p class="muted small" style="margin:4px 0 0">Stores charge shipping and sales tax at checkout, so a group gift's goal adds this estimate. Anything left over stays with you.</p>
-    <label>A note for guests (optional)</label><textarea id="c_msg" maxlength="400" placeholder="Thank you for celebrating with us!"></textarea>
+    <label for="c_msg">A note for guests (optional)</label><textarea id="c_msg" maxlength="400" placeholder="Thank you for celebrating with us!"></textarea>
     <div class="err" id="cerr"></div>
     <button class="btn" style="margin-top:12px">Create my registry</button>
   </form>

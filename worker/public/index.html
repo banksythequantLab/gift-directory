@@ -5,7 +5,7 @@
   .wrap { max-width:1180px; }
   .answers { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:4px 0 6px; min-height:34px; }
   .pill { background:var(--accent); color:#fff; border-radius:999px; padding:5px 10px 5px 12px; font-size:.86rem; display:inline-flex; gap:6px; align-items:center; }
-  .pill button { background:none; border:0; color:#fff; cursor:pointer; font-size:1rem; line-height:1; padding:0; }
+  .pill button { background:none; border:0; color:#fff; cursor:pointer; font-size:1rem; line-height:1; padding:4px 6px; margin:-4px -6px -4px 0; min-width:24px; min-height:24px; }
   .grid { grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); }
   .q { background:var(--accent); color:#fff; border:0; display:flex; flex-direction:column; justify-content:center; }
   .q h3 { margin:0 0 4px; font-family:Georgia,serif; font-size:1.25rem; }
@@ -13,7 +13,7 @@
   .q .chip { background:rgba(255,255,255,.14); color:#fff; border-color:rgba(255,255,255,.35); }
   .q .chip:hover { background:rgba(255,255,255,.28); }
   .q input { background:#fff; color:var(--ink); }
-  .q .skip { color:#fff; opacity:.75; font-size:.82rem; margin-top:10px; background:none; border:0; cursor:pointer; text-decoration:underline; align-self:flex-start; padding:0; }
+  .q .skip { color:#fff; opacity:.75; font-size:.82rem; margin-top:10px; background:none; border:0; cursor:pointer; text-decoration:underline; align-self:flex-start; padding:6px 10px; margin-left:-10px; min-height:32px; }
   .gift .why { font-style:italic; color:#374151; }
   .badge { display:inline-block; font-size:.72rem; font-weight:700; letter-spacing:.3px; color:var(--accent); text-transform:uppercase; margin-top:6px; }
   .busy { opacity:.45; pointer-events:none; transition:opacity .2s; }
@@ -22,15 +22,17 @@
 </style></head>
 <body><div class="wrap">
 <header class="top"><h1 id="sname">&nbsp;</h1><span class="tag" id="stag"></span></header>
+<main id="main">
 <div id="closed" class="card" style="display:none"></div>
 <div id="welcome" class="note" style="display:none;margin-bottom:14px"><b>Your store is live.</b> Share this address with your people.</div>
-<form id="sf" style="display:none;gap:8px;margin:2px 0 10px"><input id="q" type="search" placeholder="Describe them, or search a gift" title="e.g. a litigator who loves coffee, $75 — or just: fountain pen" maxlength="80" style="flex:1"><button class="btn">Search</button></form>
+<form id="sf" style="display:none;gap:8px;margin:2px 0 10px"><input id="q" type="search" aria-label="Describe who it's for, or search for a gift" placeholder="Describe them, or search a gift" title="e.g. a litigator who loves coffee, $75 — or just: fountain pen" maxlength="80" style="flex:1"><button class="btn">Search</button></form>
 <div class="answers" id="bar"></div>
 <div id="notice"></div>
 <div id="shelves"></div>
 <div class="grid" id="grid"></div>
 <div id="promo"></div>
 <div id="working" role="status" aria-live="polite" hidden style="position:fixed;left:16px;right:16px;bottom:18px;margin:0 auto;width:fit-content;z-index:20;background:var(--accent);color:#fff;border-radius:999px;padding:10px 18px;font-weight:600;font-size:.92rem;box-shadow:0 6px 20px rgba(0,0,0,.18);max-width:calc(100% - 32px);text-align:center"></div>
+</main>
 <footer><div id="fstore" style="margin-bottom:8px"></div>Prices and stock come live from retailers through Channel3; we link you to the store to buy. Group gifts are paid through PayPal, straight to the organizer.
 <div style="margin-top:8px"><a href="https://gift.directory/gifts">Gift guides</a> · <a href="https://gift.directory/registry">Gift registry</a> · <a href="https://gift.directory/">Start your own gift store on gift.directory →</a></div>
 <div style="margin-top:6px"><a href="https://gift.directory/about">About</a> · <a href="https://gift.directory/contact">Contact</a> · <a href="https://gift.directory/privacy">Privacy</a> · <a href="https://gift.directory/terms">Terms</a> · We may earn a commission when you buy through retailer links.</div></footer>

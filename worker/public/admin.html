@@ -16,10 +16,11 @@
   table { width:100%; border-collapse:collapse; } td, th { text-align:left; padding:8px 6px; border-bottom:1px solid var(--line); font-size:.92rem; }
   .top2 { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
 </style></head>
-<body><div class="wrap">
+<body><div class="wrap"><main id="main">
 <div class="top2"><h1 style="font-family:Georgia,serif;margin:0">Your gift store</h1><span class="muted" id="who"></span><span style="margin-left:auto" id="acts"></span></div>
 <div id="msg" style="margin-top:10px"></div>
 <div id="app"></div>
+</main>
 <footer><a href="/">gift.directory</a> · Log in with PayPal keeps your store tied to the PayPal account that pays for it.</footer>
 </div>
 <script>
@@ -225,14 +226,14 @@ $("#app").addEventListener("click", async e => {
 function settings() {
   const s = cur.store;
   $("#pane").innerHTML = `<form class="card" id="sf" style="max-width:760px">
-    <div class="row"><div><label>Store name</label><input id="s_name" maxlength="40" value="${esc(s.name)}"></div>
-      <div><label>Color</label><input id="s_accent" type="color" value="${esc(s.accent || "#1f3a5f")}" style="height:44px;padding:4px"></div></div>
-    <label>Tagline</label><input id="s_tag" maxlength="90" value="${esc(s.tagline || "")}">
-    <label>Occasions (comma-separated)</label><textarea id="s_occ">${esc(s.occasions.join(", "))}</textarea>
-    <label>"Who's it for?" examples (comma-separated, up to 3)</label><input id="s_rec" value="${esc(s.recipient_examples.join(", "))}">
+    <div class="row"><div><label for="s_name">Store name</label><input id="s_name" maxlength="40" value="${esc(s.name)}"></div>
+      <div><label for="s_accent">Color</label><input id="s_accent" type="color" value="${esc(s.accent || "#1f3a5f")}" style="height:44px;padding:4px"></div></div>
+    <label for="s_tag">Tagline</label><input id="s_tag" maxlength="90" value="${esc(s.tagline || "")}">
+    <label for="s_occ">Occasions (comma-separated)</label><textarea id="s_occ">${esc(s.occasions.join(", "))}</textarea>
+    <label for="s_rec">"Who's it for?" examples (comma-separated, up to 3)</label><input id="s_rec" value="${esc(s.recipient_examples.join(", "))}">
     ${s.house ? `<p class="muted">This is a house store with a hand-tuned search prompt.</p>` : `
-    <label>What the AI should look for</label><textarea id="s_guide" maxlength="300">${esc(s.search_guidance)}</textarea>
-    <label>What the AI should avoid</label><input id="s_avoid" maxlength="200" value="${esc(s.avoid)}">`}
+    <label for="s_guide">What the AI should look for</label><textarea id="s_guide" maxlength="300">${esc(s.search_guidance)}</textarea>
+    <label for="s_avoid">What the AI should avoid</label><input id="s_avoid" maxlength="200" value="${esc(s.avoid)}">`}
     <label style="display:flex;gap:8px;align-items:center;margin-top:14px;font-weight:400"><input type="checkbox" id="s_tee" style="width:auto"${s.tee_banner === false ? "" : " checked"}>
       Show the custom-tee banner at the bottom of my store <span class="muted" style="font-size:.85rem">(a two-line custom shirt from the HeyAiMe Etsy shop, with sayings that fit your store)</span></label>
     <div class="err" id="serr"></div>

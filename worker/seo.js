@@ -932,7 +932,7 @@ ${jsonld.map(j => `<script type="application/ld+json">${JSON.stringify(j).replac
 <style>.wrap{max-width:1180px}.grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}.guide p{max-width:760px}.crumbs{font-size:.85rem;margin-bottom:6px}
 .gift .why{font-style:italic;color:#374151}.cta{background:var(--accent);color:#fff;border-radius:14px;padding:18px;margin:22px 0}.cta a{color:#fff;font-weight:700}
 .rel{display:flex;flex-wrap:wrap;gap:8px}.rel a{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;font-size:.88rem;text-decoration:none;color:var(--ink)}</style>
-</head><body><div class="wrap">${body}
+</head><body><div class="wrap"><main id="main">${body}</main>
 ${ad}
 <footer><a href="/">gift.directory</a> · <a href="/gifts">All gift guides</a> · <a href="/registry">Gift registry</a> · <a href="https://gift.directory/about">About</a> · <a href="https://gift.directory/contact">Contact</a> · <a href="https://gift.directory/privacy">Privacy</a> · <a href="https://gift.directory/terms">Terms</a><br>Prices and stock come live from retailers through Channel3 and may change; links go to the retailer. We may earn a commission when you buy through these links.</footer></div></body></html>`;
 
@@ -973,7 +973,7 @@ ${cards.length ? (cards.some(c => c.group)
 ${houseAd(p.topic, p.slug)}
 ${teams}
 ${g.faq.length ? `<h2 style="font-family:Georgia,serif">Questions people ask</h2>${g.faq.map(f => `<h3>${esc(f.q)}</h3><p>${esc(f.a)}</p>`).join("")}` : ""}
-<h2 style="font-family:Georgia,serif">More gift guides</h2><nav class="rel">${(related.length > 6 ? related.slice(3) : related).map(r => `<a href="/gifts/${r.slug}">${esc(r.keyword)}</a>`).join("")}<a href="/gifts/topic/${topicSlug(p.topic)}">All ${esc(p.topic)} guides →</a></nav>`;
+<h2 style="font-family:Georgia,serif">More gift guides</h2><nav class="rel" aria-label="Gift guides">${(related.length > 6 ? related.slice(3) : related).map(r => `<a href="/gifts/${r.slug}">${esc(r.keyword)}</a>`).join("")}<a href="/gifts/topic/${topicSlug(p.topic)}">All ${esc(p.topic)} guides →</a></nav>`;
   const ld = [
     { "@context": "https://schema.org", "@type": "ItemList", name: p.keyword, url, numberOfItems: cards.length, itemListElement: cards.map((c, i) => ({ "@type": "ListItem", position: i + 1, item: productLd(c) })) },
     ...(g.faq.length ? [{ "@context": "https://schema.org", "@type": "FAQPage", mainEntity: g.faq.map(f => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })) }] : []),
@@ -989,15 +989,15 @@ const HUB_PREVIEW = 12;
 export function renderHub(built, ad = "") {
   const byTopic = byTopicBuilt(built);
   const body = `<h1 style="font-family:Georgia,serif">Gift guides</h1><p class="muted">Real, in-stock gifts picked by AI for the people on your list — with live prices, and group gifts paid through PayPal.</p>
-<nav class="rel" style="margin:6px 0 10px">${Object.entries(byTopic).map(([t, ps]) => `<a href="/gifts/topic/${topicSlug(t)}">${esc(t)} (${ps.length})</a>`).join("")}</nav>
-${Object.entries(byTopic).map(([t, ps]) => `<h2 style="font-family:Georgia,serif"><a href="/gifts/topic/${topicSlug(t)}" style="color:inherit">${esc(t)}</a></h2><nav class="rel">${ps.slice(0, HUB_PREVIEW).map(p => `<a href="/gifts/${p.slug}">${esc(p.keyword)}</a>`).join("")}${ps.length > HUB_PREVIEW ? `<a href="/gifts/topic/${topicSlug(t)}"><b>All ${ps.length} ${esc(t)} guides →</b></a>` : ""}</nav>`).join("")}`;
+<nav class="rel" aria-label="Topics" style="margin:6px 0 10px">${Object.entries(byTopic).map(([t, ps]) => `<a href="/gifts/topic/${topicSlug(t)}">${esc(t)} (${ps.length})</a>`).join("")}</nav>
+${Object.entries(byTopic).map(([t, ps]) => `<h2 style="font-family:Georgia,serif"><a href="/gifts/topic/${topicSlug(t)}" style="color:inherit">${esc(t)}</a></h2><nav class="rel" aria-label="${esc(t)} guides">${ps.slice(0, HUB_PREVIEW).map(p => `<a href="/gifts/${p.slug}">${esc(p.keyword)}</a>`).join("")}${ps.length > HUB_PREVIEW ? `<a href="/gifts/topic/${topicSlug(t)}"><b>All ${ps.length} ${esc(t)} guides →</b></a>` : ""}</nav>`).join("")}`;
   return shell("Gift guides — real gifts in stock, picked by AI | gift.directory", "Christmas and year-round gift guides for lawyers, nurses, coworkers, family and more: real, in-stock gifts with live prices, picked by AI.", `${ROOT}/gifts`, body, [], ad);
 }
 export function renderTopic(topic, built, ad = "") {
   const ps = byTopicBuilt(built)[topic] || [], url = `${ROOT}/gifts/topic/${topicSlug(topic)}`;
   const body = `<div class="crumbs"><a href="/">gift.directory</a> › <a href="/gifts">Gift guides</a> › ${esc(topic)}</div>
 <h1 style="font-family:Georgia,serif;margin:4px 0 6px">${esc(topic)} gift guides</h1><p class="muted">${ps.length} guides with real, in-stock gifts and live prices.</p>
-<nav class="rel">${ps.map(p => `<a href="/gifts/${p.slug}">${esc(p.keyword)}</a>`).join("")}</nav>
+<nav class="rel" aria-label="${esc(topic)} guides">${ps.map(p => `<a href="/gifts/${p.slug}">${esc(p.keyword)}</a>`).join("")}</nav>
 ${houseAd(topic, "topic-" + topicSlug(topic))}
 <p style="margin-top:18px"><a href="/gifts">← All gift guides</a></p>`;
   const ld = [{ "@context": "https://schema.org", "@type": "ItemList", name: `${topic} gift guides`, url, itemListElement: ps.map((p, i) => ({ "@type": "ListItem", position: i + 1, url: `${ROOT}/gifts/${p.slug}`, name: p.keyword })) },
@@ -1029,7 +1029,7 @@ export function related(p, built = null, n = 11) {
 const SPORT_HUB = { NFL: "gifts-for-football-fans", College: "gifts-for-football-fans", MLB: "gifts-for-baseball-fans", NHL: "gifts-for-hockey-fans",
   NBA: "gifts-for-basketball-fans", WNBA: "gifts-for-basketball-fans", MLS: "gifts-for-soccer-fans", Clubs: "gifts-for-soccer-fans", National: "gifts-for-soccer-fans" };
 export function teamNav(p, built) {
-  const nav = ps => `<nav class="rel">${ps.map(x => `<a href="/gifts/${x.slug}">${esc(x.keyword.replace(/^Gifts for /, "").replace(/ fans$/, ""))}</a>`).join("")}</nav>`;
+  const nav = (ps, label = "Teams") => `<nav class="rel" aria-label="${esc(label)}">${ps.map(x => `<a href="/gifts/${x.slug}">${esc(x.keyword.replace(/^Gifts for /, "").replace(/ fans$/, ""))}</a>`).join("")}</nav>`;
   if (p.team) {
     const hub = pageBySlug(SPORT_HUB[p.team.league]), mates = TEAM_PAGES.filter(x => x.team.league === p.team.league && x.slug !== p.slug && built.has(x.slug));
     return (mates.length ? `<h2 style="font-family:Georgia,serif">More ${esc(/ fans$/.test(p.topic) ? p.topic.replace(/ fans$/, " teams").replace(/^College/, "college") : p.topic.toLowerCase())}</h2>${nav(mates)}` : "") +
@@ -1037,7 +1037,7 @@ export function teamNav(p, built) {
   }
   const leagues = Object.keys(SPORT_HUB).filter(lg => SPORT_HUB[lg] === p.slug);
   return leagues.map(lg => { const ts = TEAM_PAGES.filter(x => x.team.league === lg && built.has(x.slug)), t = ts[0] && ts[0].topic;
-    return ts.length ? `<h2 style="font-family:Georgia,serif">Shop by team: ${esc(t.replace(/ fans$/, ""))}</h2>${nav(ts)}` : ""; }).join("");
+    return ts.length ? `<h2 style="font-family:Georgia,serif">Shop by team: ${esc(t.replace(/ fans$/, ""))}</h2>${nav(ts, `${t.replace(/ fans$/, "")} teams`)}` : ""; }).join("");
 }
 export function sitemap(urls) {
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
