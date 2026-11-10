@@ -962,6 +962,7 @@ export function renderGuide(p, row, related, storeUrl, ad = "", teams = "") {
 <h1 style="font-family:Georgia,serif;margin:4px 0 6px">${esc(p.keyword)}</h1>
 <p class="muted" style="margin:0 0 12px">Updated ${esc(updated)} · ${cards.length} gifts in stock now</p>
 <section class="guide">${g.intro.map(x => `<p>${esc(x)}</p>`).join("")}</section>
+${related.length >= 3 ? `<p class="muted see">See also: ${related.slice(0, 3).map(r => `<a href="/gifts/${r.slug}">${esc(r.keyword.charAt(0).toLowerCase() + r.keyword.slice(1))}</a>`).join(", ").replace(/, ([^,]*)$/, " and $1")}.</p>` : ""}
 ${p.anniversary ? `<p class="muted" style="font-size:1.02rem"><b>Traditional gift:</b> ${esc(p.anniversary.traditional.replace(/\s*\(ivory-colored, never real ivory\)/, " (ivory-colored)"))} · <b>Modern gift:</b> ${esc(p.anniversary.modern)}</p>` : ""}
 ${cards.length ? (cards.some(c => c.group)
   ? groupCards(cards).map(([label, cs]) => `<h2 style="font-family:Georgia,serif">${esc(label)}</h2><div class="grid">${cs.map(card).join("")}</div>`).join("")
@@ -972,7 +973,7 @@ ${cards.length ? (cards.some(c => c.group)
 ${houseAd(p.topic, p.slug)}
 ${teams}
 ${g.faq.length ? `<h2 style="font-family:Georgia,serif">Questions people ask</h2>${g.faq.map(f => `<h3>${esc(f.q)}</h3><p>${esc(f.a)}</p>`).join("")}` : ""}
-<h2 style="font-family:Georgia,serif">More gift guides</h2><nav class="rel">${related.map(r => `<a href="/gifts/${r.slug}">${esc(r.keyword)}</a>`).join("")}</nav>`;
+<h2 style="font-family:Georgia,serif">More gift guides</h2><nav class="rel">${(related.length > 6 ? related.slice(3) : related).map(r => `<a href="/gifts/${r.slug}">${esc(r.keyword)}</a>`).join("")}<a href="/gifts/topic/${topicSlug(p.topic)}">All ${esc(p.topic)} guides →</a></nav>`;
   const ld = [
     { "@context": "https://schema.org", "@type": "ItemList", name: p.keyword, url, numberOfItems: cards.length, itemListElement: cards.map((c, i) => ({ "@type": "ListItem", position: i + 1, item: productLd(c) })) },
     ...(g.faq.length ? [{ "@context": "https://schema.org", "@type": "FAQPage", mainEntity: g.faq.map(f => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })) }] : []),
@@ -1003,13 +1004,26 @@ ${houseAd(topic, "topic-" + topicSlug(topic))}
     { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [{ "@type": "ListItem", position: 1, name: "Gift guides", item: `${ROOT}/gifts` }, { "@type": "ListItem", position: 2, name: topic, item: url }] }];
   return shell(`${topic} gift guides — real gifts in stock | gift.directory`, `${ps.length} ${topic} gift guides: real, in-stock gifts with live prices, picked by AI.`.slice(0, 155), url, body, ld, ad);
 }
-// Related guides: built pages only, starting with the page's neighbours in its own topic (so links spread
-// across a topic instead of every page pointing at its first eight), then other topics.
-export function related(p, built = null, n = 8) {
+// Related guides: built pages only, ranked by what a reader of this page would click next. The same people
+// (a profession group or family member, read from the slug) counts most, then the same occasion, then the same
+// topic and store. Ties keep the page's neighbours in its own topic first, so links spread across a topic.
+const WHO = { law: ["lawyer", "lawyers", "attorney", "attorneys", "law", "paralegal", "paralegals", "legal", "judge", "bar"],
+  medical: ["nurse", "nurses", "nursing", "doctor", "doctors", "medical", "physician", "pharmacist", "pharmacists", "pharmacy", "dentist", "dentists", "dental", "emt", "emts"],
+  fire: ["firefighter", "firefighters", "fire"], police: ["police", "officer", "officers"], military: ["military", "soldier", "soldiers"],
+  teaching: ["teacher", "teachers", "principal", "principals", "class"], office: ["boss", "coworker", "coworkers", "employee", "employees", "client", "clients", "office"],
+  dad: ["dad", "him", "husband", "boyfriend", "brother", "men"], mom: ["mom", "her", "wife", "girlfriend", "sister", "women"], kids: ["kids", "toddlers", "teens", "teen", "tweens", "boys", "girls"] };
+const OCC = { retirement: /retire/, graduation: /graduat|academy|passed|students?\b/, santa: /secret-santa|white-elephant|gag-gifts|stocking/, christmas: /christmas|hanukkah/,
+  thanks: /thank|appreciation/, birthday: /birthday|year-old/, love: /anniversary|valentine/, home: /wedding|registry|housewarming|homeowner|new-parents|baby/ };
+const tags = p => { const w = p.slug.split("-");
+  return { who: Object.keys(WHO).filter(k => WHO[k].some(t => w.includes(t))), occ: Object.keys(OCC).filter(k => OCC[k].test(p.slug)) }; };
+export function related(p, built = null, n = 11) {
   const ok = x => x.slug !== p.slug && (!built || built.has(x.slug));
   const same = PAGES.filter(x => x.topic === p.topic), i = same.findIndex(x => x.slug === p.slug);
-  const ring = i < 0 ? same : [...same.slice(i + 1), ...same.slice(0, i)];
-  return [...ring.filter(ok), ...PAGES.filter(x => x.topic !== p.topic && ok(x))].slice(0, n);
+  const ring = i < 0 ? same : [...same.slice(i + 1), ...same.slice(0, i)], order = new Map(ring.map((x, k) => [x.slug, k]));
+  const me = tags(p), score = x => { const t = tags(x);
+    return (t.who.some(w => me.who.includes(w)) ? 4 : 0) + (t.occ.some(o => me.occ.includes(o)) ? 3 : 0) + (x.topic === p.topic ? 2 : 0) + (p.store && x.store === p.store ? 1 : 0); };
+  return PAGES.filter(ok).map((x, k) => ({ x, s: score(x), o: order.has(x.slug) ? order.get(x.slug) : 1e4 + k }))
+    .sort((a, b) => b.s - a.s || a.o - b.o).slice(0, n).map(c => c.x);
 }
 // Each league's fan pages hang off one sport guide, and that guide lists every team.
 const SPORT_HUB = { NFL: "gifts-for-football-fans", College: "gifts-for-football-fans", MLB: "gifts-for-baseball-fans", NHL: "gifts-for-hockey-fans",

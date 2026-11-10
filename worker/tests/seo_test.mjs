@@ -148,5 +148,19 @@ eq("no storm ad elsewhere", houseAd("Holidays", "x"), "");
   const slugs = PAGES.map(x => x.slug);
   ok("guide slugs unique", new Set(slugs).size === slugs.length);
 }
+// Related guides lead with the same people, then the same occasion.
+{
+  const { related, pageBySlug: pb } = await import("../seo.js");
+  const r = related(pb("lawyer-retirement-gifts")).map(x => x.slug);
+  ok("lawyer retirement links law guides first", r.slice(0, 4).every(s => pb(s).topic === "Law" || /law|lawyer|attorney|judge|legal|paralegal/.test(s)), r.slice(0, 4).join(" "));
+  ok("lawyer retirement links other retirement guides", r.some(s => /retire/.test(s)) , r.join(" "));
+  ok("in-laws page is not a law guide", !r.includes("christmas-gifts-for-in-laws"));
+  const f = related(pb("fire-academy-graduation-gifts")).map(x => x.slug);
+  ok("fire academy links firefighter guides", f.slice(0, 3).every(s => /fire/.test(s)), f.slice(0, 3).join(" "));
+  ok("related count", f.length === 11 && !f.includes("fire-academy-graduation-gifts"));
+  const h = renderGuide(pb("lawyer-retirement-gifts"), { guide_json: JSON.stringify({ intro: ["Hi."], faq: [], meta: "m" }), cards_json: "[]", updated_at: "2026-11-10T00:00:00Z" }, related(pb("lawyer-retirement-gifts")), null);
+  ok("see also has three in-text links", (h.match(/<p class="muted see">See also: (<a [^>]+>[^<]+<\/a>(, | and )?){3}\.<\/p>/) || []).length > 0);
+  ok("nav links the topic hub", h.includes('href="/gifts/topic/law">All Law guides'));
+}
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
