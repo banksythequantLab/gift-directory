@@ -323,6 +323,13 @@ export const PAGES = [
       "farewell-gifts-for-coworkers": { 5: ["luxury soy candle", CANDLE], 6: ["gourmet coffee sampler", COFFEE] },
       "gifts-for-nurse-managers": { 5: ["luxury soy candle", CANDLE] },
       "gifts-for-principals": { 3: ["principal mug", ["principal"]], 6: ["gourmet coffee sampler", COFFEE] },
+      "christmas-gifts-for-teachers": { 4: ["personalized teacher ornament", ["teacher"]], 6: ["scented soy candle", CANDLE] },
+      "teacher-appreciation-gifts": { 2: ["personalized teacher name sign", ["teacher"]], 6: ["gourmet coffee sampler", COFFEE] },
+      "thank-you-gifts-for-doctors": { 0: ["gourmet chocolate truffles box", ["truffle", "assorted chocolate", "chocolate assortment", "chocolates"]], 1: ["gourmet coffee sampler", COFFEE] },
+      "closing-gifts-for-home-buyers": { 0: ["personalized cutting board", ["cutting board", "charcuterie"]], 1: ["custom doormat", ["doormat", "door mat"]], 3: ["personalized address plaque", ["address", "house number", "plaque"]], 6: ["scented soy candle", CANDLE] },
+      "christmas-gifts-for-realtors": { 2: ["car seat organizer", ["organizer"]], 6: ["gourmet coffee sampler", COFFEE] },
+      "thank-you-gifts-for-police-officers": { 0: ["thin blue line mug", ["blue line", "police"]], 2: ["gourmet coffee sampler", COFFEE], 6: ["thin blue line flag", ["blue line"]] },
+      "christmas-gifts-for-police-officers": { 1: ["thin blue line ornament", ["blue line", "police"]], 6: ["police shadow box", ["shadow box"]] },
     };
     const G = (slug, keyword, recipient, occasion, budget, topic, slots, extra = {}) => {
       const f = FIX[slug] || {}, sl = slots.map((q, i) => f[i] ? f[i][0] : q), must = slots.map((_, i) => f[i] ? f[i][1] : null);
@@ -383,6 +390,23 @@ export const PAGES = [
         ["leather padfolio","insulated tumbler","nurse leader mug","hand cream set","desk plant","scented candle","engraved pen","tea gift set"], { store: "nurses" }),
       G("gifts-for-principals", "Gifts for school principals", "a school principal", "Christmas", 75, "Professions",
         ["leather padfolio","engraved desk name plate","insulated tumbler","principal mug","desk plant","leather journal","coffee gift set","engraved pen"]),
+      // seed guides for the teachers, doctors, realtors and police stores
+      G("christmas-gifts-for-teachers", "Christmas gifts for teachers", "my child's teacher, from a parent", "Christmas", 35, "Professions",
+        ["insulated tumbler","teacher tote bag","gourmet chocolate box","hand cream gift set","personalized teacher ornament","gel pen set","scented soy candle","cozy socks"], { store: "teachers" }),
+      G("teacher-appreciation-gifts", "Teacher appreciation gifts", "a teacher, for Teacher Appreciation Week", "thank you", 50, "Professions",
+        ["teacher tote bag","insulated tumbler","personalized teacher name sign","teacher planner","succulent planter","hand cream gift set","coffee gift set","book lover gift set"], { store: "teachers" }),
+      G("gifts-for-doctors", "Gifts for doctors", "a doctor", "any occasion", 150, "Nurses & healthcare",
+        ["leather padfolio","engraved pen","massage gun","pour over coffee set","history of medicine book","insulated tumbler","noise cancelling earbuds","leather messenger bag"], { store: "doctors" }),
+      G("thank-you-gifts-for-doctors", "Thank you gifts for doctors", "my doctor, from a grateful patient", "thank you", 100, "Nurses & healthcare",
+        ["gourmet chocolate box","gourmet coffee sampler","desk plant","engraved pen","leather journal","insulated tumbler","tea gift set","fruit gift basket"], { store: "doctors" }),
+      G("closing-gifts-for-home-buyers", "Closing gifts for home buyers", "my clients who just bought a house, from their real estate agent", "closing", 100, "Professions",
+        ["personalized cutting board","custom doormat","wine decanter set","personalized address plaque","cozy throw blanket","housewarming gift basket","scented soy candle","cocktail shaker set"], { store: "realtors" }),
+      G("christmas-gifts-for-realtors", "Christmas gifts for realtors", "a real estate agent", "Christmas", 75, "Professions",
+        ["leather padfolio","insulated tumbler","car seat organizer","wireless car charger","desk plant","engraved pen","gourmet coffee sampler","leather journal"], { store: "realtors" }),
+      G("thank-you-gifts-for-police-officers", "Thank you gifts for police officers", "the police officers at our local precinct", "thank you", 50, "Professions",
+        ["thin blue line mug","tactical pen","gourmet coffee sampler","insulated tumbler","beef jerky gift box","tactical flashlight","thin blue line flag","cozy socks"], { store: "police" }),
+      G("christmas-gifts-for-police-officers", "Christmas gifts for police officers", "a police officer", "Christmas", 100, "Professions",
+        ["tactical flashlight","thin blue line ornament","insulated tumbler","duty bag","boot dryer","tactical pen","police shadow box","wool hiking socks"], { store: "police" }),
       G("gifts-for-legal-assistants", "Gifts for legal assistants", "a legal assistant at the firm", "Christmas", 50, "Law",
         ["desk organizer","insulated tumbler","mug warmer","gel pen set","hand cream set","desk plant","scented candle","ergonomic wrist rest"], { store: "lawyers" }),
     ];
@@ -830,6 +854,15 @@ export const PAGES = [
     slots: ["professional hair shears", "anti fatigue mat", "salon tool belt", "hair clip set", "compression socks", "salon apron"],
     notes: "practical gifts for stylists on their feet all day" }),
 ];
+// Guides whose people now have their own store link there (set after the list so each entry stays as written).
+const STORE_OF = {
+  teachers: ["gifts-for-teachers-under-25", "group-gifts-for-teachers-from-class", "teacher-retirement-gifts", "secret-santa-gifts-for-teachers", "gifts-for-principals"],
+  doctors: ["christmas-gifts-for-doctors", "doctor-retirement-gifts", "medical-school-graduation-gifts", "secret-santa-gifts-for-doctors"],
+  realtors: ["gifts-for-realtors"],
+  police: ["gifts-for-police-officers", "police-retirement-gifts", "police-academy-graduation-gifts", "secret-santa-gifts-for-police-officers"],
+  "firefighter-gifts": ["gifts-for-firefighters", "fire-academy-graduation-gifts", "secret-santa-gifts-for-firefighters", "firefighter-retirement-gifts"],
+};
+for (const [st, slugs] of Object.entries(STORE_OF)) for (const sl of slugs) { const p = PAGES.find(x => x.slug === sl); if (p) p.store = st; }
 export const pageBySlug = slug => PAGES.find(p => p.slug === slug) || null;
 
 // No page should be seven candles: at most `cap` products of one kind, in the order they came.
