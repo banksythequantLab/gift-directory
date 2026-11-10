@@ -50,7 +50,7 @@ function list(top = "") {
   $("#app").innerHTML = top + `<h2>Made to order, personalized</h2><p class="muted">Shirts, hoodies and mugs with their name on it. Printed and shipped for you by Printful.</p>` +
     (products.length ? `<div class="grid">${products.map(p => `<div class="card prod" data-p="${p.id}">
       ${p.image ? `<img src="${esc(p.image)}" alt="" loading="lazy">` : ""}<div class="t">${esc(p.title)}</div>
-      <div class="muted">${p.kind === "tpl" ? "Personalize it. " : ""}From ${money(p.price_cents)}</div></div>`).join("")}</div>` : `<p class="muted">Nothing for sale right now.</p>`);
+      <div class="muted">${p.kind === "photo" ? "Your photo on it. " : p.kind === "tpl" ? "Personalize it. " : ""}From ${money(p.price_cents)}</div></div>`).join("")}</div>` : `<p class="muted">Nothing for sale right now.</p>`);
   document.querySelectorAll("[data-p]").forEach(el => el.onclick = () => {
     history.pushState(null, "", "?p=" + el.dataset.p); detail(products.find(x => String(x.id) === el.dataset.p));
   });
@@ -59,20 +59,23 @@ window.onpopstate = () => { const p = new URLSearchParams(location.search).get("
 
 function detail(p) {
   const colors = [...new Set(p.variants.map(v => v.color))];
-  const text = p.kind === "tpl", wrap = p.ptype === "mug", light = text && /^#(f|e)/i.test(p.print.bg);
+  const photo = p.kind === "photo", text = p.kind === "tpl" || photo, wrap = p.ptype === "mug", light = text && /^#(f|e)/i.test(p.print.bg);
+  let photoId = null;
   const pre = new URLSearchParams(location.search), fromLink = pre.get("p") === String(p.id);
   let tpl = text ? ((p.tpls || []).includes(fromLink && pre.get("t")) ? pre.get("t") : p.tpl) : null;
   const fieldsOf = () => ((p.designs || []).find(d => d.tpl === tpl) || { fields: p.fields }).fields;
   const exOf = () => p.example && p.example.tpl === tpl ? p.example.vals : null;
   $("#app").innerHTML = `<p><a href="/shop" id="back">← All products</a></p><div class="buy">
-  <div>${text ? `<div class="pv" style="background:${p.print.bg};aspect-ratio:${p.print.w}/${p.print.h}${light ? ";border:1px solid var(--line)" : ""}"><img id="pvimg" alt="Preview of your design"></div>
-    <p class="muted small">Preview of the print${wrap ? " (printed on both sides)" : ""}.</p>` : ""}
+  <div>${photo ? `<div class="pv" style="background:${p.print.bg};aspect-ratio:${p.print.w}/${p.print.h};align-items:flex-start"><img id="phimg" alt="Your photo" style="width:92%;height:auto;margin-top:6%;display:none"><span id="phph" class="muted" style="margin:auto;color:#aaa">Your photo goes here</span></div>
+    <p class="muted small">Front: your photo, printed up to 11 × 14 in.</p><div id="backpv" style="display:none">` : ""}${text ? `<div class="pv" style="background:${p.print.bg};aspect-ratio:${p.print.w}/${p.print.h}${light ? ";border:1px solid var(--line)" : ""}"><img id="pvimg" alt="Preview of your design"></div>
+    <p class="muted small">${photo ? "Back: your text." : `Preview of the print${wrap ? " (printed on both sides)" : ""}.`}</p>` : ""}${photo ? "</div>" : ""}
     ${p.image ? `<img src="${esc(p.image)}" alt="${esc(p.title)}" style="${text ? "margin-top:10px" : ""}">` : ""}</div>
   <div><h2 style="margin-top:0">${esc(p.title)}</h2>${p.subtitle ? `<p class="muted">${esc(p.subtitle)}</p>` : ""}
     ${colors.length > 1 ? `<label for="color">Color</label><select id="color">${colors.map(c => `<option>${esc(c)}</option>`).join("")}</select>` : ""}
     <label for="size">Size</label><select id="size"></select>
     <label for="qty">Quantity</label><input id="qty" type="number" min="1" max="10" value="1">
     ${text && p.designs && p.designs.length > 1 ? `<label for="dz">Design</label><select id="dz">${p.designs.map(d => `<option value="${d.tpl}"${d.tpl === tpl ? " selected" : ""}>${esc(d.name)}</option>`).join("")}</select>` : ""}
+    ${photo ? `<label for="ph">Your photo (JPEG, PNG or a phone photo)</label><input id="ph" type="file" accept="image/*"><div id="phmsg" class="muted small"></div>` : ""}
     ${text ? `<div id="fields"></div>` : ""}
     <label for="gm">Gift message (optional, printed on the packing slip)</label><textarea id="gm" maxlength="200" rows="2"></textarea>
     <h3>Ship to</h3>
@@ -97,19 +100,36 @@ function detail(p) {
   // otherwise empty required fields show their placeholder.
   let pt = null; const prev = () => { clearTimeout(pt); pt = setTimeout(() => {
     const vs = vals(), ex = exOf(), q = new URLSearchParams([["t", tpl]]);
+    if (photo) { const ls = vs.map(v => v.trim()).filter(Boolean); $("#backpv").style.display = ls.length ? "" : "none"; if (!ls.length) return;
+      [ls[0], ls[1] || ""].forEach(v => q.append("f", v)); $("#pvimg").src = `/api/shop/preview/${p.id}.png?${q}`; return; }
     const show = !vs.some(v => v.trim()) && ex ? ex : vs.map((v, i) => v.trim() || (fieldsOf()[i].req ? (ex && ex[i]) || fieldsOf()[i].ph : ""));
     show.forEach(v => q.append("f", v));
     $("#pvimg").src = `/api/shop/preview/${p.id}.png?${q}`; }, 350); };
   const renderFields = (vs = []) => { const ex = exOf();
     $("#fields").innerHTML = fieldsOf().map((f, i) => `<label for="f${i}">${esc(f.label)}</label><input id="f${i}" maxlength="${f.max}" placeholder="${esc((ex && ex[i]) || f.ph)}" value="${esc((vs[i] || "").slice(0, f.max))}">`).join("");
     fieldsOf().forEach((_, i) => $("#f" + i).addEventListener("input", prev)); prev(); };
+  // The photo is resized in the browser (phone photos come out the right way up), then stored for 30 days.
+  if (photo) $("#ph").onchange = async () => {
+    const f = $("#ph").files[0]; if (!f) return; photoId = null; $("#phmsg").textContent = "Uploading…";
+    try {
+      const bm = await createImageBitmap(f), k = Math.min(1, 4000 / Math.max(bm.width, bm.height));
+      const cv = document.createElement("canvas"); cv.width = Math.round(bm.width * k); cv.height = Math.round(bm.height * k);
+      cv.getContext("2d").drawImage(bm, 0, 0, cv.width, cv.height);
+      let blob = await new Promise(r => cv.toBlob(r, "image/jpeg", 0.92));
+      if (blob.size > 14e6) blob = await new Promise(r => cv.toBlob(r, "image/jpeg", 0.8));
+      const r = await fetch("/api/shop/upload", { method: "POST", headers: { "content-type": "image/jpeg" }, body: blob });
+      const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || "The upload didn't work.");
+      photoId = j.id; $("#phimg").src = j.url; $("#phimg").style.display = ""; $("#phph").style.display = "none";
+      $("#phmsg").innerHTML = j.low_res ? `<span style="color:#b54708">This photo is ${j.w} × ${j.h}. It will print, but a larger photo will look sharper.</span>` : "Photo added.";
+    } catch (e) { $("#phmsg").innerHTML = `<span class="err">${esc(e.message || "We couldn't read that photo. Try a JPEG or PNG.")}</span>`; }
+  };
   if (text) {
     // Arriving from a store's "Personalize it" shelf: the store's example is filled in, ready to edit.
     renderFields(fromLink ? pre.getAll("f") : []);
     if ($("#dz")) $("#dz").onchange = () => { tpl = $("#dz").value; renderFields(); };
   }
   const body = () => ({ product_id: p.id, variant_id: Number($("#size").value), qty: Number($("#qty").value || 1),
-    tpl: tpl || undefined, lines: text ? vals() : undefined, gift_message: $("#gm").value,
+    tpl: tpl || undefined, lines: text ? vals() : undefined, photo: photoId || undefined, gift_message: $("#gm").value,
     recipient: { name: $("#rn").value, address1: $("#ra").value, address2: $("#rb").value, city: $("#rc").value, state_code: $("#rs").value, zip: $("#rz").value, email: $("#re").value } });
   let qt = null;
   async function quote() {
@@ -123,7 +143,7 @@ function detail(p) {
   ["#size", "#qty", "#ra", "#rc", "#rs", "#rz"].forEach(s => $(s).addEventListener("change", () => { clearTimeout(qt); qt = setTimeout(quote, 250); }));
   quote();
   $("#pay").onclick = async () => {
-    $("#err").textContent = ""; $("#pay").disabled = true; $("#pay").textContent = "Opening PayPal…";
+    $("#err").textContent = ""; if (photo && !photoId) { $("#err").textContent = "Add your photo."; return; } $("#pay").disabled = true; $("#pay").textContent = "Opening PayPal…";
     try { const j = await api("/checkout", { method: "POST", body: JSON.stringify(body()) }); location.href = j.url; }
     catch (e) { $("#err").textContent = e.message; $("#pay").disabled = false; $("#pay").textContent = "Pay with PayPal"; }
   };

@@ -13,7 +13,7 @@ import { TEE, teePromo } from "./promo.js";
 import { REG_MAX_ITEMS, REG_POOL_MIN_CENTS, validateRegistry, registrySlug, validateRegItem, publicRegistry, REG_AI_SYSTEM, regAiPrompt, parseRegAi, poolTarget, reminderSendOn, validateReminder, reminderEmail } from "./registry.js";
 import { ASSIST_SYSTEM, MAX_STEPS, SHELF_MAX, storeBrief, assistPrompt, parseAssist, matchHide, pickShelf, describeStep, PICK_SYSTEM, pickPrompt, applyPicks, capKinds } from "./assistant.js";
 import { ogTags, poolMeta, registryMeta, storeMeta, PLATFORM_META, REGISTRY_HOME_META } from "./meta.js";
-import { shopCard, validateShopOrder, validateFields, pickRate, designSvg, PTYPES, TEMPLATES, SAMPLES, parseKind, rowKind, storeShopShelf, printSize, renderWidth, exampleFor, DESIGN_VERSION, salesTax, taxTable, shopPayPalOrder, printfulOrder, receiptEmail } from "./shop.js";
+import { shopCard, validateShopOrder, validateFields, pickRate, designSvg, PTYPES, TEMPLATES, SAMPLES, parseKind, rowKind, storeShopShelf, printSize, renderWidth, exampleFor, DESIGN_VERSION, salesTax, taxTable, shopPayPalOrder, printfulOrder, receiptEmail, imageInfo, PHOTO_ID, PHOTO_MIN, PHOTO_GOOD, PHOTO_MAX_BYTES } from "./shop.js";
 import { svgToPng } from "./print.js";
 import STORE_MOCKUPS from "./shop-mockups.json";
 
@@ -426,7 +426,7 @@ async function pf(env, path, { method = "GET", body } = {}) {
 }
 // The shelf: every product in the gift.directory Printful store, cached for 30 minutes.
 async function shopCards(env) {
-  const key = new Request(`https://cache.gift.directory/shop-cards/${env.PRINTFUL_STORE_ID}/v7`), cache = caches.default;
+  const key = new Request(`https://cache.gift.directory/shop-cards/${env.PRINTFUL_STORE_ID}/v8`), cache = caches.default;
   const hit = await cache.match(key); if (hit) return hit.json();
   const list = await pf(env, "/store/products?limit=100");
   const cards = (await Promise.all(list.map(p => pf(env, `/store/products/${p.id}`).then(shopCard).catch(() => null)))).filter(Boolean);
@@ -446,8 +446,14 @@ async function shopRate(env, o) {
 // then email the receipt. Failures are noted on the order for a person to fix; the money is already safe in PayPal.
 async function shopFulfill(env, db, row) {
   const confirm = env.SHOP_FULFILL === "1" && env.PAYPAL_ENV === "live";
+  const k = parseKind(row.kind);
   try {
-    const r = await pf(env, `/orders${confirm ? "?confirm=1" : ""}`, { method: "POST", body: printfulOrder(row, `https://${ROOT}/api/shop/print/${row.id}.png`) });
+    // A paid order's photo is kept a year (uploads otherwise expire after 30 days).
+    if (k && k.photo && env.SHOP_UPLOADS) {
+      const { value, metadata } = await env.SHOP_UPLOADS.getWithMetadata(`up/${k.photo}`, { type: "arrayBuffer" });
+      if (value) await env.SHOP_UPLOADS.put(`up/${k.photo}`, value, { expirationTtl: 365 * 86400, metadata: { ...(metadata || {}), order: row.id } });
+    }
+    const r = await pf(env, `/orders${confirm ? "?confirm=1" : ""}`, { method: "POST", body: printfulOrder(row, `https://${ROOT}/api/shop/print/${row.id}.png`, k && k.photo ? `https://${ROOT}/api/shop/photo/${k.photo}` : null) });
     await db.prepare("UPDATE shop_orders SET pf_order_id=?, pf_status=?, updated_at=? WHERE id=?").bind(r.id, r.status, now(), row.id).run();
   } catch (e) { await db.prepare("UPDATE shop_orders SET note=?, updated_at=? WHERE id=?").bind(String(e.message || e).slice(0, 300), now(), row.id).run(); }
   if (env.EMAIL && !/@[^@]*example\.com$/i.test(row.email)) {
@@ -660,6 +666,30 @@ export default {
       if (parts[1] === "shop") {
         if (!env.PRINTFUL_TOKEN || !env.PRINTFUL_STORE_ID) return J({ error: "The shop isn't set up yet." }, 503);
         if (parts[2] === "products" && m === "GET") return J({ products: await shopCards(env), live: env.PAYPAL_ENV === "live", public: env.SHOP_PUBLIC === "1" });
+        // A buyer's photo for a photo shirt: JPEG or PNG, up to 15 MB, at least 600 px on the short side. Kept 30 days.
+        if (parts[2] === "upload" && m === "POST") {
+          if (!env.SHOP_UPLOADS) return J({ error: "Photo uploads aren't set up yet." }, 503);
+          const ipHash = await sha256("up:" + (request.headers.get("cf-connecting-ip") || ""));
+          const rk = `rl/${ipHash}/${new Date().toISOString().slice(0, 13)}`, n = Number(await env.SHOP_UPLOADS.get(rk)) || 0;
+          if (n >= 30) return J({ error: "That's a lot of uploads in an hour. Try again later." }, 429);
+          const len = Number(request.headers.get("content-length") || 0);
+          if (len > PHOTO_MAX_BYTES) return J({ error: "That photo is over 15 MB." }, 413);
+          const buf = await request.arrayBuffer();
+          if (buf.byteLength > PHOTO_MAX_BYTES) return J({ error: "That photo is over 15 MB." }, 413);
+          const info = imageInfo(buf);
+          if (!info) return J({ error: "Use a JPEG or PNG photo." }, 415);
+          if (Math.min(info.w, info.h) < PHOTO_MIN) return J({ error: `That photo is too small to print well (${info.w} × ${info.h}). Use one at least ${PHOTO_MIN} pixels on the short side.` }, 400);
+          const id = uid().replace(/-/g, "");
+          await env.SHOP_UPLOADS.put(`up/${id}`, buf, { expirationTtl: 30 * 86400, metadata: { type: info.type, w: info.w, h: info.h } });
+          await env.SHOP_UPLOADS.put(rk, String(n + 1), { expirationTtl: 7200 });
+          return J({ id, w: info.w, h: info.h, url: `/api/shop/photo/${id}`, low_res: Math.min(info.w, info.h) < PHOTO_GOOD });
+        }
+        // The uploaded photo (the buyer's preview, and the file Printful downloads for the front).
+        if (parts[2] === "photo" && PHOTO_ID.test(parts[3] || "") && m === "GET") {
+          const { value, metadata } = env.SHOP_UPLOADS ? await env.SHOP_UPLOADS.getWithMetadata(`up/${parts[3]}`, { type: "arrayBuffer" }) : {};
+          if (!value) return new Response("not found", { status: 404 });
+          return new Response(value, { headers: { "content-type": (metadata && metadata.type) || "image/jpeg", "cache-control": "private, max-age=86400", "x-robots-tag": "noindex" } });
+        }
         // The print file Printful downloads for a paid order of a template product.
         if (parts[2] === "print" && parts[3] && m === "GET") {
           const o = await db.prepare("SELECT kind, lines_json, status, pf_catalog_variant_id FROM shop_orders WHERE id=?").bind(parts[3].replace(/\.png$/, "")).first();
@@ -681,7 +711,7 @@ export default {
         // The live preview while the buyer types: the real print file, small. ?f=<field>&f=<field>...
         if (parts[2] === "preview" && parts[3] && m === "GET") {
           const c = (await shopCards(env)).find(x => x.id === Number(parts[3].replace(/\.png$/, "")));
-          if (!c || c.kind !== "tpl") return new Response("not found", { status: 404 });
+          if (!c || (c.kind !== "tpl" && c.kind !== "photo")) return new Response("not found", { status: 404 });
           const t = (c.tpls || [c.tpl]).includes(url.searchParams.get("t")) ? url.searchParams.get("t") : c.tpl;
           const v = validateFields(t, url.searchParams.getAll("f"));
           if (v.error) return J({ error: v.error }, 400);
@@ -694,8 +724,16 @@ export default {
           const b = (await readJson(request)) || {};
           const card = (await shopCards(env)).find(c => c.id === Number(b.product_id));
           const quote = parts[2] === "quote";   // shipping needs only the address; the rest is checked at checkout
-          const v = validateShopOrder(quote ? { ...b, lines: card && card.tpl ? SAMPLES[card.tpl] : null, recipient: { ...(b.recipient || {}), name: "quote", email: "quote@gift.directory" } } : b, card);
+          const v = validateShopOrder(quote ? { ...b, lines: card && card.kind === "photo" ? [] : card && card.tpl ? SAMPLES[card.tpl] : null, photo: "q".repeat(16), recipient: { ...(b.recipient || {}), name: "quote", email: "quote@gift.directory" } } : b, card);
           if (v.error) return J({ error: v.error }, 400);
+          // A photo shirt's photo must still be in storage; its size goes on the order for placing it on the print.
+          let photo = null;
+          if (!quote && v.order.photo) {
+            const found = env.SHOP_UPLOADS && (await env.SHOP_UPLOADS.list({ prefix: `up/${v.order.photo}`, limit: 1 })).keys[0];
+            const meta = found && found.name === `up/${v.order.photo}` && found.metadata;
+            if (!meta) return J({ error: "Your photo has expired. Upload it again." }, 400);
+            photo = { id: v.order.photo, w: meta.w, h: meta.h };
+          }
           const o = v.order, rate = await shopRate(env, o).catch(() => null);
           if (!rate) return J({ error: "We couldn't get a shipping rate for that address. Check the ZIP code." }, 502);
           const sub = o.variant.price_cents * o.qty, tax = salesTax(o, rate.cents, taxTable(env.SHOP_TAX));
@@ -709,7 +747,7 @@ export default {
           const href = pp.status < 300 && pp.body ? (link(pp.body, "payer-action") || link(pp.body, "approve") || {}).href : null;
           if (!href) return J({ error: "PayPal could not start the payment.", paypal_status: pp.status, detail: pp.body && pp.body.details }, 502);
           await db.prepare("INSERT INTO shop_orders (id,pf_product_id,pf_sync_variant_id,pf_catalog_variant_id,kind,title,variant_label,qty,lines_json,gift_message,recipient_json,email,unit_cents,subtotal_cents,shipping_cents,tax_cents,total_cents,status,paypal_order_id,ip_hash,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',?,?,?,?)")
-            .bind(id, o.card.id, o.variant.id, o.variant.catalog_id, rowKind(o.card, o.tpl), o.card.title, label || null, o.qty, o.lines ? JSON.stringify(o.lines) : null, o.gift_message,
+            .bind(id, o.card.id, o.variant.id, o.variant.catalog_id, rowKind(o.card, o.tpl, photo), o.card.title, label || null, o.qty, o.lines ? JSON.stringify(o.lines) : null, o.gift_message,
               JSON.stringify(o.recipient), o.recipient.email, o.variant.price_cents, sub, rate.cents, tax.cents, sub + rate.cents + tax.cents, pp.body.id, ipHash, t, t).run();
           return J({ url: href });
         }

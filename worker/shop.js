@@ -11,6 +11,35 @@ const cents = v => Math.round(Number(v) * 100);
 export const shortTitle = name => clip(String(name || "").split(",")[0], 80);
 export const kindOf = name => /custom text/i.test(name) ? "text" : /photo/i.test(name) ? "photo" : "fixed";
 
+// ---------- photo shirts: the buyer's photo on the front, optional text on the back ----------
+export const PHOTO_FIELDS = [{ label: "Back line 1 (optional)", max: 22, ph: "BEST DAD" }, { label: "Back line 2 (optional)", max: 22, ph: "EVER" }];
+export const PHOTO_MIN = 600, PHOTO_GOOD = 1200, PHOTO_MAX_BYTES = 15 * 1024 * 1024;
+export const PHOTO_ID = /^[a-z0-9]{16,40}$/;
+// Type and pixel size read from a JPEG's or PNG's own bytes; null for anything else.
+export function imageInfo(buf) {
+  const b = new Uint8Array(buf);
+  if (b.length > 24 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) {
+    const dv = new DataView(b.buffer, b.byteOffset, b.byteLength); return { type: "image/png", w: dv.getUint32(16), h: dv.getUint32(20) };
+  }
+  if (b.length > 4 && b[0] === 0xff && b[1] === 0xd8) {
+    let i = 2;
+    while (i + 9 < b.length) {
+      if (b[i] !== 0xff) { i++; continue; }
+      const mk = b[i + 1];
+      if (mk === 0xff) { i++; continue; }
+      if (mk === 0xd8 || mk === 0x01 || (mk >= 0xd0 && mk <= 0xd7)) { i += 2; continue; }
+      if (mk >= 0xc0 && mk <= 0xcf && mk !== 0xc4 && mk !== 0xc8 && mk !== 0xcc) return { type: "image/jpeg", w: (b[i + 7] << 8) | b[i + 8], h: (b[i + 5] << 8) | b[i + 6] };
+      i += 2 + ((b[i + 2] << 8) | b[i + 3]);
+    }
+  }
+  return null;
+}
+// Where the photo prints on a tee's front (1800 x 2400 at 150 dpi): as large as fits in 11 x 14 in, centered, an inch from the top.
+export function photoPosition(w, h) {
+  const s = Math.min(1650 / w, 2100 / h), width = Math.max(1, Math.round(w * s)), height = Math.max(1, Math.round(h * s));
+  return { area_width: 1800, area_height: 2400, width, height, top: 150, left: Math.round((1800 - width) / 2), limit_to_print_area: true };
+}
+
 // ---------- design templates: the buyer fills in a few fields, we render the print file ----------
 export const TEMPLATES = {
   text: { name: "Custom text", keepCase: true, fields: [
@@ -74,26 +103,33 @@ export const exampleFor = ptype => PTYPES[ptype].example || null;
 // What an order row's `kind` means: "fixed", "tpl:<template>:<product type>", or the first shop's "text" (custom-text tee).
 export function parseKind(kind) {
   if (kind === "text") return { tpl: "text", ptype: "tee" };
+  const ph = /^photo:([a-z0-9]{16,40}):(\d+)x(\d+)$/.exec(String(kind || ""));
+  if (ph) return { tpl: "text", ptype: "tee", photo: ph[1], pw: Number(ph[2]), ph: Number(ph[3]) };
   const m = /^tpl:(\w+):(\w+)$/.exec(String(kind || ""));
   return m && TEMPLATES[m[1]] && PTYPES[m[2]] ? { tpl: m[1], ptype: m[2] } : null;
 }
-export const rowKind = (card, tpl) => card.kind === "tpl" ? `tpl:${tpl || card.tpl}:${card.ptype}` : "fixed";
+export const rowKind = (card, tpl, photo) => card.kind === "photo" && photo ? `photo:${photo.id}:${photo.w}x${photo.h}`
+  : card.kind === "tpl" ? `tpl:${tpl || card.tpl}:${card.ptype}` : "fixed";
 
 // One card per Printful sync product (from GET /store/products/{id}). External ids: "gd-tpl-<template>-<type>"
 // is one fixed design; "gd-item-<type>" lets the buyer pick any design, starting from the type's example.
-// Photo shirts wait for uploads, so they're skipped.
+// A "photo" product takes the buyer's upload on the front and optional text on the back.
 export function shopCard(d) {
   const p = d.sync_product, vs = (d.sync_variants || []).filter(v => !v.is_ignored && v.availability_status !== "discontinued");
   const ext = String(p.external_id || ""), m = /^gd-tpl-(\w+)-(\w+)$/.exec(ext), mi = /^gd-item-(\w+)$/.exec(ext);
   let tpl = m && TEMPLATES[m[1]] && PTYPES[m[2]] ? m[1] : null, ptype = tpl ? m[2] : null, tpls = tpl ? [tpl] : null;
   if (!tpl && mi && PTYPES[mi[1]]) { ptype = mi[1]; tpls = Object.keys(TEMPLATES); tpl = (exampleFor(ptype) || {}).tpl || "role"; }
   if (!tpl && kindOf(p.name) === "text") { tpl = "text"; ptype = "tee"; tpls = ["text"]; }
-  if ((!tpl && kindOf(p.name) === "photo") || !vs.length) return null;
+  if (!vs.length) return null;
+  const photo = !tpl && kindOf(p.name) === "photo";
+  if (photo) { tpl = "text"; ptype = "tee"; tpls = ["text"]; }
   const prev = vs.map(v => (v.files || []).find(f => f.type === "preview")).find(Boolean);
   const name = String(p.name || ""), rest = clip(name.slice(name.indexOf(",") + 1), 140), P = ptype && PTYPES[ptype];
   return {
-    id: p.id, kind: tpl ? "tpl" : "fixed", title: shortTitle(name), subtitle: name.includes(",") ? rest : "",
-    ...(tpl ? { tpl, tpls, ptype, fields: TEMPLATES[tpl].fields, design: TEMPLATES[tpl].name, example: exampleFor(ptype), print: { w: P.w, h: P.h, bg: P.bg },
+    id: p.id, kind: photo ? "photo" : tpl ? "tpl" : "fixed", title: shortTitle(name), subtitle: name.includes(",") ? rest : "",
+    ...(photo ? { tpl, tpls, ptype, fields: PHOTO_FIELDS, design: "Your photo", example: null, print: { w: P.w, h: P.h, bg: P.bg },
+      designs: [{ tpl: "text", name: "Back text", fields: PHOTO_FIELDS }] }
+      : tpl ? { tpl, tpls, ptype, fields: TEMPLATES[tpl].fields, design: TEMPLATES[tpl].name, example: exampleFor(ptype), print: { w: P.w, h: P.h, bg: P.bg },
       designs: tpls.map(t => ({ tpl: t, name: TEMPLATES[t].name, fields: TEMPLATES[t].fields })) } : {}),
     // A product thumbnail (our mockup) beats the variant preview, which for API-made products is the bare print file.
     image: (/\.(png|jpe?g|webp)$/i.test(p.thumbnail_url || "") && p.thumbnail_url) || (prev && (prev.preview_url || prev.thumbnail_url)) || null,
@@ -172,12 +208,19 @@ export function validateShopOrder(b, card) {
   const qty = Math.round(Number((b && b.qty) || 1));
   if (!(qty >= 1 && qty <= 10)) return { error: "Quantity should be 1 to 10." };
   const r = validateRecipient(b && b.recipient); if (r.error) return r;
-  let lines = null, tpl = null;
+  let lines = null, tpl = null, photo = null;
   if (card.kind === "tpl") {
     tpl = (card.tpls || [card.tpl]).includes(b.tpl) ? b.tpl : card.tpl;
     const l = validateFields(tpl, b.lines); if (l.error) return l; lines = l.lines;
   }
-  return { order: { card, variant: v, qty, lines, tpl, gift_message: clip(b && b.gift_message, 200) || null, recipient: r.recipient } };
+  if (card.kind === "photo") {
+    if (!PHOTO_ID.test(String(b.photo || ""))) return { error: "Add your photo." };
+    photo = String(b.photo); tpl = "text";
+    // The back is optional; a lone second line moves up.
+    const raw = (Array.isArray(b.lines) ? b.lines : []).slice(0, 2).map(x => String(x ?? "").replace(/\s+/g, " ").trim()).filter(Boolean);
+    if (raw.length) { const l = validateFields("text", [raw[0], raw[1] || ""]); if (l.error) return l; lines = l.lines; }
+  }
+  return { order: { card, variant: v, qty, lines, tpl, photo, gift_message: clip(b && b.gift_message, 200) || null, recipient: r.recipient } };
 }
 
 // ---------- sales tax ----------
@@ -288,14 +331,19 @@ export function shopPayPalOrder(o, origin) {
 
 // The Printful order once PayPal has captured. Template products are ordered from the catalog with our print
 // file in the product's placement; fixed designs by their synced variant. Created as a draft unless confirmed.
-export function printfulOrder(row, printUrl) {
+export function printfulOrder(row, printUrl, photoUrl) {
   const r = JSON.parse(row.recipient_json), k = parseKind(row.kind);
-  const item = k
+  const back = row.lines_json && JSON.parse(row.lines_json).some(Boolean);
+  const item = k && k.photo
+    ? { variant_id: row.pf_catalog_variant_id, quantity: row.qty, retail_price: usd(row.unit_cents), name: row.title,
+        files: [{ type: "front", url: photoUrl, position: photoPosition(k.pw, k.ph) }, ...(back ? [{ type: "back", url: printUrl }] : [])] }
+    : k
     ? { variant_id: row.pf_catalog_variant_id, quantity: row.qty, retail_price: usd(row.unit_cents), name: row.title,
         files: (PTYPES[k.ptype].placements || [PTYPES[k.ptype].placement]).map(type => ({ type, url: printUrl })) }
     : { sync_variant_id: row.pf_sync_variant_id, quantity: row.qty, retail_price: usd(row.unit_cents) };
   return {
-    external_id: row.id, shipping: "STANDARD",
+    // Printful takes at most 32 characters here; our order ids are UUIDs, so the dashes come out.
+    external_id: String(row.id).replace(/-/g, "").slice(0, 32), shipping: "STANDARD",
     recipient: { name: r.name, address1: r.address1, ...(r.address2 ? { address2: r.address2 } : {}), city: r.city, state_code: r.state_code, country_code: "US", zip: r.zip, email: r.email },
     items: [item],
     retail_costs: { currency: "USD", subtotal: usd(row.subtotal_cents), shipping: usd(row.shipping_cents), tax: usd(row.tax_cents || 0) },
@@ -307,12 +355,13 @@ export function printfulOrder(row, printUrl) {
 const escH = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 export function receiptEmail(row) {
   const r = JSON.parse(row.recipient_json), lines = row.lines_json ? JSON.parse(row.lines_json).filter(Boolean) : null;
-  const what = `${row.title}${row.variant_label ? " (" + row.variant_label + ")" : ""} × ${row.qty}`;
+  const isPhoto = /^photo:/.test(row.kind || ""), said = isPhoto ? "Back text" : "Your text";
+  const what = `${row.title}${row.variant_label ? " (" + row.variant_label + ")" : ""} × ${row.qty}${isPhoto ? " (your photo on the front)" : ""}`;
   const subject = `Your gift.directory order: ${row.title}`;
-  const text = `Thanks for your order!\n\n${what}${lines ? `\nYour text: ${lines.join(" / ")}` : ""}\n\nItems: $${usd(row.subtotal_cents)}\nShipping: $${usd(row.shipping_cents)}${row.tax_cents ? `\nSales tax: $${usd(row.tax_cents)}` : ""}\nTotal paid: $${usd(row.total_cents)}\n\n` +
+  const text = `Thanks for your order!\n\n${what}${lines && lines.length ? `\n${said}: ${lines.join(" / ")}` : ""}\n\nItems: $${usd(row.subtotal_cents)}\nShipping: $${usd(row.shipping_cents)}${row.tax_cents ? `\nSales tax: $${usd(row.tax_cents)}` : ""}\nTotal paid: $${usd(row.total_cents)}\n\n` +
     `Shipping to: ${r.name}, ${r.address1}${r.address2 ? ", " + r.address2 : ""}, ${r.city}, ${r.state_code} ${r.zip}\n\nIt's printed to order by our partner Printful and shipped to that address. Order number: ${row.id}\nQuestions? Reply to hello@gift.directory.\n\n— gift.directory`;
   const html = `<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:520px;color:#1d2433;line-height:1.5">
-<p style="font-size:1.05rem"><b>Thanks for your order!</b></p><p>${escH(what)}${lines ? `<br>Your text: <b>${escH(lines.join(" / "))}</b>` : ""}</p>
+<p style="font-size:1.05rem"><b>Thanks for your order!</b></p><p>${escH(what)}${lines && lines.length ? `<br>${said}: <b>${escH(lines.join(" / "))}</b>` : ""}</p>
 <p>Items: $${usd(row.subtotal_cents)}<br>Shipping: $${usd(row.shipping_cents)}${row.tax_cents ? `<br>Sales tax: $${usd(row.tax_cents)}` : ""}<br><b>Total paid: $${usd(row.total_cents)}</b></p>
 <p>Shipping to: ${escH(r.name)}, ${escH(r.address1)}${r.address2 ? ", " + escH(r.address2) : ""}, ${escH(r.city)}, ${escH(r.state_code)} ${escH(r.zip)}</p>
 <p style="color:#6b7280">It's printed to order by our partner Printful and shipped to that address. Order number: ${escH(row.id)}. Questions? Write to hello@gift.directory.</p>

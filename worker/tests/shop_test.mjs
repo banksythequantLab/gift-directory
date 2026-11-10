@@ -1,6 +1,6 @@
 // The direct shop: product cards from Printful, order checks, the design templates and print files, PayPal and Printful payloads.
 import { shopCard, shortTitle, kindOf, validateShopOrder, validateFields, pickRate, designSvg, designItems, parseKind, rowKind, TEMPLATES, SAMPLES, PTYPES,
-  shopPayPalOrder, printfulOrder, receiptEmail, storeShopShelf, STORE_SHELVES, printSize, renderWidth, salesTax, taxTable } from "../shop.js";
+  shopPayPalOrder, printfulOrder, receiptEmail, storeShopShelf, STORE_SHELVES, printSize, renderWidth, salesTax, taxTable, imageInfo, photoPosition, isApparel } from "../shop.js";
 
 let passed = 0, failed = 0;
 const ok = (n, c, d = "") => { c ? passed++ : (failed++, console.log(`FAIL  ${n}${d ? "  - " + d : ""}`)); };
@@ -25,7 +25,10 @@ eq("catalog id kept", card.variants[2].catalog_id, 4003);
 eq("product thumbnail wins", card.image, "https://img/t.png");
 eq("bare thumbnail falls back to the preview", shopCard({ ...textP, sync_product: { ...textP.sync_product, thumbnail_url: "https://files.cdn.printful.com/" } }).image, "https://img/1.png");
 eq("card carries the fields", card.fields.length, 2);
-eq("photo products skipped", shopCard({ sync_product: { id: 2, name: "Photo Shirt" }, sync_variants: [sv(9, "M", "20")] }), null);
+const photoCard = shopCard({ sync_product: { id: 2, name: "Photo shirt, your picture on a black tee" }, sync_variants: [sv(9, "M", "34.99")] });
+eq("photo product is a photo card on a tee", [photoCard.kind, photoCard.ptype, photoCard.tpl], ["photo", "tee", "text"]);
+ok("photo back text is optional", photoCard.fields.length === 2 && photoCard.fields.every(f => !f.req));
+ok("photo shirt counts as clothing", isApparel(photoCard));
 eq("no variants skipped", shopCard({ sync_product: { id: 3, name: "Plain" }, sync_variants: [] }), null);
 const mugCard = shopCard({ sync_product: { id: 12, name: "Name & Role Mug, For the desk", external_id: "gd-tpl-role-mug" }, sync_variants: [sv(5, "11 oz", "16.99")] });
 eq("template by external id", [mugCard.kind, mugCard.tpl, mugCard.ptype, mugCard.print.w], ["tpl", "role", "mug", 2700]);
@@ -136,6 +139,7 @@ eq("legacy text uses catalog variant", pfo.items[0].variant_id, 4003);
 eq("tee prints on the front", pfo.items[0].files[0], { type: "front", url: "https://gift.directory/api/shop/print/ord1.png" });
 eq("mug prints on default", printfulOrder({ ...row, kind: "tpl:role:mug" }, "u").items[0].files[0].type, "default");
 eq("external id", pfo.external_id, "ord1");
+eq("uuid external id fits Printful's 32 characters", printfulOrder({ ...row, id: "5b838f28-3198-4e61-894d-ce95d0eed95d" }, "u").external_id, "5b838f2831984e61894dce95d0eed95d");
 eq("gift message", pfo.gift.message, "Love you");
 const fixed = printfulOrder({ ...row, kind: "fixed", lines_json: null, gift_message: null }, "x");
 eq("fixed uses sync variant", fixed.items[0].sync_variant_id, 3);
@@ -194,6 +198,44 @@ eq("store's items join its shelf", law.cards.length, 10);
 eq("item link opens the right design", law.cards[8].url, "https://gift.directory/shop?p=30&t=milestone&f=Made+Partner&f=2026&f=Jane+Doe%2C+Esq.");
 eq("nurse shelf skips items the shop doesn't have", storeShopShelf(withItems, "nurses").cards.length, 8);
 eq("store mockup used when there is one", storeShopShelf(shopCards, "nurses", "https://gift.directory", { nurses: { 2: "https://m/n2.jpg" } }).cards.map(c => c.image).slice(0, 2), ["https://img/1.jpg", "https://m/n2.jpg"]);
+
+// ---------- photo shirts ----------
+{
+  const png = new Uint8Array(33); png.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52]);
+  new DataView(png.buffer).setUint32(16, 1600); new DataView(png.buffer).setUint32(20, 1200);
+  eq("png size read", imageInfo(png.buffer), { type: "image/png", w: 1600, h: 1200 });
+  // SOI, an APP0 segment (length 16), then SOF0 with height 900, width 1400.
+  const jpg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 16, ...new Array(14).fill(0), 0xff, 0xc0, 0, 17, 8, 0x03, 0x84, 0x05, 0x78, 3, 0, 0, 0]);
+  eq("jpeg size read past APP0", imageInfo(jpg.buffer), { type: "image/jpeg", w: 1400, h: 900 });
+  eq("other files refused", imageInfo(new TextEncoder().encode("GIF89a........").buffer), null);
+  const pos = photoPosition(4000, 3000);
+  eq("landscape photo fills the width", [pos.width, pos.height, pos.left, pos.top], [1650, 1238, 75, 150]);
+  const tall = photoPosition(3000, 4000);
+  ok("portrait photo stays inside 11 x 14 in", tall.height === 2100 && tall.width <= 1650 && tall.left === Math.round((1800 - tall.width) / 2));
+  ok("photo fits the print area", tall.top + tall.height <= 2400 && pos.left + pos.width <= 1800);
+
+  const pid = "abcdef0123456789abcdef0123456789";
+  const pb = { product_id: 2, variant_id: 9, qty: 1, recipient: rcpt };
+  has("photo required", validateShopOrder(pb, photoCard).error, "photo");
+  const v0 = validateShopOrder({ ...pb, photo: pid }, photoCard);
+  eq("photo with no back text", [v0.order.photo, v0.order.lines, v0.order.tpl], [pid, null, "text"]);
+  eq("lone second line moves up", validateShopOrder({ ...pb, photo: pid, lines: ["", "DAD"] }, photoCard).order.lines, ["DAD", ""]);
+  has("back text still checked", validateShopOrder({ ...pb, photo: pid, lines: ["x".repeat(30), ""] }, photoCard).error, "22");
+  eq("photo order kind", rowKind(photoCard, "text", { id: pid, w: 3000, h: 4000 }), `photo:${pid}:3000x4000`);
+  eq("photo kind parsed", parseKind(`photo:${pid}:3000x4000`), { tpl: "text", ptype: "tee", photo: pid, pw: 3000, ph: 4000 });
+  eq("bad photo kind ignored", parseKind("photo:../x:1x1"), null);
+
+  const prow = { ...row, kind: `photo:${pid}:4000x3000`, pf_catalog_variant_id: 4009, lines_json: JSON.stringify(["BEST DAD", "EVER"]) };
+  const po = printfulOrder(prow, "https://gift.directory/api/shop/print/ord1.png", `https://gift.directory/api/shop/photo/${pid}`).items[0];
+  eq("photo front and text back", po.files.map(f => [f.type, f.url.split("/").pop()]), [["front", pid], ["back", "ord1.png"]]);
+  eq("photo positioned", po.files[0].position, photoPosition(4000, 3000));
+  eq("photo ordered from the catalog", po.variant_id, 4009);
+  eq("no back file without back text", printfulOrder({ ...prow, lines_json: null }, "u", "p").items[0].files.map(f => f.type), ["front"]);
+  const pm = receiptEmail({ ...prow, lines_json: JSON.stringify(["BEST DAD", ""]) });
+  has("receipt mentions the photo", pm.text, "your photo on the front");
+  has("receipt calls it back text", pm.text, "Back text: BEST DAD\n");
+  ok("receipt without back text has no text line", !receiptEmail({ ...prow, lines_json: null }).text.includes("text:"));
+}
 
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

@@ -22,6 +22,8 @@
   "rules": [{ "type": "Data", "globs": ["**/*.otf"], "fallthrough": true }],
   // Daily re-sync of store owners' Shopify catalogs (08:23 UTC).
   "triggers": { "crons": ["23 8 * * *"] },
+  // Buyers' photos for photo shirts (kept 30 days; a year once ordered).
+  "kv_namespaces": [{ "binding": "SHOP_UPLOADS", "id": "e41caee8e8504f30ac7d56df312f66ba" }],
   "d1_databases": [
     { "binding": "DB", "database_name": "gift-finder", "database_id": "12f8f349-a2dc-4cca-a902-64fe661588c2" }
   ],
