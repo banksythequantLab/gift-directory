@@ -301,7 +301,33 @@ export const PAGES = [
   // ---- profession guides by occasion: retirement, graduation, Secret Santa, boss & coworker (Nov 2026) ----
   ...(() => {
     const X = ["saw:","billy the puppet","horror","skull","jekyll","electric shock","shock flashlight","prank","fart","smart ass","replacement","refill","bulk","gift card"];
-    const G = (slug, keyword, recipient, occasion, budget, topic, slots, extra = {}) => P(slug, keyword, recipient, occasion, budget, { topic, count: 8, minCount: 6, exclude: X, slots, ...extra });
+    // Per slot, after reviewing the first build: [slot index]: [better search, words the product title must contain].
+    const RET = ["retire"], COFFEE = ["sampler", "whole bean", "ground coffee", "coffee gift", "variety pack", "k-cup"], CANDLE = ["soy", "wick", "wax"];
+    const FIX = {
+      "lawyer-retirement-gifts": { 0: ["engraved crystal gavel", ["gavel"]], 3: ["personalized retirement plaque", RET] },
+      "doctor-retirement-gifts": { 0: ["doctor shadow box", ["shadow box"]], 1: ["personalized retirement plaque", RET] },
+      "firefighter-retirement-gifts": { 1: ["personalized retirement plaque", RET], 6: ["firefighter challenge coin", ["fire"]] },
+      "police-retirement-gifts": { 0: ["police shadow box", ["shadow box"]], 1: ["personalized retirement plaque", RET], 7: ["police challenge coin", ["police", "law enforcement", "blue line"]], x: ["mirror"] },
+      "military-retirement-gifts": { 0: ["military shadow box display case", ["shadow box", "display case"]], 2: ["personalized retirement plaque", RET] },
+      "pharmacist-retirement-gifts": { 0: ["personalized retirement plaque", RET] },
+      "medical-school-graduation-gifts": { 0: ["Littmann stethoscope", ["littmann"]], 3: ["caduceus medical lapel pin", ["caduceus", "medical"]], 5: ["doctor shadow box frame", ["doctor", "physician", "medical", "md"]] },
+      "police-academy-graduation-gifts": { 1: ["thin blue line bracelet", ["blue line"]], 5: ["police challenge coin", ["police", "law enforcement", "blue line"]] },
+      "fire-academy-graduation-gifts": { 3: ["firefighter challenge coin", ["fire"]], 5: ["firefighter keychain", ["firefighter", "fire fighter", "fire dept"]] },
+      "dental-school-graduation-gifts": { 2: ["tooth shaped desk decor", ["tooth", "dental", "dentist", "molar"]], 4: ["dentist mug", ["dentist", "dental", "tooth"]] },
+      "secret-santa-gifts-for-firefighters": { 0: ["firefighter mug", ["firefighter", "fire fighter", "fire dept"]], 2: ["hot sauce gift set", ["hot sauce"]], x: ["towel", "naughty", "ornament"] },
+      "secret-santa-gifts-for-police-officers": { 5: ["gourmet coffee sampler", COFFEE] },
+      "secret-santa-gifts-for-doctors": { 1: ["funny doctor mug", ["doctor", "physician", "medical"]], 3: ["gourmet coffee sampler", COFFEE], x: ["doctor who", "tardis", "dalek", "plague"] },
+      "gifts-for-your-boss-under-50": { 1: ["gourmet coffee sampler", COFFEE], 6: ["gourmet chocolate truffles box", ["truffle", "assorted chocolate", "chocolate assortment"]], 7: ["luxury soy candle", CANDLE] },
+      "gifts-for-female-boss": { 1: ["luxury soy candle", CANDLE], 4: ["gourmet chocolate truffles box", ["truffle", "assorted chocolate", "chocolate assortment"]] },
+      "gifts-for-male-boss": { 4: ["gourmet coffee sampler", COFFEE] },
+      "farewell-gifts-for-coworkers": { 5: ["luxury soy candle", CANDLE], 6: ["gourmet coffee sampler", COFFEE] },
+      "gifts-for-nurse-managers": { 5: ["luxury soy candle", CANDLE] },
+      "gifts-for-principals": { 3: ["principal mug", ["principal"]], 6: ["gourmet coffee sampler", COFFEE] },
+    };
+    const G = (slug, keyword, recipient, occasion, budget, topic, slots, extra = {}) => {
+      const f = FIX[slug] || {}, sl = slots.map((q, i) => f[i] ? f[i][0] : q), must = slots.map((_, i) => f[i] ? f[i][1] : null);
+      return P(slug, keyword, recipient, occasion, budget, { topic, count: 8, minCount: 6, exclude: [...X, ...(f.x || [])], slots: sl, ...(slots.some((_, i) => f[i]) ? { slotMust: must } : {}), ...extra });
+    };
     return [
       // retirement
       G("lawyer-retirement-gifts", "Retirement gifts for lawyers", "a retiring lawyer", "retirement", 250, "Law",
