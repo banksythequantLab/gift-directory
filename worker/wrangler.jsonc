@@ -14,7 +14,7 @@
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/*", "/g/*", "/r/*", "/registry", "/", "/new", "/favicon.svg", "/login", "/admin", "/gifts", "/gifts/*", "/sitemap.xml", "/robots.txt", "/ads.txt", "/about", "/contact", "/privacy", "/terms", "/cdbf5866d78ab29c85ad2021cc135597.txt"]
+    "run_worker_first": ["/api/*", "/g/*", "/r/*", "/registry", "/", "/new", "/favicon.svg", "/login", "/admin", "/gifts", "/gifts/*", "/sitemap.xml", "/robots.txt", "/ads.txt", "/about", "/contact", "/privacy", "/terms", "/christmas-shipping-deadlines", "/cdbf5866d78ab29c85ad2021cc135597.txt"]
   },
   // Registry reminders (Cloudflare Email Service; gift.directory onboarded 2026-11-09). Only this sender is allowed.
   "send_email": [{ "name": "EMAIL", "allowed_sender_addresses": ["reminders@gift.directory", "orders@gift.directory"] }],

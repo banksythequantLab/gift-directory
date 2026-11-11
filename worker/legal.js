@@ -7,7 +7,23 @@ const CONTACT = "hello@gift.directory";
 const h1 = t => `<h1 style="font-family:Georgia,serif;margin:6px 0 10px">${t}</h1>`;
 const sec = (t, ...ps) => `<h2 style="font-family:Georgia,serif;margin-top:22px">${t}</h2>${ps.map(p => `<p style="max-width:780px">${p}</p>`).join("")}`;
 
+// A seasonal page served like the others. USPS dates are from usps.com/holiday/holiday-shipping-dates.htm (read Nov 11, 2026);
+// UPS and FedEx are linked rather than quoted because their own 2026 tables could not be read reliably.
+const td = "padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:left";
+const SHIP_ROWS = [["USPS Ground Advantage", "Thursday, Dec. 17"], ["First-Class Mail (cards and letters)", "Thursday, Dec. 17"], ["Priority Mail", "Friday, Dec. 18"], ["Priority Mail Express", "Saturday, Dec. 19"]];
 export const LEGAL = {
+  "christmas-shipping-deadlines": { title: "Christmas shipping deadlines 2026: order-by dates for gifts", meta: "When to order and ship so a gift arrives before Christmas 2026: USPS send-by dates, where to find UPS and FedEx cutoffs, and what to do if you're late.",
+    body: h1("Christmas shipping deadlines 2026") + `<p class="muted">Checked November 11, 2026</p>` +
+      `<p style="max-width:780px">Gifts you find on gift.directory are sold and shipped by the retailer, and each retailer sets its own order-by date. The date that counts is the delivery estimate on the retailer's product page or at checkout. The carrier dates below are the last days a package can be <i>shipped</i>, so order a few days before them: most stores need one to three days to pack an order.</p>` +
+      `<h2 style="font-family:Georgia,serif;margin-top:22px">USPS send-by dates</h2><p style="max-width:780px">The Postal Service's recommended dates for expected delivery before December 25, within the lower 48 states:</p>
+<table style="border-collapse:collapse;max-width:560px;width:100%"><thead><tr><th style="${td}">Service</th><th style="${td}">Send by</th></tr></thead><tbody>${SHIP_ROWS.map(([a, b]) => `<tr><td style="${td}">${a}</td><td style="${td}"><b>${b}</b></td></tr>`).join("")}</tbody></table>
+<p class="muted" style="max-width:780px;font-size:.9rem">Source: <a href="https://www.usps.com/holiday/holiday-shipping-dates.htm" rel="noopener">USPS 2026 holiday shipping dates</a>. Alaska and Hawaii have earlier dates. Actual delivery can vary.</p>` +
+      sec("UPS and FedEx", "FedEx publishes its 2026 last days to ship for delivery by December 24: <a href=\"https://www.fedex.com/en-us/holiday/last-days-to-ship.html\" rel=\"noopener\">FedEx last days to ship</a>. UPS posts its holiday schedule at <a href=\"https://www.ups.com\" rel=\"noopener\">ups.com</a>. Ground shipping times depend on distance, so a package crossing the country needs to leave several days earlier than one going across town.") +
+      sec("Order earlier for these",
+        "<b>Personalized and made-to-order gifts</b> (engraving, monograms, custom prints): add at least a week. They are made after you order.",
+        "<b>Group gifts</b>: the gift is ordered after everyone has chipped in, so start the group gift early and set a date for people to pay.",
+        "<b>Furniture and oversized items</b> ship by freight and can take two weeks or more.") +
+      sec("If you're cutting it close", "Choose a retailer with store pickup, pay for faster shipping at checkout, or see our <a href=\"/gifts/last-minute-christmas-gifts\">last-minute Christmas gifts</a>. For more ideas by person and budget, browse the <a href=\"/gifts\">gift guides</a>.") },
   about: { title: "About gift.directory", meta: "gift.directory helps people find real, in-stock gifts with AI and give them together with PayPal. Anyone can launch a niche gift store in minutes.",
     body: h1("About gift.directory") +
       `<p style="max-width:780px">gift.directory helps people find a good gift fast, and give it together. Every page shows real products that are in stock right now at well-known retailers, with live prices. An AI asks a few quick questions between the products and moves the best matches to the front, with a short reason for each.</p>` +
