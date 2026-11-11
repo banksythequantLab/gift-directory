@@ -40,14 +40,15 @@ const paypalOn = env => !!(env.PAYPAL_CLIENT_ID && env.PAYPAL_CLIENT_SECRET);
 
 // The finder's model: OpenAI-compatible chat on Nebius Token Factory, JSON out.
 function aiFor(env) {
-  return async (system, user) => {
+  // `ms`: how long to wait. Guide builds take the default; the shopper-facing finder passes tighter limits.
+  return async (system, user, ms = 25000) => {
     if (!env.NEBIUS_API_KEY) throw new Error("no model key");
     const base = (env.NEBIUS_BASE_URL || "https://api.tokenfactory.nebius.com/v1").replace(/\/+$/, "");
     const r = await fetch(`${base}/chat/completions`, { method: "POST",
       headers: { authorization: `Bearer ${env.NEBIUS_API_KEY}`, "content-type": "application/json" },
       body: JSON.stringify({ model: env.TEXT_MODEL || "Qwen/Qwen3-235B-A22B-Instruct-2507", temperature: 0.4, max_tokens: 1200,
         response_format: { type: "json_object" }, messages: [{ role: "system", content: system }, { role: "user", content: user }] }),
-      signal: AbortSignal.timeout(25000) });
+      signal: AbortSignal.timeout(ms) });
     if (!r.ok) throw new Error(`model ${r.status}`);
     const j = await r.json();
     return JSON.parse(j.choices[0].message.content);
@@ -118,6 +119,15 @@ async function buildGuide(db, env, p, { cardsOnly = false } = {}) {
   }
   const need = p.count || 4;
   if (cards.length < need) return { ok: false, error: `only ${cards.length} products found (need ${need})` };
+  // The finder writes a reason for its top picks only; one more call gives the rest of the page theirs.
+  const bare = cards.filter(c => !c.reason);
+  if (bare.length) try {
+    const out = await ai("You write one warm sentence (under 25 words) on why each product makes a good gift, for a page titled \"" + p.keyword + "\". " +
+      "Only use what the title says; never invent specs. Never mention the price or compare products. " +
+      "Answer only JSON: {\"reasons\":[{\"i\":0,\"reason\":\"...\"}]} with one entry per product.", JSON.stringify(bare.map((c, i) => `${i}: ${c.title}`)));
+    for (const r of (out && Array.isArray(out.reasons) ? out.reasons : []))
+      if (r && Number.isInteger(r.i) && bare[r.i] && typeof r.reason === "string" && r.reason.length > 10) bare[r.i].reason = r.reason.slice(0, 220);
+  } catch {}
   const t = now();
   await db.prepare("INSERT INTO seo_pages (slug,guide_json,cards_json,updated_at,created_at) VALUES (?,?,?,?,?) " +
     "ON CONFLICT(slug) DO UPDATE SET guide_json=excluded.guide_json, cards_json=excluded.cards_json, updated_at=excluded.updated_at")
@@ -945,8 +955,11 @@ export default {
         const ownList = await ownProducts(db, store.id);
         const b = v.brief, fkey = `find/${storeStamp(store)}/${await sha256(JSON.stringify(v.brief))}`;
         let r = await edgeGet(fkey), fromCache = !!r;
-        if (!r) r = await findGifts(v.brief, { ai: aiFor(env), search: q => channel3Search(env, q, v.brief), alsoSearch: q => cjSearch(env, q, v.brief, { limit: 30 }), planSystem,
+        // The slowest single call to each product source, for the timings in the answer.
+        const slow = { c3: 0, cj: 0 }, timed = (k, p) => { const s = Date.now(); return p.finally(() => { slow[k] = Math.max(slow[k], Date.now() - s); }); };
+        if (!r) r = await findGifts(v.brief, { ai: aiFor(env), search: q => timed("c3", channel3Search(env, q, v.brief)), alsoSearch: q => timed("cj", cjSearch(env, q, v.brief, { limit: 30 })), planSystem,
           extra: plan => ownMatches(ownList, [...plan.map(s => s.query), b.recipient, b.occasion, b.notes, ...(b.interests || [])], b.budget_cents) });
+        if (!fromCache && r.ms) r.ms = { ...r.ms, ...slow };
         if (!fromCache && (r.picks || []).length) edgePut(ctx, fkey, r, 6 * 3600);
         const items = await storeItems(db, store.id);
         r.picks = withoutHidden(r.picks || [], items); r.more = withoutHidden(r.more || [], items);

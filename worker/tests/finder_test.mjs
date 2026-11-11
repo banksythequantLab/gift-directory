@@ -152,5 +152,13 @@ eq("fallback picks lead with the best-priced", fallbackPicks(cards)[0].product_i
   eq("second source down: Channel3 still comes back", failing.length === 1 && failing[0].product_id === "c3a", true);
   const none = await searchBoth("journal", 10000, c3, null);
   eq("no second source: unchanged", none.length, 1);
-}console.log(`${passed} passed, ${failed} failed`);
+}// The finder passes its own time limits to the model.
+{
+  const { PLAN_MS, PICK_MS } = await import("../finder.js");
+  const seen = [];
+  await findGifts({ recipient: "a lawyer", occasion: "birthday", budget_cents: 10000 }, { ai: async (s, u, ms) => { seen.push(ms); return {}; }, search: async () => [] });
+  ok("plan call is time-limited", seen[0] === PLAN_MS && PLAN_MS < 25000, String(seen));
+  ok("limits leave a slow spell under 25 seconds", PLAN_MS + PICK_MS + 4000 < 25000);
+}
+console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

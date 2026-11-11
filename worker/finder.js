@@ -67,7 +67,7 @@ export function searchBody(query, brief) {
 export async function channel3Search(env, query, brief, { fetchImpl = fetch } = {}) {
   const r = await fetchImpl(`${C3}/v1/search`, {
     method: "POST", headers: { "x-api-key": env.CHANNEL3_API_KEY, "content-type": "application/json" },
-    body: JSON.stringify(searchBody(query, brief)),
+    body: JSON.stringify(searchBody(query, brief)), signal: AbortSignal.timeout(8000),
   });
   if (!r.ok) throw new Error(`channel3 ${r.status}`);
   const j = await r.json();
@@ -187,19 +187,25 @@ export function searchBoth(query, budgetCents, search, alsoSearch, brief) {
 // and the picker treats them like any other candidate.
 // `alsoSearch(query)` may return ready cards from a second source (CJ affiliate products); up to 3 per search lead
 // that search's list, so a paying merchant can win a spot without crowding the page.
+export const PLAN_MS = 7000, PICK_MS = 13000;
 export async function findGifts(brief, { ai, search, planSystem = PLAN_SYSTEM, extra = null, alsoSearch = null }) {
-  let plan = [];
-  try { plan = parsePlan(await ai(planSystem, planPrompt(brief))); } catch { plan = []; }
+  // ms: how long each stage took (planning call, the searches, the picking call), reported with the answer.
+  let plan = []; const t0 = Date.now();
+  // A shopper is waiting: when the model is having a slow spell, the plan falls back to plain searches after
+  // PLAN_MS and the picks to the catalog's own order after PICK_MS, instead of the full 25 seconds each.
+  try { plan = parsePlan(await ai(planSystem, planPrompt(brief), PLAN_MS)); } catch { plan = []; }
   if (!plan.length) plan = fallbackPlan(brief);
+  const t1 = Date.now();
   const results = await Promise.all(plan.map(s => searchBoth(s.query, brief.budget_cents, search, alsoSearch)));
+  const t2 = Date.now();
   // Mixed across searches, then junk and duplicates out.
   let own = [];
   try { own = extra ? (extra(plan) || []) : []; } catch { own = []; }
   const cards = mergeCards([interleave([own, ...results.map(l => l.filter(Boolean))])]);
-  if (!cards.length) return { plan, picks: [], more: [], empty: true };
+  if (!cards.length) return { plan, picks: [], more: [], empty: true, ms: { plan: t1 - t0, search: t2 - t1, pick: 0 } };
   let picks = [], also = null;
   try {
-    const j = await ai(PICK_SYSTEM, pickPrompt(brief, cards));
+    const j = await ai(PICK_SYSTEM, pickPrompt(brief, cards), PICK_MS);
     picks = parsePicks(j, cards);
     if (picks.length && j && Array.isArray(j.also)) also = parseIds(j, "also", cards);
   } catch { picks = []; }
@@ -207,7 +213,7 @@ export async function findGifts(brief, { ai, search, planSystem = PLAN_SYSTEM, e
   const shown = new Set(top.map(p => p.product_id));
   // The rest of the grid: what the model vouched for as a gift, or (model down) what survived the junk filter.
   const more = (also || cards).filter(c => !shown.has(c.product_id)).slice(0, 18);
-  return { plan, picks: top, more, ai_picked: picks.length > 0 };
+  return { plan, picks: top, more, ai_picked: picks.length > 0, ms: { plan: t1 - t0, search: t2 - t1, pick: Date.now() - t2, searches: plan.length, candidates: cards.length } };
 }
 
 // Round-robin across searches so the grid mixes kinds of gift instead of 12 coffee sets in a row.
