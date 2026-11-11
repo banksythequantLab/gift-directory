@@ -19,6 +19,7 @@ import { renderSVG } from "uqr";
 import STORE_MOCKUPS from "./shop-mockups.json";
 
 const now = () => new Date().toISOString();
+const BOT_UA = /bot|crawl|spider|slurp|preview|monitor|curl|wget|python|node|headless|lighthouse|facebookexternalhit|whatsapp|scrap|fetch|http-client|uptime|pingdom|axios|go-http/i;
 // Guide price/stock refresh budget (see the /gifts/<slug> route): ~570 pages every 14 days is ~40 a day, ~280 searches.
 const REFRESH_DAYS = 14, REFRESH_PER_DAY = 40;
 // Unbuilt team pages, a few per run, one after another (each build is several searches and two model calls).
@@ -560,6 +561,12 @@ export default {
     const parts = url.pathname.split("/").filter(Boolean);
     const m = request.method;
     const db = env.DB;
+    // Page-view counts by day (no cookies, nothing about the visitor is kept): which pages people and crawlers open.
+    if (m === "GET" && db && parts[0] !== "api" && !/\.[a-z0-9]{2,5}$/i.test(url.pathname)) {
+      const ua = request.headers.get("user-agent") || "", kind = !ua || BOT_UA.test(ua) ? "bot" : "human";
+      ctx.waitUntil(db.prepare("INSERT INTO page_views (day,host,path,kind,n) VALUES (?,?,?,?,1) ON CONFLICT(day,host,path,kind) DO UPDATE SET n=n+1")
+        .bind(now().slice(0, 10), url.hostname, url.pathname.slice(0, 120), kind).run().catch(() => {}));
+    }
     try {
       const { store, platform, setCookie } = await resolveStore(db, env, url, request, ctx);
       const page = path => withCookie(env.ASSETS.fetch(new Request(new URL(path, url), request)), setCookie);
