@@ -50,7 +50,7 @@ export function cjRelevant(title, query) {
 export async function cjSearch(env, query, brief = {}, { fetchImpl = fetch, limit = 24 } = {}) {
   if (!cjOn(env)) return [];
   const r = await fetchImpl(CJ_URL, { method: "POST", headers: { authorization: `Bearer ${env.CJ_TOKEN}`, "content-type": "application/json" },
-    body: JSON.stringify({ query: cjQuery(env, query, { highCents: brief.budget_cents || null, limit }) }), signal: AbortSignal.timeout(6000) });
+    body: JSON.stringify({ query: cjQuery(env, query, { highCents: brief.budget_cents || null, limit }) }), signal: AbortSignal.timeout(3500) });
   if (!r.ok) throw new Error(`cj ${r.status}`);
   const j = await r.json();
   if (j && j.errors && j.errors.length && !(j.data && j.data.shoppingProducts)) throw new Error(`cj ${clip(j.errors[0].message, 120)}`);

@@ -158,7 +158,7 @@ eq("fallback picks lead with the best-priced", fallbackPicks(cards)[0].product_i
   const seen = [];
   await findGifts({ recipient: "a lawyer", occasion: "birthday", budget_cents: 10000 }, { ai: async (s, u, ms) => { seen.push(ms); return {}; }, search: async () => [] });
   ok("plan call is time-limited", seen[0] === PLAN_MS && PLAN_MS < 25000, String(seen));
-  ok("limits leave a slow spell under 25 seconds", PLAN_MS + PICK_MS + 4000 < 25000);
+  ok("the plan gives up sooner than the picks, and a slow spell stays under 30 seconds", PLAN_MS < PICK_MS && PLAN_MS + PICK_MS + 4000 <= 30000);
 }
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

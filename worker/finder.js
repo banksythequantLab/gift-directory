@@ -187,7 +187,9 @@ export function searchBoth(query, budgetCents, search, alsoSearch, brief) {
 // and the picker treats them like any other candidate.
 // `alsoSearch(query)` may return ready cards from a second source (CJ affiliate products); up to 3 per search lead
 // that search's list, so a paying merchant can win a spot without crowding the page.
-export const PLAN_MS = 7000, PICK_MS = 13000;
+// The plan gives up early (plain searches are a fair stand-in); the picks get longer, because the model's choices
+// and reasons are what the shopper is waiting for and the page already shows quick picks meanwhile.
+export const PLAN_MS = 6000, PICK_MS = 20000;
 export async function findGifts(brief, { ai, search, planSystem = PLAN_SYSTEM, extra = null, alsoSearch = null }) {
   // ms: how long each stage took (planning call, the searches, the picking call), reported with the answer.
   let plan = []; const t0 = Date.now();

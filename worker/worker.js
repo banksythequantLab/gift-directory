@@ -963,7 +963,8 @@ export default {
         if (!r) r = await findGifts(v.brief, { ai: aiFor(env), search: q => timed("c3", channel3Search(env, q, v.brief)), alsoSearch: q => timed("cj", cjSearch(env, q, v.brief, { limit: 30 })), planSystem,
           extra: plan => ownMatches(ownList, [...plan.map(s => s.query), b.recipient, b.occasion, b.notes, ...(b.interests || [])], b.budget_cents) });
         if (!fromCache && r.ms) r.ms = { ...r.ms, ...slow };
-        if (!fromCache && (r.picks || []).length) edgePut(ctx, fkey, r, 6 * 3600);
+        // Only a real answer is kept: a fallback (the model was slow or down) shouldn't be what the next six hours of shoppers get.
+        if (!fromCache && (r.picks || []).length && r.ai_picked) edgePut(ctx, fkey, r, 6 * 3600);
         const items = await storeItems(db, store.id);
         r.picks = withoutHidden(r.picks || [], items); r.more = withoutHidden(r.more || [], items);
         const id = uid();
