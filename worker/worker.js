@@ -666,10 +666,12 @@ export default {
       // ---------- the shop (Printful print-on-demand, paid with PayPal; hidden unless SHOP_PUBLIC) ----------
       if (parts[1] === "shop") {
         if (!env.PRINTFUL_TOKEN || !env.PRINTFUL_STORE_ID) return J({ error: "The shop isn't set up yet." }, 503);
-        if (parts[2] === "products" && m === "GET") return J({ products: await shopCards(env), live: env.PAYPAL_ENV === "live", public: env.SHOP_PUBLIC === "1" });
+        // Photo products and uploads are off while the shop is hidden (unless SHOP_PHOTOS is set for testing).
+        const photosOn = env.SHOP_PUBLIC === "1" || env.SHOP_PHOTOS === "1";
+        if (parts[2] === "products" && m === "GET") return J({ products: (await shopCards(env)).filter(c => photosOn || c.kind !== "photo"), live: env.PAYPAL_ENV === "live", public: env.SHOP_PUBLIC === "1" });
         // A buyer's photo for a photo shirt: JPEG or PNG, up to 15 MB, at least 600 px on the short side. Kept 30 days.
         if (parts[2] === "upload" && m === "POST") {
-          if (!env.SHOP_UPLOADS) return J({ error: "Photo uploads aren't set up yet." }, 503);
+          if (!env.SHOP_UPLOADS || !photosOn) return J({ error: "Photo uploads aren't switched on yet." }, 503);
           const ipHash = await sha256("up:" + (request.headers.get("cf-connecting-ip") || ""));
           const rk = `rl/${ipHash}/${new Date().toISOString().slice(0, 13)}`, n = Number(await env.SHOP_UPLOADS.get(rk)) || 0;
           if (n >= 30) return J({ error: "That's a lot of uploads in an hour. Try again later." }, 429);

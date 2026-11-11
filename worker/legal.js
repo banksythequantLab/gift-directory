@@ -2,7 +2,7 @@
 // crawlers read them). Operator: Banksy AI LLC. Draft for the owner's legal review.
 import { shell } from "./seo.js";
 
-const UPDATED = "November 9, 2026";
+const UPDATED = "November 12, 2026";
 const CONTACT = "hello@gift.directory";
 const h1 = t => `<h1 style="font-family:Georgia,serif;margin:6px 0 10px">${t}</h1>`;
 const sec = (t, ...ps) => `<h2 style="font-family:Georgia,serif;margin-top:22px">${t}</h2>${ps.map(p => `<p style="max-width:780px">${p}</p>`).join("")}`;
@@ -32,7 +32,7 @@ export const LEGAL = {
         "<b>What you type to find a gift</b>: the occasion, who it's for, budget and interests. We use it to search for products and pick suggestions, and keep it to improve results. Please don't type sensitive personal information into these fields.",
         "<b>Group gifts</b>: the organizer's name and PayPal email, the gift chosen, and each contributor's name (unless they choose to hide it), message and amount. Names and messages appear on the group-gift page for anyone with the link. The organizer's email is never shown publicly.",
         "<b>Gift registries</b>: the registry's name, date, the owner's name and (optionally) PayPal email, the gifts on it, and the names guests give when they mark a gift as bought (shown only to the owner). If a guest asks for a reminder, we keep their email only until we send that one reminder a week before the date (sent through Cloudflare), then delete it; every reminder has an unsubscribe link that deletes it immediately.",
-        "<b>Shop orders</b>: when you buy from the gift.directory shop, we keep what you ordered (including any text you chose), the shipping name and address, your email for the receipt, and the PayPal reference. We send the order and address to our print partner Printful, which makes and ships it.",
+        "<b>Shop orders</b>: when you buy from the gift.directory shop, we keep what you ordered (including any text you chose and any photo you uploaded), the shipping name and address, your email for the receipt, and the PayPal reference. We send the order and address to our print partner Printful, which makes and ships it. A photo you upload for a photo product is stored only so it can be printed: it is deleted after 30 days if you don't order, and kept for up to one year after an order so a damaged item can be reprinted, then deleted. Printful receives the photo to print it. To have a photo deleted sooner, write to us with your order number.",
         "<b>Stores</b>: the owner's email, store settings and PayPal subscription details. When you log in with PayPal, PayPal tells us your verified email address(es), name and PayPal account ID. We never receive your PayPal password.",
         "<b>Payments</b> are handled by PayPal. We receive confirmation of a payment (amount, status and a PayPal reference), never your card or bank details. PayPal's own privacy statement applies to what you give PayPal.",
         "<b>Technical data</b>: like most sites, our hosting provider (Cloudflare) processes IP addresses and request details to deliver and protect the site.") +
@@ -60,7 +60,7 @@ export const LEGAL = {
 // The shop's terms appear only once the shop is public (SHOP_PUBLIC=1). Draft for the owner's legal review.
 export const SHOP_TERMS = sec("The gift.directory shop",
   "Items in the gift.directory shop are the exception to the section above: Banksy AI LLC is the seller. Each item is made to order and shipped by our print partner, Printful, to US addresses only. Prices are in US dollars; shipping is shown before you pay, and sales tax is added where we collect it (currently New Jersey). Payment is through PayPal.",
-  "<b>Your text.</b> You are responsible for the words you ask us to print. Don't submit anything unlawful, hateful, or that uses someone else's trademark, logo, or copyrighted work. We may decline an order we won't print and refund it in full. We print what the preview shows, so please check spelling and names before you pay.",
+  "<b>Your text and photos.</b> You are responsible for the words and photos you ask us to print. Only upload photos you took or have the right to use, and only of people who are happy to be on the item. Don't submit anything unlawful, hateful, or sexually explicit, or that uses someone else's trademark, logo, or copyrighted work. We may decline an order we won't print and refund it in full. We print what the preview shows, so please check spelling and names before you pay.",
   "<b>Changes and cancellations.</b> Write to us right away if you need to change or cancel an order. Once it has gone into production we can't change or cancel it.",
   `<b>Returns and problems.</b> Because each item is made for you, we don't accept returns or exchanges for a change of mind, a size you chose, or text you typed. If an item arrives damaged, defective, or misprinted, or never arrives, email <a href=\"mailto:${CONTACT}\">${CONTACT}</a> within 30 days of delivery (or of the estimated delivery date) with your order number and a photo, and we'll reprint it or refund you.`,
   "<b>Delivery.</b> Delivery dates are estimates from Printful and the carrier, not guarantees. A gift message, if you add one, is printed on the packing slip.");

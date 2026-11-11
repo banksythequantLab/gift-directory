@@ -237,5 +237,7 @@ eq("store mockup used when there is one", storeShopShelf(shopCards, "nurses", "h
   ok("receipt without back text has no text line", !receiptEmail({ ...prow, lines_json: null }).text.includes("text:"));
 }
 
+// The new stores' shelves.
+for (const slug of ["teachers", "doctors", "realtors", "police"]) ok(`${slug} has a Personalize it shelf`, (storeShopShelf(shopCards, slug) || { cards: [] }).cards.length >= 6);
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

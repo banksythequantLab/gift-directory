@@ -1,4 +1,4 @@
-# Going live with real PayPal payments
+﻿# Going live with real PayPal payments
 
 The worker reads one switch, `PAYPAL_ENV` in `worker/wrangler.jsonc`. With `"sandbox"` it uses the sandbox
 secrets. With `"live"` it uses the live secrets (`PAYPAL_LIVE_CLIENT_ID`, `PAYPAL_LIVE_CLIENT_SECRET`) and the live
@@ -46,3 +46,20 @@ plan (`PAYPAL_LIVE_PLAN_ID`). If live is selected but those are missing, payment
 - Existing stores keep working after the flip. Nurse Gifts' sandbox subscription can't be checked against live
   PayPal, so the store simply stays as it is (active). Lawyer Gifts is the house store and has no subscription.
 - Rollback: set `"PAYPAL_ENV": "sandbox"` and deploy.
+
+## D. After judging closes (Nov 12, noon PST): the `post-judging` branch
+
+Prepared and tested on Nov 11, not deployed. In order:
+
+1. Merge and deploy: `git checkout main; git merge post-judging; cd worker; npx wrangler deploy`
+   - Privacy and Terms now cover uploaded photos (review the wording first).
+   - Photo products and uploads are off while the shop is hidden. Set `SHOP_PHOTOS` to `"1"` to test them.
+   - "Personalize it" examples for the teachers, doctors, realtors and police stores (shown once the shop is public).
+   - Seven holiday guides are defined but not built.
+2. Build the holiday guides, then read each page's picks:
+   (from `worker`) `node scripts/build-guides.mjs black-friday-gift-ideas cyber-monday-gift-ideas christmas-gifts-for-firefighters christmas-gifts-for-lawyers-under-50 christmas-gifts-for-nurses-under-25 stocking-stuffers-for-nurses stocking-stuffers-for-teachers`
+3. Detach the Firefighter store's unfinished sandbox subscription, so a PayPal status check can't mark the store lapsed:
+   `UPDATE stores SET paypal_subscription_id=NULL, subscription_status=NULL WHERE slug='firefighter-gifts'`
+4. Finder speed: fresh answers took 20 to 30 seconds on Nov 11 (9 to 14 before). Time the model call and the searches separately before changing anything.
+5. Then sections A to C above (PayPal live), and set the Nurses store's owner email back.
+6. Shop opening: one full paid test order first, then `SHOP_PUBLIC` and `SHOP_FULFILL` to `"1"`.

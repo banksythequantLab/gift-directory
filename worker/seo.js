@@ -329,6 +329,11 @@ export const PAGES = [
       "closing-gifts-for-home-buyers": { 0: ["personalized cutting board", ["cutting board", "charcuterie"]], 1: ["custom doormat", ["doormat", "door mat"]], 3: ["personalized address plaque", ["address", "house number", "plaque"]], 6: ["scented soy candle", CANDLE] },
       "christmas-gifts-for-realtors": { 2: ["car seat organizer", ["organizer"]], 6: ["gourmet coffee sampler", COFFEE] },
       "thank-you-gifts-for-police-officers": { 0: ["thin blue line mug", ["blue line", "police"]], 2: ["gourmet coffee sampler", COFFEE], 6: ["thin blue line flag", ["blue line"]] },
+      "christmas-gifts-for-firefighters": { 0: ["firefighter ornament", ["fire"]], 3: ["firefighter gear bag", ["fire", "gear bag", "duffel"]], 7: ["firefighter mug", ["firefighter", "fire fighter", "fire dept"]], x: ["fire dancer", "pretend", "figurine"] },
+      "christmas-gifts-for-lawyers-under-50": { 4: ["lawyer mug", ["lawyer", "attorney", "legal"]], 5: ["scales of justice decor", ["justice", "scale", "gavel"]] },
+      "christmas-gifts-for-nurses-under-25": { 4: ["nurse mug", ["nurse"]], 5: ["nurse tote bag", ["nurse"]] },
+      "stocking-stuffers-for-nurses": { 4: ["nurse pen set", ["pen"]], 5: ["nurse keychain", ["nurse"]] },
+      "stocking-stuffers-for-teachers": { 4: ["teacher keychain", ["teacher"]] },
       "christmas-gifts-for-police-officers": { 1: ["thin blue line ornament", ["blue line", "police"]], 6: ["police shadow box", ["shadow box"]], x: ["farmhouse", "shelf"] },
     };
     const G = (slug, keyword, recipient, occasion, budget, topic, slots, extra = {}) => {
@@ -407,6 +412,21 @@ export const PAGES = [
         ["thin blue line mug","tactical pen","gourmet coffee sampler","insulated tumbler","beef jerky gift box","tactical flashlight","thin blue line flag","cozy socks"], { store: "police" }),
       G("christmas-gifts-for-police-officers", "Christmas gifts for police officers", "a police officer", "Christmas", 100, "Professions",
         ["tactical flashlight","thin blue line ornament","insulated tumbler","duty bag","boot dryer","tactical pen","police shadow box","wool hiking socks"], { store: "police" }),
+      // holiday season (Nov 2026)
+      G("black-friday-gift-ideas", "Black Friday gift ideas", "someone on my Christmas list", "Christmas", 300, "Holidays",
+        ["noise cancelling headphones","stand mixer","robot vacuum","smart watch","air fryer","cozy throw blanket","instant camera","espresso machine"]),
+      G("cyber-monday-gift-ideas", "Cyber Monday gift ideas", "someone on my Christmas list", "Christmas", 200, "Holidays",
+        ["wireless earbuds","bluetooth speaker","e-reader","smart speaker","fitness tracker","portable charger","streaming stick","mechanical keyboard"]),
+      G("christmas-gifts-for-firefighters", "Christmas gifts for firefighters", "a firefighter", "Christmas", 100, "Professions",
+        ["firefighter ornament","tactical flashlight","insulated tumbler","firefighter gear bag","boot dryer","multitool","wool socks","firefighter mug"], { store: "firefighter-gifts" }),
+      G("christmas-gifts-for-lawyers-under-50", "Christmas gifts for lawyers under $50", "a lawyer", "Christmas", 50, "Law",
+        ["engraved pen","leather journal","insulated tumbler","desk organizer","lawyer mug","scales of justice decor","whiskey stones set","leather cardholder"], { store: "lawyers" }),
+      G("christmas-gifts-for-nurses-under-25", "Christmas gifts for nurses under $25", "a nurse", "Christmas", 25, "Nurses & healthcare",
+        ["badge reel","compression socks","insulated tumbler","hand cream gift set","nurse mug","nurse tote bag","lip balm set","cozy socks"], { store: "nurses" }),
+      G("stocking-stuffers-for-nurses", "Stocking stuffers for nurses", "a nurse", "Christmas", 20, "Nurses & healthcare",
+        ["badge reel","lip balm set","hand cream","compression socks","nurse pen set","nurse keychain","hair ties","hand sanitizer holder"], { store: "nurses" }),
+      G("stocking-stuffers-for-teachers", "Stocking stuffers for teachers", "a teacher", "Christmas", 20, "Professions",
+        ["gel pen set","lip balm set","hand cream","sticky notes set","teacher keychain","cozy socks","tea sampler","mini succulent planter"], { store: "teachers" }),
       G("gifts-for-legal-assistants", "Gifts for legal assistants", "a legal assistant at the firm", "Christmas", 50, "Law",
         ["desk organizer","insulated tumbler","mug warmer","gel pen set","hand cream set","desk plant","scented candle","ergonomic wrist rest"], { store: "lawyers" }),
     ];

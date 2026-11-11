@@ -147,12 +147,24 @@ export const STORE_SHELVES = {
     text: ["NURSE BY DAY", "CAFFEINATED BY NIGHT"], roster: ["4 West Night Crew", "Nurses Week 2026", "Ann, Ben, Cara, Dev"] },
   "firefighter-gifts": { role: ["Capt. Jane Doe", "Engine Company 12", "Est. 2026"], milestone: ["Retired", "2026", "Capt. Jane Doe"],
     text: ["FIRST IN", "LAST OUT"], roster: ["Engine 12", "Station 12 Family", "Ann, Ben, Cara, Dev"] },
+  teachers: { role: ["Ms. Jane Doe", "4th Grade Teacher", "Est. 2026"], milestone: ["Happily Retired", "2026", "Ms. Jane Doe"],
+    text: ["TEACHING IS", "MY SUPERPOWER"], roster: ["Room 12", "Class of 2026", "Ann, Ben, Cara, Dev"] },
+  doctors: { role: ["Dr. Jane Doe", "Internal Medicine", "Est. 2026"], milestone: ["Match Day", "2026", "Dr. Jane Doe"],
+    text: ["TRUST ME", "I'M A DOCTOR"], roster: ["Doe Medical Group", "Doctors' Day 2026", "Ann, Ben, Cara, Dev"] },
+  realtors: { role: ["Jane Doe", "Realtor", "Est. 2026"], milestone: ["Home Sweet Home", "2026", "The Smiths"],
+    text: ["JUST", "SOLD"], roster: ["The Smiths", "New Home 2026", "Ann, Bob, Cal, Dee"] },
+  police: { role: ["Sgt. Jane Doe", "12th Precinct", "Est. 2026"], milestone: ["Retired", "2026", "Sgt. Jane Doe"],
+    text: ["TO PROTECT", "AND SERVE"], roster: ["12th Precinct", "Police Week 2026", "Ann, Ben, Cara, Dev"] },
 };
 // Pick-your-design items each store adds, opened on the design that suits its example: [product type, design].
 const SHELF_ITEMS = {
   lawyers: [["rocks", "milestone"], ["deskmat", "role"]],
   nurses: [["tumbler", "role"], ["ornament", "milestone"]],
   "firefighter-gifts": [["rocks", "milestone"], ["cooler", "roster"]],
+  teachers: [["tumbler", "role"], ["ornament", "milestone"]],
+  doctors: [["tumbler", "role"], ["deskmat", "role"]],
+  realtors: [["board", "roster"], ["rocks", "milestone"]],
+  police: [["rocks", "milestone"], ["cooler", "roster"]],
 };
 const SHELF_PICKS = [["role", "tee"], ["role", "mug"], ["role", "hoodie"], ["milestone", "tee"], ["milestone", "mug"], ["text", "tee"], ["text", "mug"], ["roster", "tee"]];
 // `mockups` (shop-mockups.json): per store, a Printful mockup of that store's example on each product.

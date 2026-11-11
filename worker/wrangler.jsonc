@@ -39,6 +39,8 @@
     // SHOP_PUBLIC "1" links the shop from stores; SHOP_FULFILL "1" (live PayPal only) confirms Printful orders instead of leaving drafts.
     "PRINTFUL_STORE_ID": "19038070",
     "SHOP_PUBLIC": "",
+    // Photo products (buyers upload a picture). Off unless the shop is public or this is "1" (for testing the hidden shop).
+    "SHOP_PHOTOS": "",
     "SHOP_FULFILL": ""
   }
   // Secrets (wrangler secret put): PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, CHANNEL3_API_KEY, NEBIUS_API_KEY
