@@ -310,6 +310,7 @@ export const PAGES = [
       "police-retirement-gifts": { 0: ["police shadow box", ["shadow box"]], 1: ["personalized retirement plaque", RET], 7: ["police challenge coin", ["police", "law enforcement", "blue line"]], x: ["mirror", "farmhouse", "shelf"] },
       "military-retirement-gifts": { 0: ["military shadow box display case", ["shadow box", "display case"]], 2: ["personalized retirement plaque", RET] },
       "pharmacist-retirement-gifts": { 0: ["personalized retirement plaque", RET] },
+      "nursing-school-graduation-gifts": { 0: ["Littmann stethoscope", ["littmann"]], 7: ["stethoscope case", ["stethoscope"]] },
       "medical-school-graduation-gifts": { 0: ["Littmann stethoscope", ["littmann"]], 3: ["caduceus medical lapel pin", ["caduceus", "medical"]], 5: ["doctor shadow box frame", ["doctor", "physician", "medical", "md"]] },
       "police-academy-graduation-gifts": { 1: ["thin blue line bracelet", ["blue line"]], 5: ["police challenge coin", ["police", "law enforcement", "blue line"]] },
       "fire-academy-graduation-gifts": { 3: ["firefighter challenge coin", ["fire"]], 5: ["firefighter keychain", ["firefighter", "fire fighter", "fire dept"]] },
@@ -885,10 +886,10 @@ const STORE_OF = {
 for (const [st, slugs] of Object.entries(STORE_OF)) for (const sl of slugs) { const p = PAGES.find(x => x.slug === sl); if (p) p.store = st; }
 // Picks the Nov 2026 audit found on pages where they don't belong; each page's next rebuild drops them.
 const AUDIT_EXCLUDE = {
-  "nurse-appreciation-gifts": ["lisle"], "nursing-school-graduation-gifts": ["velveteen pouch", "lisle"], "gifts-for-nursing-students": ["lisle"],
+  "nurse-appreciation-gifts": ["lisle"], "nursing-school-graduation-gifts": ["velveteen pouch", "lisle", "necklace", "headset", "charm", "sweatshirt", "minnie"], "gifts-for-nursing-students": ["lisle"],
   "what-to-get-a-computer-geek": ["inspection camera"], "police-academy-graduation-gifts": ["corporate traveller", "charm"],
-  "teacher-retirement-gifts": ["banner"], "firefighter-retirement-gifts": ["banner", "charm"], "police-retirement-gifts": ["banner", "charm"], "military-retirement-gifts": ["banner"],
-  "fire-academy-graduation-gifts": ["charm"], "secret-santa-gifts-for-police-officers": ["charm"], "secret-santa-gifts-for-nurses": ["charm"],
+  "teacher-retirement-gifts": ["banner", "photo prop", "napkin"], "firefighter-retirement-gifts": ["banner", "charm", "napkin", "photo prop"], "police-retirement-gifts": ["banner", "charm", "napkin", "photo prop", "ice cream", "scoopery"], "military-retirement-gifts": ["banner", "napkin", "photo prop"],
+  "fire-academy-graduation-gifts": ["charm", "playset", "pretend", "toy"], "secret-santa-gifts-for-police-officers": ["charm"], "secret-santa-gifts-for-nurses": ["charm"],
   "secret-santa-gifts-under-25": ["prescription"], "gifts-for-your-boss-under-50": ["hydrangea"],
 };
 for (const p of PAGES) {

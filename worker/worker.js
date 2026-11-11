@@ -528,7 +528,7 @@ async function refreshSubscription(db, env, s) {
     .bind(status, r.body.status, payer, t, t, s.id).run();
   return { ...s, status, subscription_status: r.body.status, owner_payer_id: s.owner_payer_id || payer, checked_at: t };
 }
-async function resolveStore(db, env, url, request) {
+async function resolveStore(db, env, url, request, ctx) {
   let key = hostKey(url.hostname);
   let setCookie = null;
   if (isWorkersDev(url.hostname)) {
@@ -545,7 +545,10 @@ async function resolveStore(db, env, url, request) {
                        : await db.prepare("SELECT * FROM stores WHERE custom_host=?").bind(key.host).first();
   if (store && store.paypal_subscription_id && store.status !== "draft" &&
       (!store.checked_at || Date.now() - Date.parse(store.checked_at) > 6 * 3600 * 1000)) {
-    try { store = await refreshSubscription(db, env, store); } catch {}
+    // In the background: the visitor who happens to arrive when a check is due shouldn't wait on PayPal for it
+    // (it took several seconds). The store's saved status answers this request; the next one sees the update.
+    const check = refreshSubscription(db, env, store).catch(() => null);
+    if (ctx) ctx.waitUntil(check); else store = (await check) || store;
   }
   return { store, setCookie };
 }
@@ -558,7 +561,7 @@ export default {
     const m = request.method;
     const db = env.DB;
     try {
-      const { store, platform, setCookie } = await resolveStore(db, env, url, request);
+      const { store, platform, setCookie } = await resolveStore(db, env, url, request, ctx);
       const page = path => withCookie(env.ASSETS.fetch(new Request(new URL(path, url), request)), setCookie);
       // The tab icon, in the store's own color (the platform's navy elsewhere). Same drawing as favicon.ico.
       if (url.pathname === "/favicon.svg") {
