@@ -883,6 +883,18 @@ const STORE_OF = {
   "firefighter-gifts": ["gifts-for-firefighters", "fire-academy-graduation-gifts", "secret-santa-gifts-for-firefighters", "firefighter-retirement-gifts"],
 };
 for (const [st, slugs] of Object.entries(STORE_OF)) for (const sl of slugs) { const p = PAGES.find(x => x.slug === sl); if (p) p.store = st; }
+// Picks the Nov 2026 audit found on pages where they don't belong; each page's next rebuild drops them.
+const AUDIT_EXCLUDE = {
+  "nurse-appreciation-gifts": ["lisle"], "nursing-school-graduation-gifts": ["velveteen pouch", "lisle"], "gifts-for-nursing-students": ["lisle"],
+  "what-to-get-a-computer-geek": ["inspection camera"], "police-academy-graduation-gifts": ["corporate traveller", "charm"],
+  "teacher-retirement-gifts": ["banner"], "firefighter-retirement-gifts": ["banner", "charm"], "police-retirement-gifts": ["banner", "charm"], "military-retirement-gifts": ["banner"],
+  "fire-academy-graduation-gifts": ["charm"], "secret-santa-gifts-for-police-officers": ["charm"], "secret-santa-gifts-for-nurses": ["charm"],
+  "secret-santa-gifts-under-25": ["prescription"], "gifts-for-your-boss-under-50": ["hydrangea"],
+};
+for (const p of PAGES) {
+  const extra = [...(AUDIT_EXCLUDE[p.slug] || []), ...(p.team ? ["panini", "infant", "toddler", "newborn"] : [])];
+  if (extra.length) p.exclude = [...(p.exclude || []), ...extra];
+}
 export const pageBySlug = slug => PAGES.find(p => p.slug === slug) || null;
 
 // No page should be seven candles: at most `cap` products of one kind, in the order they came.

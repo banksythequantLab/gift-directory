@@ -63,3 +63,8 @@ Prepared and tested on Nov 11, not deployed. In order:
 4. Finder speed: fresh answers took 20 to 30 seconds on Nov 11 (9 to 14 before). Time the model call and the searches separately before changing anything.
 5. Then sections A to C above (PayPal live), and set the Nurses store's owner email back.
 6. Shop opening: one full paid test order first, then `SHOP_PUBLIC` and `SHOP_FULFILL` to `"1"`.
+7. Guide audit (Nov 11, all 610 guides): rebuild these with `?cards=1` so the new exclude rules apply, then read the picks.
+   Wrong picks: nurse-appreciation-gifts nursing-school-graduation-gifts what-to-get-a-computer-geek police-academy-graduation-gifts teacher-retirement-gifts firefighter-retirement-gifts police-retirement-gifts military-retirement-gifts fire-academy-graduation-gifts secret-santa-gifts-for-police-officers secret-santa-gifts-for-nurses secret-santa-gifts-under-25 gifts-for-your-boss-under-50 gifts-for-club-america-fans gifts-for-tottenham-hotspur-fans gifts-for-usmnt-fans gifts-for-calgary-flames-fans gifts-for-pokemon-fans
+   Near-duplicates: christmas-gifts-under-20 gifts-for-13-year-old-girls gifts-for-boston-red-sox-fans gifts-for-german-shepherd-lovers gifts-for-san-antonio-spurs-fans gifts-for-tennessee-titans-fans gifts-for-texas-a-m-aggies-fans gifts-for-toronto-blue-jays-fans gifts-for-morocco-soccer-fans
+   Thin (4 or 5 picks): 24 pages, mostly NBA and WNBA teams and dog breeds; listed by `scripts/audit-guides.mjs`.
+   `scripts/build-guides.mjs` needs a `--cards` option for this (not written yet).

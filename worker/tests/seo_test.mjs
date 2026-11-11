@@ -162,5 +162,13 @@ eq("no storm ad elsewhere", houseAd("Holidays", "x"), "");
   ok("see also has three in-text links", (h.match(/<p class="muted see">See also: (<a [^>]+>[^<]+<\/a>(, | and )?){3}\.<\/p>/) || []).length > 0);
   ok("nav links the topic hub", h.includes('href="/gifts/topic/law">All Law guides'));
 }
+// Audit excludes.
+{
+  const { allowed, pageBySlug: pb } = await import("../seo.js");
+  ok("mechanic's stethoscope kept off nurse pages", !allowed(pb("nurse-appreciation-gifts"), { title: "Lisle Stethoscope Combo" }));
+  ok("sticker album kept off team pages", !allowed(pb("gifts-for-usmnt-fans"), { title: "World Cup Panini Football Collections 1970-2026" }));
+  ok("infant jersey kept off team pages", !allowed(pb("gifts-for-calgary-flames-fans"), { title: "Infant Red Calgary Flames Replica Jersey" }));
+  ok("party banner kept off retirement gifts", !allowed(pb("police-retirement-gifts"), { title: "Retirement Photo Custom Banner" }));
+}
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
