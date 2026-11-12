@@ -38,7 +38,8 @@ if (q.get("login") === "failed") $("#msg").innerHTML = `<p class="err">PayPal lo
   catch (e) {
     $("#app").innerHTML = `<div class="card" style="max-width:520px;margin-top:20px"><h2 style="margin-top:0">Log in to manage your store</h2>
       <p class="muted">Use the PayPal account that pays for your store's subscription.</p>
-      <a class="btn" href="/login" style="background:#0070ba">Log in with PayPal</a></div>`;
+      <a class="btn" href="/login${new URLSearchParams(location.search).get("store") ? "?store=" + encodeURIComponent(new URLSearchParams(location.search).get("store")) : ""}" style="background:#0070ba">Log in with PayPal</a>
+      <p class="muted" style="font-size:.85rem;margin:14px 0 0">Testing with a PayPal sandbox account? <a href="/login?demo=1">Log in with the PayPal sandbox</a>.</p></div>`;
     return;
   }
   $("#who").textContent = me.user.name || me.user.emails[0] || "";

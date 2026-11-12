@@ -63,6 +63,32 @@ eq("hidden products never show", withoutHidden([{ product_id: "c" }, { product_i
   const half = paypalMode({ PAYPAL_ENV: "live", PAYPAL_CLIENT_ID: "sb-id", PAYPAL_CLIENT_SECRET: "sb-sec" });
   eq("live without live keys never falls back to sandbox keys", half.PAYPAL_CLIENT_ID, "");
   eq("live login goes to paypal.com", authorizeUrl(live, "https://gift.directory/api/auth/paypal/callback", "s").startsWith("https://www.paypal.com/"), true);
+
+  // Split: real visitors on live PayPal, PayPal's sandbox test accounts on the sandbox.
+  const { paypalFor, isSandboxEmail, paypalToken, _resetTokenCache } = await import("../paypal-core.js");
+  const split = paypalMode({ ...both, PAYPAL_ENV: "split" });
+  eq("split: everyone else gets live keys", paypalFor(split, false).PAYPAL_CLIENT_ID + "|" + paypalBase(paypalFor(split, false)), "live-id|https://api-m.paypal.com");
+  const sbx = paypalFor(split, true);
+  eq("split: a test account gets sandbox keys", sbx.PAYPAL_CLIENT_ID + "|" + sbx.PAYPAL_PLAN_ID + "|" + paypalBase(sbx), "sb-id|P-SB|https://api-m.sandbox.paypal.com");
+  eq("split: sandbox login goes to the sandbox", authorizeUrl(sbx, "https://gift.directory/api/auth/paypal/callback", "s").startsWith("https://www.sandbox.paypal.com/"), true);
+  eq("split: sandbox side keeps other bindings", sbx.DB, "db");
+  eq("live only: a test account still gets live (no sandbox side)", paypalFor(live, true).PAYPAL_CLIENT_ID, "live-id");
+  eq("sandbox only: everyone gets sandbox", paypalFor(paypalMode(both), false).PAYPAL_CLIENT_ID, "sb-id");
+  eq("PayPal sandbox buyer email", isSandboxEmail("sb-7bf7453357370@personal.example.com"), true);
+  eq("PayPal sandbox business email", isSandboxEmail(" SB-abc123@business.example.com "), true);
+  eq("a real email is not sandbox", isSandboxEmail("jane@gmail.com"), false);
+  eq("example.com alone is not sandbox", isSandboxEmail("jane@example.com"), false);
+  eq("lookalike domain is not sandbox", isSandboxEmail("sb-1@personal.example.com.evil.io"), false);
+  eq("no email is not sandbox", isSandboxEmail(null), false);
+  // Each side keeps its own access token: alternating sandbox and live must not re-fetch every time.
+  _resetTokenCache();
+  let calls = 0;
+  const fetchImpl = async u => { calls++; return { ok: true, json: async () => ({ access_token: "t-" + (u.includes("sandbox") ? "sb" : "live"), expires_in: 3600 }) }; };
+  const got = [];
+  for (const e of [sbx, split, sbx, split]) got.push(await paypalToken(e, { fetchImpl }));
+  eq("split: tokens never cross sides", got.join(","), "t-sb,t-live,t-sb,t-live");
+  eq("split: one token request per side", calls, 2);
+  _resetTokenCache();
 }
 
 console.log(`${passed} passed, ${failed} failed`);

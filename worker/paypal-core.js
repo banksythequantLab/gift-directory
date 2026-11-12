@@ -10,11 +10,20 @@
 // Sandbox and live credentials sit side by side; PAYPAL_ENV picks which set the rest of the code sees.
 // Live needs its own secrets (PAYPAL_LIVE_CLIENT_ID / PAYPAL_LIVE_CLIENT_SECRET) and plan (PAYPAL_LIVE_PLAN_ID).
 // If live is chosen but its secrets are missing, PayPal reads as not configured; it never falls back to sandbox keys.
+// PAYPAL_ENV "split": real visitors get live PayPal, while PayPal's own sandbox test accounts (the hackathon
+// judges' logins) keep working against the sandbox. The sandbox side rides along as env.PAYPAL_SANDBOX.
 export function paypalMode(env) {
-  if (!env || env.PAYPAL_ENV !== "live") return env;
-  return { ...env, PAYPAL_CLIENT_ID: env.PAYPAL_LIVE_CLIENT_ID || "", PAYPAL_CLIENT_SECRET: env.PAYPAL_LIVE_CLIENT_SECRET || "",
+  if (!env || (env.PAYPAL_ENV !== "live" && env.PAYPAL_ENV !== "split")) return env;
+  const live = { ...env, PAYPAL_ENV: "live", PAYPAL_CLIENT_ID: env.PAYPAL_LIVE_CLIENT_ID || "", PAYPAL_CLIENT_SECRET: env.PAYPAL_LIVE_CLIENT_SECRET || "",
     PAYPAL_PLAN_ID: env.PAYPAL_LIVE_PLAN_ID || "", PAYPAL_WEBHOOK_ID: env.PAYPAL_LIVE_WEBHOOK_ID || "" };
+  if (env.PAYPAL_ENV === "split") live.PAYPAL_SANDBOX = { ...env, PAYPAL_ENV: "sandbox" };
+  return live;
 }
+// PayPal generates sandbox accounts as sb-<id>@personal.example.com / @business.example.com. example.com is
+// reserved, so no real PayPal account can have one of these addresses.
+export function isSandboxEmail(e) { return /^sb-[a-z0-9._-]+@(personal|business)\.example\.com$/i.test(String(e || "").trim()); }
+// The PayPal side for this payment: the sandbox for a test account in split mode, otherwise the one there is.
+export function paypalFor(env, sandbox) { return sandbox && env && env.PAYPAL_SANDBOX ? env.PAYPAL_SANDBOX : env; }
 
 export function paypalBase(env) {
   return env && env.PAYPAL_ENV === "live" ? "https://api-m.paypal.com" : "https://api-m.sandbox.paypal.com";
@@ -31,21 +40,22 @@ export function paypalReady(env) {
 // the app's permissions change. Found the hard way on Oct 14: Invoicing was switched on, every new
 // "token" was the old one without the invoicing scope, and every call said NOT_AUTHORIZED. So a
 // 401/403 terminates the token server-side and asks again, once.
-let cached = null; // { key, token, exp }
+const tokens = new Map(); // key -> { key, token, exp }; sandbox and live each keep their own
 
 function basic(env) { return "Basic " + btoa(`${env.PAYPAL_CLIENT_ID}:${env.PAYPAL_CLIENT_SECRET}`); }
 
-export function _resetTokenCache() { cached = null; }
+export function _resetTokenCache() { tokens.clear(); }
 
 export async function paypalToken(env, { fresh = false, fetchImpl = fetch, nowMs = Date.now() } = {}) {
   const key = `${paypalBase(env)}|${env.PAYPAL_CLIENT_ID}`;
+  let cached = tokens.get(key) || null;
   if (!fresh && cached && cached.key === key && cached.exp > nowMs + 60_000) return cached.token;
   if (fresh && cached && cached.key === key) {
     // Without this PayPal just returns the stale token again.
     await fetchImpl(`${paypalBase(env)}/v1/oauth2/token/terminate`, {
       method: "POST", headers: { authorization: basic(env), "content-type": "application/x-www-form-urlencoded" },
       body: `token=${encodeURIComponent(cached.token)}&token_type_hint=ACCESS_TOKEN` }).catch(() => {});
-    cached = null;
+    cached = null; tokens.delete(key);
   }
   const r = await fetchImpl(`${paypalBase(env)}/v1/oauth2/token`, {
     method: "POST", headers: { authorization: basic(env), "content-type": "application/x-www-form-urlencoded" },
@@ -53,6 +63,7 @@ export async function paypalToken(env, { fresh = false, fetchImpl = fetch, nowMs
   if (!r.ok) throw new Error(`paypal token: HTTP ${r.status}`);
   const j = await r.json();
   cached = { key, token: j.access_token, exp: nowMs + (Number(j.expires_in) || 300) * 1000 };
+  tokens.set(key, cached);
   return cached.token;
 }
 

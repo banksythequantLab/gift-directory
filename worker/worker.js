@@ -1,5 +1,5 @@
 // Gift Finder — API worker. Static pages (finder, pool page) are served from ./public.
-import { paypalFetch, link, paypalMode } from "./paypal-core.js";
+import { paypalFetch, link, paypalMode, paypalFor, isSandboxEmail } from "./paypal-core.js";
 import { validateBrief, findGifts, browseGifts, channel3Search, toCard, mergeCards } from "./finder.js";
 import { validatePool, contributionError, buildContributionOrder, readCapture, applyCapture, publicPool } from "./pools.js";
 import { ROOT, DRAFT_SYSTEM, parseDraft, validateStore, storePlanSystem, subscriptionBody, storeStatusFor, hostKey, publicStore, darkEnough } from "./stores.js";
@@ -518,6 +518,7 @@ function withCookie(resP, cookie) {
 // Ask PayPal about a store's subscription and move the store to match. Never more often than every
 // 6 hours per store from page views; always when the owner comes back from approving.
 async function refreshSubscription(db, env, s) {
+  env = paypalFor(env, s.paypal_mode === "sandbox"); // a store bought with a sandbox test account is checked against the sandbox
   const r = await paypalFetch(env, `/v1/billing/subscriptions/${encodeURIComponent(s.paypal_subscription_id)}`);
   if (r.status >= 300 || !r.body) return s;
   // The subscription must be ours, for this store, on our plan: an id pasted from elsewhere changes nothing.
@@ -669,10 +670,14 @@ export default {
         if (parts[0] === "registry" && parts.length === 1) return withPreview(page("/registry"), REGISTRY_HOME_META);
         // Logins all go through gift.directory, the one callback address registered with PayPal.
         if (parts[0] === "login") {
-          if (url.hostname !== ROOT && !isWorkersDev(url.hostname)) return Response.redirect(`https://${ROOT}/login`, 302);
+          if (url.hostname !== ROOT && !isWorkersDev(url.hostname)) return Response.redirect(`https://${ROOT}/login${url.search}`, 302);
           const state = uid();
-          await db.prepare("INSERT INTO oauth_states (state,created_at) VALUES (?,?)").bind(state, now()).run();
-          return Response.redirect(authorizeUrl(env, `${url.origin}/api/auth/paypal/callback`, state), 302);
+          // Split mode: a store bought with a sandbox test account (or ?demo=1) signs in at the PayPal sandbox.
+          let sbx = url.searchParams.get("demo") === "1";
+          const forStore = url.searchParams.get("store");
+          if (!sbx && forStore) { const row = await db.prepare("SELECT paypal_mode FROM stores WHERE slug=?").bind(forStore).first(); sbx = !!row && row.paypal_mode === "sandbox"; }
+          await db.prepare("INSERT INTO oauth_states (state,created_at,mode) VALUES (?,?,?)").bind(state, now(), sbx ? "sandbox" : null).run();
+          return Response.redirect(authorizeUrl(paypalFor(env, sbx), `${url.origin}/api/auth/paypal/callback`, state), 302);
         }
         if (parts[0] === "admin") {
           if (url.hostname !== ROOT && !isWorkersDev(url.hostname) && url.hostname.endsWith("." + ROOT)) return Response.redirect(`https://${ROOT}/admin`, 302);
@@ -997,9 +1002,9 @@ export default {
       if (parts[1] === "auth") {
         if (parts[2] === "paypal" && parts[3] === "callback" && m === "GET") {
           const state = url.searchParams.get("state") || "", code = url.searchParams.get("code") || "";
-          const st = state && await db.prepare("DELETE FROM oauth_states WHERE state=? RETURNING created_at").bind(state).first();
+          const st = state && await db.prepare("DELETE FROM oauth_states WHERE state=? RETURNING created_at, mode").bind(state).first();
           if (!st || Date.now() - Date.parse(st.created_at) > 15 * 60 * 1000 || !code) return Response.redirect(`${url.origin}/admin?login=failed`, 303);
-          const user = await paypalLogin(env, code);
+          const user = await paypalLogin(paypalFor(env, st.mode === "sandbox"), code);
           if (!user) return Response.redirect(`${url.origin}/admin?login=failed`, 303);
           const sid = uid() + uid().replace(/-/g, ""), t = new Date();
           await db.prepare("INSERT INTO sessions (id,payer_id,emails_json,name,created_at,expires_at) VALUES (?,?,?,?,?,?)")
@@ -1032,7 +1037,7 @@ export default {
             const front = fc ? JSON.parse(fc.cards_json) : [];
             return J({ store: { id: s.id, slug: s.slug, name: s.name, tagline: s.tagline, niche: s.niche, status: s.status, url: storeUrl(env, url, s.slug), house: !!cfg.house,
                        occasions: cfg.occasions, recipient_examples: cfg.recipient_examples || [], search_guidance: cfg.search_guidance || "", avoid: cfg.avoid || "", accent: cfg.accent, tee_banner: cfg.tee_banner !== false },
-                       subscription: { id: s.paypal_subscription_id, status: s.subscription_status, checked_at: s.checked_at, manage_url: `${paypalWebBase(env)}/myaccount/autopay/` },
+                       subscription: { id: s.paypal_subscription_id, status: s.subscription_status, checked_at: s.checked_at, manage_url: `${paypalWebBase(paypalFor(env, s.paypal_mode === "sandbox"))}/myaccount/autopay/` },
                        items: items.map(i => ({ product_id: i.product_id, status: i.status, collection: i.collection, card: JSON.parse(i.card_json) })),
                        front, pools, searches: searches.n });
           }
@@ -1121,16 +1126,17 @@ export default {
           return J({ niche, draft, ai_drafted: !!j });
         }
         if (parts.length === 2 && m === "POST") {
-          if (!paypalOn(env) || !env.PAYPAL_PLAN_ID) return J({ error: "Store billing is not configured." }, 503);
-          const v = validateStore(await readJson(request));
+                    const v = validateStore(await readJson(request));
           if (v.error) return J({ error: v.error }, 400);
           const s = v.store;
+          const pe = paypalFor(env, isSandboxEmail(s.owner_email)); // sandbox test account -> sandbox billing
+          if (!paypalOn(pe) || !pe.PAYPAL_PLAN_ID) return J({ error: "Store billing is not configured." }, 503);
           if (await db.prepare("SELECT 1 FROM stores WHERE slug=?").bind(s.slug).first()) return J({ error: `${s.slug}.${ROOT} is taken.` }, 409);
           const id = uid(), token = uid(), t = now();
           const cfg = { occasions: s.occasions, recipient_examples: s.recipient_examples, search_guidance: s.search_guidance, avoid: s.avoid, accent: s.accent };
-          await db.prepare("INSERT INTO stores (id,slug,name,tagline,niche,config_json,owner_email,manage_hash,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,'draft',?,?)")
-            .bind(id, s.slug, s.name, s.tagline, s.niche, JSON.stringify(cfg), s.owner_email, await sha256(token), t, t).run();
-          const r = await paypalFetch(env, "/v1/billing/subscriptions", { method: "POST", body: subscriptionBody({ id }, env.PAYPAL_PLAN_ID, url.origin),
+          await db.prepare("INSERT INTO stores (id,slug,name,tagline,niche,config_json,owner_email,manage_hash,status,created_at,updated_at,paypal_mode) VALUES (?,?,?,?,?,?,?,?,'draft',?,?,?)")
+            .bind(id, s.slug, s.name, s.tagline, s.niche, JSON.stringify(cfg), s.owner_email, await sha256(token), t, t, pe.PAYPAL_ENV === "live" ? "live" : "sandbox").run();
+          const r = await paypalFetch(pe, "/v1/billing/subscriptions", { method: "POST", body: subscriptionBody({ id }, pe.PAYPAL_PLAN_ID, url.origin),
             headers: { "PayPal-Request-Id": `sub-${id}` } });
           const href = r.status < 300 && r.body ? (link(r.body, "approve") || {}).href : null;
           if (!href) return J({ error: "PayPal could not start the subscription.", paypal_status: r.status, paypal_error: r.body && (r.body.name || r.body.message) }, 502);
@@ -1163,13 +1169,15 @@ export default {
           const c = orderId && await db.prepare("SELECT * FROM contributions WHERE paypal_order_id=?").bind(orderId).first();
           if (!c) return Response.redirect(`${url.origin}/`, 303);
           if (c.status === "pending") {
-            const r = await paypalFetch(env, `/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`,
+            const cp = await db.prepare("SELECT organizer_email FROM pools WHERE id=?").bind(c.pool_id).first();
+            const pe = paypalFor(env, isSandboxEmail(cp && cp.organizer_email)); // same PayPal side the order was made on
+            const r = await paypalFetch(pe, `/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`,
               { method: "POST", body: {}, headers: { "PayPal-Request-Id": `cap-${c.id}`, Prefer: "return=representation" } });
             let cap = r.status < 300 ? readCapture(r.body) : null;
             // Already captured (a refresh, a second tab, a retry): read the order instead of guessing.
             const already = r.body && (r.body.name === "ORDER_ALREADY_CAPTURED" ||
               (r.body.details || []).some(d => d && d.issue === "ORDER_ALREADY_CAPTURED"));
-            if (!cap && already) { const g = await paypalFetch(env, `/v2/checkout/orders/${encodeURIComponent(orderId)}`); cap = g.status < 300 ? readCapture(g.body) : null; }
+            if (!cap && already) { const g = await paypalFetch(pe, `/v2/checkout/orders/${encodeURIComponent(orderId)}`); cap = g.status < 300 ? readCapture(g.body) : null; }
             if (!cap) cap = { status: "PENDING", reason: `capture HTTP ${r.status}` };
             const res = await applyCapture(db, c, cap);
             return Response.redirect(`${url.origin}/g/${c.pool_id}?paid=${res.outcome === "paid" || res.outcome === "already" ? 1 : 0}`, 303);
@@ -1189,13 +1197,14 @@ export default {
           return J(publicPool(pool, cs));
         }
         if (parts[3] === "contribute" && m === "POST") {
-          if (!paypalOn(env)) return J({ error: "PayPal is not configured." }, 503);
+          const pe = paypalFor(env, isSandboxEmail(pool.organizer_email)); // organizer is a sandbox test account -> sandbox
+          if (!paypalOn(pe)) return J({ error: "PayPal is not configured." }, 503);
           const b = (await readJson(request)) || {};
           const cents = Math.round(Number(b.amount_cents));
           const err = contributionError(pool, cents);
           if (err) return J({ error: err }, 409);
           const c = { id: uid(), pool_id: pool.id, amount_cents: cents };
-          const r = await paypalFetch(env, "/v2/checkout/orders", { method: "POST", body: buildContributionOrder(pool, c, url.origin),
+          const r = await paypalFetch(pe, "/v2/checkout/orders", { method: "POST", body: buildContributionOrder(pool, c, url.origin),
             headers: { "PayPal-Request-Id": c.id } });
           const href = r.status < 300 && r.body ? (link(r.body, "payer-action") || link(r.body, "approve") || {}).href : null;
           if (!href) return J({ error: "PayPal could not start the payment.", paypal_status: r.status, paypal_error: r.body && (r.body.name || r.body.message), detail: r.body && r.body.details }, 502);
