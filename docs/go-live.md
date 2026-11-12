@@ -68,3 +68,11 @@ Prepared and tested on Nov 11, not deployed. In order:
    Near-duplicates: christmas-gifts-under-20 gifts-for-13-year-old-girls gifts-for-boston-red-sox-fans gifts-for-german-shepherd-lovers gifts-for-san-antonio-spurs-fans gifts-for-tennessee-titans-fans gifts-for-texas-a-m-aggies-fans gifts-for-toronto-blue-jays-fans gifts-for-morocco-soccer-fans
    Thin (4 or 5 picks): 24 pages, mostly NBA and WNBA teams and dog breeds; listed by `scripts/audit-guides.mjs`.
    `scripts/build-guides.mjs` needs a `--cards` option for this (not written yet).
+
+## E. Split mode (on since Nov 12, 2026)
+
+`PAYPAL_ENV` is `split`: PayPal sandbox test accounts (`sb-...@personal.example.com` / `@business.example.com`) stay on the sandbox for
+group gifts, registries, store billing and owner login; everyone else is on live PayPal. Hackathon judging runs Dec 1-15
+(not Nov 12, which was the submission deadline). After Dec 15 8am PST set `PAYPAL_ENV` to `live` to retire the sandbox side.
+Rollback: set `PAYPAL_ENV` back to `sandbox` and deploy.
+The live plan was created through `POST /api/seo/live-plan` (build token), which uses the live keys the worker holds.

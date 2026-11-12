@@ -28,12 +28,12 @@
     { "binding": "DB", "database_name": "gift-finder", "database_id": "12f8f349-a2dc-4cca-a902-64fe661588c2" }
   ],
   "vars": {
-    "PAYPAL_ENV": "sandbox",
+    "PAYPAL_ENV": "split",
     "ADSENSE_CLIENT": "ca-pub-7950071846499535",
     "INDEXNOW_KEY": "cdbf5866d78ab29c85ad2021cc135597",
     "PAYPAL_PLAN_ID": "P-10T383300X8815800NLWMZCY",
     // Live $19/month plan (fill in from scripts/setup-plan.mjs run with PAYPAL_ENV=live). Used only when PAYPAL_ENV is "live".
-    "PAYPAL_LIVE_PLAN_ID": "",
+    "PAYPAL_LIVE_PLAN_ID": "P-6AB328251B122504UNL3DMTA",
     "TEXT_MODEL": "Qwen/Qwen3-235B-A22B-Instruct-2507",
     // The shop: Printful store "gift.directory" (Manual order / API). Secret PRINTFUL_TOKEN holds the API token.
     // SHOP_PUBLIC "1" links the shop from stores; SHOP_FULFILL "1" (live PayPal only) confirms Printful orders instead of leaving drafts.

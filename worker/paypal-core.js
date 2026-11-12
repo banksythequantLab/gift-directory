@@ -35,6 +35,34 @@ export function paypalReady(env) {
   return !!(env && env.PAYPAL_CLIENT_ID && env.PAYPAL_CLIENT_SECRET && env.PAYPAL_WEBHOOK_ID);
 }
 
+// ---------- the store plan ----------
+// Find or create the catalog product and the $19/month plan that publishes a store. Safe to repeat:
+// it reuses a product/plan with the same name. Same steps as scripts/setup-plan.mjs.
+export async function ensureStorePlan(env, { fetchImpl = fetch } = {}) {
+  const PRODUCT = "gift.directory store", PLAN = "gift.directory store \u2014 monthly";
+  const products = await paypalFetch(env, "/v1/catalogs/products?page_size=20", { fetchImpl });
+  if (products.status >= 300) return { error: "products", status: products.status, detail: products.body && (products.body.name || products.body.error) };
+  let product = ((products.body && products.body.products) || []).find(p => p.name === PRODUCT);
+  if (!product) {
+    const r = await paypalFetch(env, "/v1/catalogs/products", { method: "POST", fetchImpl, headers: { "PayPal-Request-Id": "gd-product-1" },
+      body: { name: PRODUCT, description: "A hosted AI gift store on gift.directory", type: "SERVICE", category: "SOFTWARE" } });
+    if (r.status >= 300) return { error: "product", status: r.status, detail: r.body && (r.body.name || r.body.message) };
+    product = r.body;
+  }
+  const plans = await paypalFetch(env, `/v1/billing/plans?product_id=${product.id}&page_size=20`, { fetchImpl });
+  let plan = ((plans.body && plans.body.plans) || []).find(p => p.name === PLAN && p.status === "ACTIVE");
+  if (!plan) {
+    const r = await paypalFetch(env, "/v1/billing/plans", { method: "POST", fetchImpl, headers: { "PayPal-Request-Id": "gd-plan-1", Prefer: "return=representation" },
+      body: { product_id: product.id, name: PLAN, status: "ACTIVE", description: "Your gift store, live on gift.directory",
+        billing_cycles: [{ frequency: { interval_unit: "MONTH", interval_count: 1 }, tenure_type: "REGULAR", sequence: 1, total_cycles: 0,
+          pricing_scheme: { fixed_price: { value: "19.00", currency_code: "USD" } } }],
+        payment_preferences: { auto_bill_outstanding: true, payment_failure_threshold: 1 } } });
+    if (r.status >= 300) return { error: "plan", status: r.status, detail: r.body && (r.body.name || r.body.message) };
+    plan = r.body;
+  }
+  return { product_id: product.id, plan_id: plan.id, plan_status: plan.status };
+}
+
 // ---------- access token ----------
 // PayPal hands back the SAME token on every request until it expires (up to 9 hours), even after
 // the app's permissions change. Found the hard way on Oct 14: Invoicing was switched on, every new

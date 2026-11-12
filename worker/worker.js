@@ -1,5 +1,5 @@
 // Gift Finder — API worker. Static pages (finder, pool page) are served from ./public.
-import { paypalFetch, link, paypalMode, paypalFor, isSandboxEmail } from "./paypal-core.js";
+import { paypalFetch, link, paypalMode, paypalFor, isSandboxEmail, ensureStorePlan } from "./paypal-core.js";
 import { validateBrief, findGifts, browseGifts, channel3Search, toCard, mergeCards } from "./finder.js";
 import { validatePool, contributionError, buildContributionOrder, readCapture, applyCapture, publicPool } from "./pools.js";
 import { ROOT, DRAFT_SYSTEM, parseDraft, validateStore, storePlanSystem, subscriptionBody, storeStatusFor, hostKey, publicStore, darkEnough } from "./stores.js";
@@ -623,6 +623,13 @@ export default {
         const st = p.store && await db.prepare("SELECT slug FROM stores WHERE slug=? AND status='active'").bind(p.store).first();
         const built = new Set(rows.map(r => r.slug));
         return html(renderGuide(p, row, related(p, built), st ? `https://${st.slug}.${ROOT}/` : null, adSlot(env), teamNav(p, built)));
+      }
+      // One-time: find or create the live $19/month plan with the live keys the worker holds. Needs the build token.
+      if (url.pathname === "/api/seo/live-plan" && m === "POST") {
+        if (!env.BUILD_TOKEN || request.headers.get("x-build-token") !== env.BUILD_TOKEN) return J({ error: "not allowed" }, 403);
+        const le = paypalMode({ ...(env.PAYPAL_SANDBOX || env), PAYPAL_ENV: "live" });
+        if (!paypalOn(le)) return J({ error: "Live PayPal keys are not loaded." }, 503);
+        return J(await ensureStorePlan(le));
       }
       // Builds a guide page. Not public: needs the build token.
       if (url.pathname.startsWith("/api/seo/build/") && m === "POST") {
