@@ -187,6 +187,13 @@ eq("no storm ad elsewhere", houseAd("Holidays", "x"), "");
   eq("note says it is not advice", n.includes("not legal or tax advice"), true);
   eq("quotes are escaped", expertNote("bar-exam-passed-gifts").includes("&quot;you are one of us now.&quot;"), true);
   eq("no note on other guides", expertNote("gifts-for-golfers"), "");
+  // Every footnote mark has its note, every note is marked, and no raw {n} reaches the page.
+  for (const [slug, e] of Object.entries(EXPERT)) {
+    const marks = [...JSON.stringify(e.blocks).matchAll(/\{(\d+)\}/g)].map(m => Number(m[1]));
+    eq("footnotes match their marks: " + slug, marks.join(","), (e.notes || []).map((_, i) => i + 1).join(","));
+    eq("no raw footnote mark on the page: " + slug, /\{\d+\}/.test(expertNote(slug)), false);
+    for (const [, , url] of e.notes || []) eq("footnote links to a source: " + slug, /^https:\/\//.test(url), true);
+  }
   eq("no placeholders left in any note", Object.keys(EXPERT).some(s => /\[Derek|\[verify/.test(expertNote(s))), false);
 }
 
