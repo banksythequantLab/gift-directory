@@ -68,7 +68,12 @@ const STAGE = {
   hoodie: { name: "hoodie", vb: "0 0 300 320", at: [35, 31, 30], draw: bg => `<ellipse fill="${bg}" cx="150" cy="36" rx="48" ry="32"/><path fill="${bg}" d="M104 42 L196 42 L270 78 L252 300 L218 298 L212 150 L212 306 L88 306 L88 150 L82 298 L48 300 L30 78 Z"/><path d="M116 44 Q150 84 184 44" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="3"/><path d="M112 252 L188 252 L198 304 L102 304 Z" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="2"/>` },
   mug: { name: "mug", vb: "0 0 300 240", at: [22, 30, 46], half: true, draw: bg => `<path d="M210 72 H236 Q262 72 262 102 V140 Q262 170 236 170 H210" fill="none" stroke="#cfd4dc" stroke-width="16"/><path d="M210 72 H236 Q262 72 262 102 V140 Q262 170 236 170 H210" fill="none" stroke="${bg}" stroke-width="11"/><path fill="${bg}" stroke="#cfd4dc" stroke-width="2" d="M60 30 H210 V200 Q210 214 196 214 H74 Q60 214 60 200 Z"/>` },
 };
-const stageHtml = (p, st) => `<div class="stage"><svg viewBox="${st.vb}" role="img" aria-label="${esc(p.title)} with your text">${st.draw(p.print.bg)}</svg>` +
+// With a blank product photo from the printer: the garment color, then the live print, then the photo's shading on top.
+const photoStage = p => { const g = p.stage, pc = (a, b) => (100 * a / b).toFixed(2);
+  return `<div class="stage" style="aspect-ratio:${g.w}/${g.h};background:${g.bgColor || "#fff"}${g.bg ? ` url(${esc(g.bg)}) center/cover` : ""}">
+  <div class="on" style="left:${pc(g.left, g.w)}%;top:${pc(g.top, g.h)}%;width:${pc(g.pw, g.w)}%;aspect-ratio:${g.pw}/${g.ph}"><img id="pvimg" alt="Your text as it will print" style="width:100%"></div>
+  <img src="${esc(g.image)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;border-radius:0;background:none;pointer-events:none"></div>`; };
+const stageHtml = (p, st) => p.stage ? photoStage(p) : `<div class="stage"><svg viewBox="${st.vb}" role="img" aria-label="${esc(p.title)} with your text">${st.draw(p.print.bg)}</svg>` +
   `<div class="on" style="left:${st.at[0]}%;top:${st.at[1]}%;width:${st.at[2]}%;aspect-ratio:${st.half ? p.print.w / 2 : p.print.w}/${p.print.h}"><img id="pvimg" alt="Your text as it will print" style="width:${st.half ? 200 : 100}%"></div></div>`;
 function detail(p) {
   const colors = [...new Set(p.variants.map(v => v.color))];
@@ -83,7 +88,7 @@ function detail(p) {
   <div>${photo ? `<div class="pv" style="background:${p.print.bg};aspect-ratio:${p.print.w}/${p.print.h};align-items:flex-start"><img id="phimg" alt="Your photo" style="width:92%;height:auto;margin-top:6%;display:none"><span id="phph" class="muted" style="margin:auto;color:#aaa">Your photo goes here</span></div>
     <p class="muted small">Front: your photo, printed up to 11 × 14 in.</p><div id="backpv" style="display:none">` : ""}${text ? `${st ? stageHtml(p, st) : `<div class="pv" style="background:${p.print.bg};aspect-ratio:${p.print.w}/${p.print.h}${light ? ";border:1px solid var(--line)" : ""}"><img id="pvimg" alt="Preview of your design"></div>`}
     <p class="muted small">${photo ? "Back: your text." : `${st ? `Your words on the ${st.name}. It updates as you type` : "Your design as it will print. It updates as you type"}${wrap ? " (printed on both sides)" : ""}.`}</p>` : ""}${photo ? "</div>" : ""}
-    ${p.image ? `<img src="${esc(p.image)}" alt="${esc(p.title)}" style="${text ? "margin-top:10px" : ""}">${text ? `<p class="muted small">Photo of a finished one, shown with sample text.</p>` : ""}` : ""}</div>
+    ${p.image && !(st && p.stage) ? `<img src="${esc(p.image)}" alt="${esc(p.title)}" style="${text ? "margin-top:10px" : ""}">${text ? `<p class="muted small">Photo of a finished one, shown with sample text.</p>` : ""}` : ""}</div>
   <div><h2 style="margin-top:0">${esc(p.title)}</h2>${p.subtitle ? `<p class="muted">${esc(p.subtitle)}</p>` : ""}
     ${colors.length > 1 ? `<label for="color">Color</label><select id="color">${colors.map(c => `<option>${esc(c)}</option>`).join("")}</select>` : ""}
     <label for="size">Size</label><select id="size"></select>

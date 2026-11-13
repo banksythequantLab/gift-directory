@@ -17,6 +17,7 @@ import { shopCard, validateShopOrder, validateFields, pickRate, designSvg, PTYPE
 import { svgToPng } from "./print.js";
 import { renderSVG } from "uqr";
 import STORE_MOCKUPS from "./shop-mockups.json";
+import SHOP_STAGES from "./shop-stages.json";   // blank product photo + print-area position, from scripts/product-templates.mjs
 
 const now = () => new Date().toISOString();
 const BOT_UA = /bot|crawl|spider|slurp|preview|monitor|curl|wget|python|node|headless|lighthouse|facebookexternalhit|whatsapp|scrap|fetch|http-client|uptime|pingdom|axios|go-http/i;
@@ -748,7 +749,7 @@ export default {
         if (!env.PRINTFUL_TOKEN || !env.PRINTFUL_STORE_ID) return J({ error: "The shop isn't set up yet." }, 503);
         // Photo products and uploads are off while the shop is hidden (unless SHOP_PHOTOS is set for testing).
         const photosOn = env.SHOP_PUBLIC === "1" || env.SHOP_PHOTOS === "1";
-        if (parts[2] === "products" && m === "GET") return J({ products: (await shopCards(env)).filter(c => photosOn || c.kind !== "photo"), live: env.PAYPAL_ENV === "live", public: env.SHOP_PUBLIC === "1" });
+        if (parts[2] === "products" && m === "GET") return J({ products: (await shopCards(env)).filter(c => photosOn || c.kind !== "photo").map(c => SHOP_STAGES[c.id] ? { ...c, stage: SHOP_STAGES[c.id] } : c), live: env.PAYPAL_ENV === "live", public: env.SHOP_PUBLIC === "1" });
         // A buyer's photo for a photo shirt: JPEG or PNG, up to 15 MB, at least 600 px on the short side. Kept 30 days.
         if (parts[2] === "upload" && m === "POST") {
           if (!env.SHOP_UPLOADS || !photosOn) return J({ error: "Photo uploads aren't switched on yet." }, 503);
