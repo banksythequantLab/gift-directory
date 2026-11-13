@@ -16,6 +16,8 @@ label{display:block;margin:10px 0 4px;font-weight:600;font-size:.9rem}input,sele
 .row2{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px}.sum{margin:12px 0;line-height:1.7}.err{color:#b42318;margin:8px 0}
 .pp{background:#ffc439;color:#111;border:0;border-radius:24px;padding:12px 20px;font-weight:700;width:100%;cursor:pointer;font-size:1rem}
 .pp[disabled]{opacity:.5;cursor:default}
+.stage{position:relative;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}.stage svg{display:block;width:100%;height:auto}
+.stage .on{position:absolute;overflow:hidden}.stage .on img{display:block;height:auto;border-radius:0;background:none;transition:opacity .15s}
 </style></head>
 <body><div class="wrap">
 <header class="top"><h1><a href="/" style="color:inherit;text-decoration:none">gift.directory</a></h1><span class="tag">Shop</span></header>
@@ -59,19 +61,29 @@ function list(top = "") {
 }
 window.onpopstate = () => { const p = new URLSearchParams(location.search).get("p"); const x = p && products.find(y => String(y.id) === p); x ? detail(x) : list(); };
 
+// The product drawn in its own color with the live print placed on it, so the buyer sees their words on the thing itself.
+// at: where the print sits, in percent of the drawing (left, top, width); half: show one side of a wrap-around print.
+const STAGE = {
+  tee: { name: "tee", vb: "0 0 300 320", at: [34, 28, 32], draw: bg => `<path fill="${bg}" d="M100 18 Q150 54 200 18 L286 60 L258 120 L228 102 L228 300 L72 300 L72 102 L42 120 L14 60 Z"/><path d="M100 18 Q150 54 200 18" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="3"/>` },
+  hoodie: { name: "hoodie", vb: "0 0 300 320", at: [35, 31, 30], draw: bg => `<ellipse fill="${bg}" cx="150" cy="36" rx="48" ry="32"/><path fill="${bg}" d="M104 42 L196 42 L270 78 L252 300 L218 298 L212 150 L212 306 L88 306 L88 150 L82 298 L48 300 L30 78 Z"/><path d="M116 44 Q150 84 184 44" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="3"/><path d="M112 252 L188 252 L198 304 L102 304 Z" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="2"/>` },
+  mug: { name: "mug", vb: "0 0 300 240", at: [22, 30, 46], half: true, draw: bg => `<path d="M210 72 H236 Q262 72 262 102 V140 Q262 170 236 170 H210" fill="none" stroke="#cfd4dc" stroke-width="16"/><path d="M210 72 H236 Q262 72 262 102 V140 Q262 170 236 170 H210" fill="none" stroke="${bg}" stroke-width="11"/><path fill="${bg}" stroke="#cfd4dc" stroke-width="2" d="M60 30 H210 V200 Q210 214 196 214 H74 Q60 214 60 200 Z"/>` },
+};
+const stageHtml = (p, st) => `<div class="stage"><svg viewBox="${st.vb}" role="img" aria-label="${esc(p.title)} with your text">${st.draw(p.print.bg)}</svg>` +
+  `<div class="on" style="left:${st.at[0]}%;top:${st.at[1]}%;width:${st.at[2]}%;aspect-ratio:${st.half ? p.print.w / 2 : p.print.w}/${p.print.h}"><img id="pvimg" alt="Your text as it will print" style="width:${st.half ? 200 : 100}%"></div></div>`;
 function detail(p) {
   const colors = [...new Set(p.variants.map(v => v.color))];
   const photo = p.kind === "photo", text = p.kind === "tpl" || photo, wrap = p.ptype === "mug", light = text && /^#(f|e)/i.test(p.print.bg);
   let photoId = null;
+  const st = text && !photo ? STAGE[p.ptype] : null;
   const pre = new URLSearchParams(location.search), fromLink = pre.get("p") === String(p.id);
   let tpl = text ? ((p.tpls || []).includes(fromLink && pre.get("t")) ? pre.get("t") : p.tpl) : null;
   const fieldsOf = () => ((p.designs || []).find(d => d.tpl === tpl) || { fields: p.fields }).fields;
   const exOf = () => p.example && p.example.tpl === tpl ? p.example.vals : null;
   $("#app").innerHTML = `<p><a href="/shop" id="back">← All products</a></p><div class="buy">
   <div>${photo ? `<div class="pv" style="background:${p.print.bg};aspect-ratio:${p.print.w}/${p.print.h};align-items:flex-start"><img id="phimg" alt="Your photo" style="width:92%;height:auto;margin-top:6%;display:none"><span id="phph" class="muted" style="margin:auto;color:#aaa">Your photo goes here</span></div>
-    <p class="muted small">Front: your photo, printed up to 11 × 14 in.</p><div id="backpv" style="display:none">` : ""}${text ? `<div class="pv" style="background:${p.print.bg};aspect-ratio:${p.print.w}/${p.print.h}${light ? ";border:1px solid var(--line)" : ""}"><img id="pvimg" alt="Preview of your design"></div>
-    <p class="muted small">${photo ? "Back: your text." : `Preview of the print${wrap ? " (printed on both sides)" : ""}.`}</p>` : ""}${photo ? "</div>" : ""}
-    ${p.image ? `<img src="${esc(p.image)}" alt="${esc(p.title)}" style="${text ? "margin-top:10px" : ""}">` : ""}</div>
+    <p class="muted small">Front: your photo, printed up to 11 × 14 in.</p><div id="backpv" style="display:none">` : ""}${text ? `${st ? stageHtml(p, st) : `<div class="pv" style="background:${p.print.bg};aspect-ratio:${p.print.w}/${p.print.h}${light ? ";border:1px solid var(--line)" : ""}"><img id="pvimg" alt="Preview of your design"></div>`}
+    <p class="muted small">${photo ? "Back: your text." : `${st ? `Your words on the ${st.name}. It updates as you type` : "Your design as it will print. It updates as you type"}${wrap ? " (printed on both sides)" : ""}.`}</p>` : ""}${photo ? "</div>" : ""}
+    ${p.image ? `<img src="${esc(p.image)}" alt="${esc(p.title)}" style="${text ? "margin-top:10px" : ""}">${text ? `<p class="muted small">Photo of a finished one, shown with sample text.</p>` : ""}` : ""}</div>
   <div><h2 style="margin-top:0">${esc(p.title)}</h2>${p.subtitle ? `<p class="muted">${esc(p.subtitle)}</p>` : ""}
     ${colors.length > 1 ? `<label for="color">Color</label><select id="color">${colors.map(c => `<option>${esc(c)}</option>`).join("")}</select>` : ""}
     <label for="size">Size</label><select id="size"></select>
@@ -106,7 +118,7 @@ function detail(p) {
       [ls[0], ls[1] || ""].forEach(v => q.append("f", v)); $("#pvimg").src = `/api/shop/preview/${p.id}.png?${q}`; return; }
     const show = !vs.some(v => v.trim()) && ex ? ex : vs.map((v, i) => v.trim() || (fieldsOf()[i].req ? (ex && ex[i]) || fieldsOf()[i].ph : ""));
     show.forEach(v => q.append("f", v));
-    $("#pvimg").src = `/api/shop/preview/${p.id}.png?${q}`; }, 350); };
+    $("#pvimg").style.opacity = ".45"; $("#pvimg").onload = () => { $("#pvimg").style.opacity = "1"; }; $("#pvimg").src = `/api/shop/preview/${p.id}.png?${q}`; }, 180); };
   const renderFields = (vs = []) => { const ex = exOf();
     $("#fields").innerHTML = fieldsOf().map((f, i) => `<label for="f${i}">${esc(f.label)}</label><input id="f${i}" maxlength="${f.max}" placeholder="${esc((ex && ex[i]) || f.ph)}" value="${esc((vs[i] || "").slice(0, f.max))}">`).join("");
     fieldsOf().forEach((_, i) => $("#f" + i).addEventListener("input", prev)); prev(); };
