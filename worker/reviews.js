@@ -74,7 +74,98 @@ ${sections}
     meta: "Ten gift of the month clubs side by side: what each delivery holds, the list price per month, and what to know before you send one.", body, jsonld };
 }
 
-export const REVIEWS = { "gift-of-the-month-clubs": clubsPage };
+const btn = (id, label) => `<a class="btn" href="${cj(id)}" target="_blank" rel="noopener sponsored nofollow" style="display:inline-block;margin:6px 8px 6px 0">${esc(label)} →</a>`;
+const H2 = t => `<h2 style="font-family:Georgia,serif">${t}</h2>`;
+const td = "padding:8px 10px;border-bottom:1px solid #e5e7eb";
+const head = (crumb, h1, sub) => `<div class="crumbs"><a href="/">gift.directory</a> › <a href="/gifts">Gift guides</a> › ${crumb}</div>
+<h1 style="font-family:Georgia,serif;margin:4px 0 6px">${h1}</h1><p class="muted" style="margin:0 0 14px">${sub}</p>`;
+const article = (headline, slug) => ({ "@context": "https://schema.org", "@type": "Article", headline, dateModified: "2026-11-13",
+  author: { "@type": "Organization", name: "gift.directory" }, publisher: { "@type": "Organization", name: "gift.directory" }, mainEntityOfPage: `https://gift.directory/reviews/${slug}` });
+
+// Muck Boot Company, from muckbootcompany.com on 2026-11-13 (regular prices; CJ advertiser 5535808).
+const MUCK = [
+  ["Men's Chore Classic Work Boot", 130, "The original barn and yard boot. Pulls on, waterproof, all-season."],
+  ["Men's Arctic Sport Tall", 175, "Insulated tall boot for snow and cold mornings."],
+  ["Men's Arctic Ice 12\" Insulated Mid Boot", 190, "Insulated, with a Vibram Arctic Grip outsole for ice."],
+  ["Men's Muckmaster Tall", 160, "Tall all-purpose boot, sold only by Muck."],
+  ["Men's Wetland Boot", 165, "Tall boot for marsh, mud and duck blinds."],
+  ["Men's Muckster II Ankle Boot", 100, "Low, light slip-on for the garden and quick trips outside."],
+  ["Women's Muckster II Mid Boot", 110, "Mid-height slip-on for gardening and dog walks."],
+  ["Women's Arctic Sport II Mid Boot", 145, "Insulated mid boot for winter."],
+  ["Women's Originals Ankle Boot", 115, "Slip-on ankle boot for everyday wear."],
+];
+const L = { home: 15343525, chore: 15341659, farm: 14584814, hunting: 14584813, kids: 15398271, wideCalf: 15338102 };
+function muckPage() {
+  const slug = "muck-boots-gift-guide", h1 = "Muck boots as a gift: which pair, and how to get the size right";
+  const body = `${head("Reviews", h1, "Checked November 13, 2026 · Muck Boot Company")}
+<div class="guide">
+<p>Muck boots are pull-on rubber-and-neoprene boots made for mud, barns, gardens, hunting and snow. They're a practical gift that gets used every day by people who work or play outside: farmers, gardeners, hunters, dog owners and anyone who shovels their own driveway.</p>
+<p>We haven't worn these boots for this page. The models, prices and policies below come from Muck Boot Company's own site on November 13, 2026. <b>We earn a commission if you buy through the links on this page</b>, at no extra cost to you.</p>
+${H2("Best sellers and what they're for")}
+<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;min-width:520px;font-size:.92rem"><thead><tr>
+${["Boot", "Good for", "Regular price"].map(h => `<th style="text-align:left;padding:8px 10px;border-bottom:2px solid #d1d5db">${h}</th>`).join("")}</tr></thead><tbody>
+${MUCK.map(([n, p, f]) => `<tr><td style="${td}">${esc(n)}</td><td style="${td}">${esc(f)}</td><td style="${td};white-space:nowrap">${money(p)}</td></tr>`).join("")}
+</tbody></table></div>
+<p class="muted small">Regular prices on Muck's site. Muck runs holiday sales, so check today's price.</p>
+${btn(L.home, "Shop all Muck boots")}${btn(L.chore, "Chore boots")}${btn(L.farm, "Farm and ranch boots")}${btn(L.hunting, "Hunting boots")}
+${H2("Getting the size right without asking")}
+<ul>
+<li><b>Whole sizes only.</b> Muck makes boots in whole sizes and says they stretch to fit half sizes. For a man who wears a half size, Muck says to go up to the next whole size. For a woman, go down.</li>
+<li><b>Unisex styles are in men's sizes.</b> For a woman, Muck says to order one size down from the men's size shown.</li>
+<li><b>Width.</b> Boots come in a standard (D) width, which Muck says stretches to fit up to EEE. A few men's styles come in wide.</li>
+<li><b>Calves.</b> Neoprene stretches around most calves. Muck also sells wide-calf tall boots for men and women.</li>
+<li><b>Peek at their current boots.</b> The size printed inside a pair they already own is the safest guess.</li>
+</ul>
+${btn(L.wideCalf, "Women's wide-calf boots")}
+${H2("If the size is wrong")}
+<ul>
+<li><b>Returns.</b> Free returns on U.S. orders over $99 within 30 days, if the boots are unworn and you have proof of purchase. This holiday season Muck lists extended returns through January 31.</li>
+<li><b>Warranty.</b> A 1-year limited warranty against defects, and boots with Muck waterproof construction are guaranteed waterproof for 6 months.</li>
+<li><b>Bought from a store?</b> Pairs bought from a dealer go back to that dealer, not to Muck.</li>
+</ul>
+${H2("For kids")}
+<p>Muck's kids' boots run from $50 (Mini Muck rain boots) to $100 at regular price. Kids outgrow boots fast, so buy for this season's foot plus a little room.</p>
+${btn(L.kids, "Kids' Muck boots")}
+${H2("Which pair to choose")}
+<p><b>For the barn, yard or job site:</b> Chore Classic. <b>For snow and cold:</b> Arctic Sport, or Arctic Ice if they walk on ice. <b>For the garden or dog walks:</b> Muckster II. <b>For hunting and marsh:</b> Wetland or Muckmaster.</p>
+<p>Not sure boots are right? <a href="/gifts">Browse all gift guides</a>.</p>
+</div>`;
+  return { title: "Muck boots as a gift: best sellers, prices and sizing (2026) | gift.directory",
+    meta: "Which Muck boot to give, what each best seller costs, how to pick the size without asking, and the return policy if it's wrong.", body, jsonld: [article(h1, slug)] };
+}
+
+// GraphicAudio, from graphicaudio.net on 2026-11-13 (CJ advertiser 5802848).
+const GA = { home: 15735849, genres: 14572808, newReleases: 14572805 };
+function graphicAudioPage() {
+  const slug = "graphicaudio-gift-guide", h1 = "GraphicAudio as a gift: full-cast audiobooks for fantasy and sci-fi fans";
+  const body = `${head("Reviews", h1, "Checked November 13, 2026 · GraphicAudio")}
+<div class="guide">
+<p>GraphicAudio makes full-cast audio dramas of novels and comics, which it calls "a movie in your mind." Instead of one narrator, each book has a cast of actors, original music and sound effects. It's a good gift for someone who already loves a series, or who wants to revisit it in a new way.</p>
+<p>We haven't listened to these for this page. Everything below comes from GraphicAudio's own site on November 13, 2026. <b>We earn a commission if you buy through the links on this page</b>, at no extra cost to you.</p>
+${H2("Series fans will recognize")}
+<p>GraphicAudio's catalog leans toward fantasy, science fiction and comics. Series on its site include Brandon Sanderson's <i>Mistborn</i> and <i>The Stormlight Archive</i>, <i>Red Rising</i>, <i>Throne of Glass</i>, <i>A Court of Thorns and Roses</i>, <i>The Dresden Files</i>, <i>The Murderbot Diaries</i>, <i>Hellboy</i> and <i>The Boys</i>. Genres run from fantasy and thrillers to horror, LitRPG, manga and a kids' section.</p>
+${btn(GA.genres, "Browse GraphicAudio by genre")}${btn(GA.newReleases, "See new releases")}
+${H2("What it costs")}
+<ul>
+<li><b>Long books come in parts.</b> Each part is sold separately. For example, <i>Mistborn: The Final Empire</i> is 3 parts of about 6 hours each.</li>
+<li><b>Price per part.</b> That first part lists at $21.99. When we checked, it was on sale for $9.90, and the site was advertising a sale through November 30.</li>
+<li><b>Formats.</b> Listening in GraphicAudio's app and web player is included. MP3 or M4B downloads add $2 a part, FLAC adds $3 and FLAC 5.1 surround adds $4.</li>
+</ul>
+${H2("How to give it")}
+<ul>
+<li><b>An eGift card is the easy way.</b> GraphicAudio sells eGift cards, so the person can pick the series and format they want.</li>
+<li><b>They'll need an account on the website.</b> Titles can't be bought inside the app. They buy on graphicaudio.net, then listen in the GraphicAudio Access app (iPhone, Android, Apple CarPlay and Android Auto) or in a web browser.</li>
+<li><b>Check the age rating.</b> Each title lists one. <i>Mistborn</i>, for example, is rated 13+, and some series are written for adults.</li>
+<li><b>Downloads are worth keeping.</b> GraphicAudio recommends backing up download purchases because some titles may be removed later for licensing reasons.</li>
+</ul>
+${btn(GA.home, "Visit GraphicAudio")}
+<p>Looking for something to unwrap? <a href="/gifts">Browse all gift guides</a>, or <a href="/shop">make a personalized gift</a>.</p>
+</div>`;
+  return { title: "GraphicAudio as a gift: full-cast audiobooks, prices and how to give them (2026) | gift.directory",
+    meta: "What GraphicAudio's full-cast audio dramas are, which series it covers, what a part costs, and how to give one as a gift.", body, jsonld: [article(h1, slug)] };
+}
+
+export const REVIEWS = { "gift-of-the-month-clubs": clubsPage, "muck-boots-gift-guide": muckPage, "graphicaudio-gift-guide": graphicAudioPage };
 export const REVIEW_SLUGS = Object.keys(REVIEWS);
 export function renderReview(slug, ad = "") {
   const f = REVIEWS[slug]; if (!f) return null;
