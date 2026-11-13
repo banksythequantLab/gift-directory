@@ -335,7 +335,7 @@ export function shopPayPalOrder(o, origin) {
       shipping: { name: { full_name: r.name }, address: { address_line_1: r.address1, ...(r.address2 ? { address_line_2: r.address2 } : {}), admin_area_2: r.city, admin_area_1: r.state_code, postal_code: r.zip, country_code: "US" } },
     }],
     payment_source: { paypal: { experience_context: {
-      brand_name: "gift.directory", shipping_preference: "SET_PROVIDED_ADDRESS", user_action: "PAY_NOW", landing_page: "LOGIN",
+      brand_name: "gift.directory", shipping_preference: "SET_PROVIDED_ADDRESS", user_action: "PAY_NOW", landing_page: "NO_PREFERENCE",   // PayPal shows login to its members and the card form to everyone else
       return_url: `${origin}/api/shop/return`, cancel_url: `${origin}/api/shop/cancel`,
     } } },
   };
