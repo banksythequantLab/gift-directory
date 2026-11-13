@@ -7,6 +7,12 @@ export const money = c => "$" + (Math.round(c || 0) / 100).toLocaleString("en-US
 // Only http(s) images; anything else (or nothing) falls back to the gift.directory card.
 const img = u => /^https?:\/\//i.test(String(u || "")) ? String(u) : OG_FALLBACK;
 
+// Data built into a page so it can draw without asking the server again. It sits inside a <script>, so "<"
+// (which could close the tag) and the two line separators JavaScript treats as line breaks are escaped.
+export function bootTag(data) {
+  const json = JSON.stringify(data).replace(/</g, "\\u003c").replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029");
+  return `<script>window.__BOOT=${json}</script>`;
+}
 export function ogTags({ title, description, image, url, site = "gift.directory" }) {
   const t = clip(title, 90), d = clip(description, 200), i = img(image);
   const big = i === OG_FALLBACK; // product photos are often square: the small card shows them better

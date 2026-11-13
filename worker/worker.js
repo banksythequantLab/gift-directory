@@ -12,7 +12,7 @@ import { cjSearch } from "./cj.js";
 import { TEE, teePromo } from "./promo.js";
 import { REG_MAX_ITEMS, REG_POOL_MIN_CENTS, validateRegistry, registrySlug, validateRegItem, publicRegistry, REG_AI_SYSTEM, regAiPrompt, parseRegAi, poolTarget, reminderSendOn, validateReminder, reminderEmail } from "./registry.js";
 import { ASSIST_SYSTEM, MAX_STEPS, SHELF_MAX, storeBrief, assistPrompt, parseAssist, matchHide, pickShelf, describeStep, PICK_SYSTEM, pickPrompt, applyPicks, capKinds } from "./assistant.js";
-import { ogTags, poolMeta, registryMeta, storeMeta, PLATFORM_META, REGISTRY_HOME_META } from "./meta.js";
+import { ogTags, bootTag, poolMeta, registryMeta, storeMeta, PLATFORM_META, REGISTRY_HOME_META } from "./meta.js";
 import { shopCard, validateShopOrder, validateFields, pickRate, designSvg, PTYPES, TEMPLATES, SAMPLES, parseKind, rowKind, storeShopShelf, printSize, renderWidth, exampleFor, DESIGN_VERSION, salesTax, taxTable, shopPayPalOrder, printfulOrder, receiptEmail, imageInfo, PHOTO_ID, PHOTO_MIN, PHOTO_GOOD, PHOTO_MAX_BYTES } from "./shop.js";
 import { svgToPng } from "./print.js";
 import { renderSVG } from "uqr";
@@ -511,6 +511,32 @@ async function storePreview(db, store, url) {
   const it = await db.prepare("SELECT card_json FROM store_items WHERE store_id=? AND status='pinned' ORDER BY sort LIMIT 1").bind(store.id).first();
   return storeMeta(store, `${url.origin}/`, it && card(it.card_json).image);
 }
+// What /api/store answers. Also built into the store's home page, so the page draws without a second request.
+async function storeBody(db, env, store, request) {
+  const user = await currentUser(db, request);
+  // Our own shop's personalized products, once the shop is public (SHOP_PUBLIC=1); a Printful hiccup just leaves the shelf out.
+  const shopShelf = env.SHOP_PUBLIC === "1" && env.PRINTFUL_TOKEN ? await shopCards(env).then(c => storeShopShelf(c, store.slug, `https://${ROOT}`, STORE_MOCKUPS)).catch(() => null) : null;
+  return { ...publicStore(store), shelves: [...(shopShelf ? [shopShelf] : []), ...await ownShelf(db, store.id), ...shelves(await storeItems(db, store.id))],
+    promo: teeOn(store) ? await teePrice(env).then(c => c < 0 ? null : teePromo(store, c)) : null, can_edit: ownsStore(user, store) };
+}
+// The store and its saved front-page picks, for the home page. Only the saved grid: a page view never starts a product search.
+async function storeBoot(db, env, store, request) {
+  const [s, hit, items] = await Promise.all([storeBody(db, env, store, request),
+    db.prepare("SELECT cards_json FROM browse_cache WHERE store_id=?").bind(store.id).first(), storeItems(db, store.id)]);
+  return { store: s, browse: hit ? withoutHidden(JSON.parse(hit.cards_json), items) : null };
+}
+// Put that data in the page's <head>. If it isn't ready in 1.5 s (or fails), the page goes out without it and
+// asks /api/store and /api/browse as before. The answer depends on the visitor (can_edit) and the store's
+// current picks, so the browser must not reuse an old copy.
+async function withBoot(resP, bootP) {
+  const boot = await Promise.race([Promise.resolve(bootP).catch(() => null), new Promise(r => setTimeout(() => r(null), 1500))]);
+  const res = await resP;
+  if (!boot || !res.ok || !/text\/html/.test(res.headers.get("content-type") || "")) return res;
+  const tag = bootTag(boot);
+  const out = new HTMLRewriter().on("head", { element(el) { el.append(tag, { html: true }); } }).transform(res);
+  const h = new Headers(out.headers); h.set("cache-control", "private, no-cache"); h.delete("etag"); h.delete("last-modified");
+  return new Response(out.body, { status: out.status, headers: h });
+}
 function withCookie(resP, cookie) {
   if (!cookie) return resP;
   return Promise.resolve(resP).then(r => { const h = new Headers(r.headers); h.append("set-cookie", cookie); return new Response(r.body, { status: r.status, headers: h }); });
@@ -691,7 +717,13 @@ export default {
           return page("/admin");
         }
         if (platform && (parts.length === 0 || parts[0] === "new")) return withPreview(page("/platform"), PLATFORM_META);
-        if (parts.length === 0) return withPreview(page("/"), store && store.status === "active" ? storePreview(db, store, url) : null);
+        if (parts.length === 0) {
+          if (!store || store.status !== "active") return withPreview(page("/"), null);
+          // Always the whole page (never "not modified"): the data built into it changes with the store and the visitor.
+          const hh = new Headers(request.headers); hh.delete("if-none-match"); hh.delete("if-modified-since");
+          const whole = withCookie(env.ASSETS.fetch(new Request(new URL("/", url), { headers: hh })), setCookie);
+          return withBoot(withPreview(whole, storePreview(db, store, url)), storeBoot(db, env, store, request));
+        }
         return env.ASSETS.fetch(request);
       }
 
@@ -948,11 +980,7 @@ export default {
       if (parts[1] === "store" && m === "GET") {
         if (platform) return J({ platform: true });
         if (!store) return J({ error: "No store here." }, 404);
-        const user = await currentUser(db, request);
-        // Our own shop's personalized products, once the shop is public (SHOP_PUBLIC=1); a Printful hiccup just leaves the shelf out.
-        const shopShelf = env.SHOP_PUBLIC === "1" && env.PRINTFUL_TOKEN ? await shopCards(env).then(c => storeShopShelf(c, store.slug, `https://${ROOT}`, STORE_MOCKUPS)).catch(() => null) : null;
-        return withCookie(Promise.resolve(J({ ...publicStore(store), shelves: [...(shopShelf ? [shopShelf] : []), ...await ownShelf(db, store.id), ...shelves(await storeItems(db, store.id))],
-          promo: teeOn(store) ? await teePrice(env).then(c => c < 0 ? null : teePromo(store, c)) : null, can_edit: ownsStore(user, store) })), setCookie);
+        return withCookie(Promise.resolve(J(await storeBody(db, env, store, request))), setCookie);
       }
 
       // ---------- the front-page grid ----------

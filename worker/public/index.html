@@ -77,7 +77,9 @@ const label = (k, v) => k === "budget_cents" ? "Up to " + money(v) : String(v);
 const nextQ = () => QUESTIONS().find(q => brief[q.key] == null && !skipped.has(q.key) && (q.chips?.length || q.text));
 
 (async () => {
-  const r = await fetch("/api/store"); const s = await r.json().catch(() => ({}));
+  // The store and its front-page picks usually arrive inside the page (window.__BOOT); ask the server only if they didn't.
+  const boot = window.__BOOT || null;
+  const r = boot ? { ok: true } : await fetch("/api/store"); const s = boot ? boot.store : await r.json().catch(() => ({}));
   if (s.platform) { location.replace("/"); return; }
   if (!r.ok || s.status !== "active") {
     $("#sname").textContent = s.name || "gift.directory"; $("#closed").style.display = "";
@@ -93,7 +95,7 @@ const nextQ = () => QUESTIONS().find(q => brief[q.key] == null && !skipped.has(q
   shelves = s.shelves || []; $("#sf").style.display = "flex";
   if (s.promo) teeBanner(s.promo);
   $("#grid").innerHTML = Array.from({ length: 8 }, () => `<div class="skel"></div>`).join("");
-  const b = await fetch("/api/browse").then(r => r.json()).catch(() => ({ cards: [] }));
+  const b = boot && boot.browse ? { cards: boot.browse } : await fetch("/api/browse").then(r => r.json()).catch(() => ({ cards: [] }));
   browse = b.cards || []; items = browse; render();
 })();
 

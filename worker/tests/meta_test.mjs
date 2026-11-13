@@ -1,5 +1,5 @@
 // Link previews: the Open Graph tags shared group gifts, registries and stores carry.
-import { ogTags, poolMeta, registryMeta, storeMeta, OG_FALLBACK, money } from "../meta.js";
+import { ogTags, bootTag, poolMeta, registryMeta, storeMeta, OG_FALLBACK, money } from "../meta.js";
 
 let passed = 0, failed = 0;
 const ok = (n, c, d = "") => { c ? passed++ : (failed++, console.log(`FAIL  ${n}${d ? "  - " + d : ""}`)); };
@@ -42,6 +42,17 @@ eq("store title", sm.title, "Lawyer Gifts");
 has("store tagline", sm.description, "Real gifts for lawyers. Chip in on a gift together with PayPal.");
 has("tagline without a period gets one", storeMeta({ name: "Nurse Gifts", tagline: "Gifts with care" }, "u").description, "Gifts with care. Chip in");
 has("store name is the site name", ogTags(sm), `og:site_name" content="Lawyer Gifts"`);
+
+{
+  // Data built into the store page must survive any product title, and can never close its own <script> tag.
+  const data = { store: { name: "A </script><script>alert(1)</script> B", tagline: "line\u2028sep\u2029end" }, browse: [{ title: "5 < 6 & \"quoted\"" }] };
+  const tag = bootTag(data);
+  eq("boot tag closes exactly once", tag.split("</script>").length - 1, 1);
+  eq("no raw < inside the data", tag.slice("<script>".length, -"</script>".length).includes("<"), false);
+  eq("no raw line separators", /[\u2028\u2029]/.test(tag), false);
+  const back = new Function("const window = {}; " + tag.slice("<script>".length, -"</script>".length) + "; return window.__BOOT;")();
+  eq("the page reads back exactly what was sent", JSON.stringify(back), JSON.stringify(data));
+}
 
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
