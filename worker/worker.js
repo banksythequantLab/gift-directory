@@ -18,6 +18,7 @@ import { svgToPng } from "./print.js";
 import { renderSVG } from "uqr";
 import STORE_MOCKUPS from "./shop-mockups.json";
 import SHOP_STAGES from "./shop-stages.json";   // blank product photo + print-area position, from scripts/product-templates.mjs
+import SHOP_PHOTO_STAGES from "./shop-photo-stages.json";   // flat items: blank photo + print-area shape per catalog variant, from scripts/product-photos.py
 
 const now = () => new Date().toISOString();
 const BOT_UA = /bot|crawl|spider|slurp|preview|monitor|curl|wget|python|node|headless|lighthouse|facebookexternalhit|whatsapp|scrap|fetch|http-client|uptime|pingdom|axios|go-http/i;
@@ -437,6 +438,12 @@ async function pf(env, path, { method = "GET", body } = {}) {
   if (!r.ok) throw new Error(`Printful ${r.status}: ${String((j.error && j.error.message) || j.result || "").slice(0, 200)}`);
   return j.result;
 }
+// The personalize page's product photo: tees and hoodies have one per product; flat items one per catalog variant (shape, size, color).
+function withStage(c) {
+  if (SHOP_STAGES[c.id]) return { ...c, stage: SHOP_STAGES[c.id] };
+  const by = SHOP_PHOTO_STAGES[c.id], first = by && (c.variants || []).map(v => by[v.catalog_id]).find(Boolean);
+  return first ? { ...c, stage: first, stages: by } : c;
+}
 // The shelf: every product in the gift.directory Printful store, cached for 30 minutes.
 async function shopCards(env) {
   const key = new Request(`https://cache.gift.directory/shop-cards/${env.PRINTFUL_STORE_ID}/v8`), cache = caches.default;
@@ -749,7 +756,7 @@ export default {
         if (!env.PRINTFUL_TOKEN || !env.PRINTFUL_STORE_ID) return J({ error: "The shop isn't set up yet." }, 503);
         // Photo products and uploads are off while the shop is hidden (unless SHOP_PHOTOS is set for testing).
         const photosOn = env.SHOP_PUBLIC === "1" || env.SHOP_PHOTOS === "1";
-        if (parts[2] === "products" && m === "GET") return J({ products: (await shopCards(env)).filter(c => photosOn || c.kind !== "photo").map(c => SHOP_STAGES[c.id] ? { ...c, stage: SHOP_STAGES[c.id] } : c), live: env.PAYPAL_ENV === "live", public: env.SHOP_PUBLIC === "1" });
+        if (parts[2] === "products" && m === "GET") return J({ products: (await shopCards(env)).filter(c => photosOn || c.kind !== "photo").map(withStage), live: env.PAYPAL_ENV === "live", public: env.SHOP_PUBLIC === "1" });
         // A buyer's photo for a photo shirt: JPEG or PNG, up to 15 MB, at least 600 px on the short side. Kept 30 days.
         if (parts[2] === "upload" && m === "POST") {
           if (!env.SHOP_UPLOADS || !photosOn) return J({ error: "Photo uploads aren't switched on yet." }, 503);

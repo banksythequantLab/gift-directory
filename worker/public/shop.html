@@ -68,18 +68,27 @@ const STAGE = {
   hoodie: { name: "hoodie", vb: "0 0 300 320", at: [35, 31, 30], draw: bg => `<ellipse fill="${bg}" cx="150" cy="36" rx="48" ry="32"/><path fill="${bg}" d="M104 42 L196 42 L270 78 L252 300 L218 298 L212 150 L212 306 L88 306 L88 150 L82 298 L48 300 L30 78 Z"/><path d="M116 44 Q150 84 184 44" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="3"/><path d="M112 252 L188 252 L198 304 L102 304 Z" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="2"/>` },
   mug: { name: "mug", vb: "0 0 300 240", at: [22, 30, 46], half: true, draw: bg => `<path d="M210 72 H236 Q262 72 262 102 V140 Q262 170 236 170 H210" fill="none" stroke="#cfd4dc" stroke-width="16"/><path d="M210 72 H236 Q262 72 262 102 V140 Q262 170 236 170 H210" fill="none" stroke="${bg}" stroke-width="11"/><path fill="${bg}" stroke="#cfd4dc" stroke-width="2" d="M60 30 H210 V200 Q210 214 196 214 H74 Q60 214 60 200 Z"/>` },
 };
-// With a blank product photo from the printer: the garment color, then the live print, then the photo's shading on top.
-const photoStage = p => { const g = p.stage, pc = (a, b) => (100 * a / b).toFixed(2);
-  return `<div class="stage" style="aspect-ratio:${g.w}/${g.h};background:${g.bgColor || "#fff"}${g.bg ? ` url(${esc(g.bg)}) center/cover` : ""}">
-  <div class="on" style="left:${pc(g.left, g.w)}%;top:${pc(g.top, g.h)}%;width:${pc(g.pw, g.w)}%;aspect-ratio:${g.pw}/${g.ph}"><img id="pvimg" alt="Your text as it will print" style="width:100%"></div>
-  <img src="${esc(g.image)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;border-radius:0;background:none;pointer-events:none"></div>`; };
-const stageHtml = (p, st) => p.stage ? photoStage(p) : `<div class="stage"><svg viewBox="${st.vb}" role="img" aria-label="${esc(p.title)} with your text">${st.draw(p.print.bg)}</svg>` +
+// With a blank product photo from the printer. Tees and hoodies: the garment color and photo, then the live print blended onto it.
+// Flat items (under): the blank photo first, then the live print multiplied onto it, clipped to the print area's shape.
+const photoStage = (g, bg) => { const pc = (a, b) => (100 * a / b).toFixed(2), at = `left:${pc(g.left, g.w)}%;top:${pc(g.top, g.h)}%;width:${pc(g.pw, g.w)}%`;
+  if (g.under) { const mk = `url(${esc(g.mask)}) center/100% 100% no-repeat`;
+    return `<div class="stage" id="stg" style="aspect-ratio:${g.w}/${g.h};background:#fff">
+  <img src="${esc(g.image)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;border-radius:0;background:none;pointer-events:none">
+  <div class="on" style="${at};height:${pc(g.ph, g.h)}%;mix-blend-mode:multiply;-webkit-mask:${mk};mask:${mk}"><img id="pvimg" alt="Your text as it will print" style="width:100%;height:100%;object-fit:cover"></div></div>`; }
+  // The garment photo is opaque, so the print goes on top: "screen" drops a dark print background, "multiply" a light one.
+  const blend = /^#[0-7]/.test(bg || "") ? "screen" : "multiply";
+  return `<div class="stage" id="stg" style="aspect-ratio:${g.w}/${g.h};background:${g.bgColor || "#fff"}${g.bg ? ` url(${esc(g.bg)}) center/cover` : ""}">
+  <img src="${esc(g.image)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;border-radius:0;background:none;pointer-events:none">
+  <div class="on" style="${at};aspect-ratio:${g.pw}/${g.ph};mix-blend-mode:${blend}"><img id="pvimg" alt="Your text as it will print" style="width:100%"></div></div>`; };
+// What the caption calls the item when its photo is shown.
+const PHOTO_NAME = { ornament: "ornament", metal: "ornament", paw: "ornament", stocking: "stocking", board: "cutting board", deskmat: "desk mat", puzzle: "puzzle", candle: "candle", cooler: "can cooler" };
+const stageHtml = (p, st) => p.stage ? photoStage(p.stage, p.print.bg) : `<div class="stage"><svg viewBox="${st.vb}" role="img" aria-label="${esc(p.title)} with your text">${st.draw(p.print.bg)}</svg>` +
   `<div class="on" style="left:${st.at[0]}%;top:${st.at[1]}%;width:${st.at[2]}%;aspect-ratio:${st.half ? p.print.w / 2 : p.print.w}/${p.print.h}"><img id="pvimg" alt="Your text as it will print" style="width:${st.half ? 200 : 100}%"></div></div>`;
 function detail(p) {
   const colors = [...new Set(p.variants.map(v => v.color))];
   const photo = p.kind === "photo", text = p.kind === "tpl" || photo, wrap = p.ptype === "mug", light = text && /^#(f|e)/i.test(p.print.bg);
   let photoId = null;
-  const st = text && !photo ? STAGE[p.ptype] : null;
+  const st = text && !photo ? STAGE[p.ptype] || (p.stage && p.stage.under ? { name: PHOTO_NAME[p.ptype] || "item" } : null) : null;
   const pre = new URLSearchParams(location.search), fromLink = pre.get("p") === String(p.id);
   let tpl = text ? ((p.tpls || []).includes(fromLink && pre.get("t")) ? pre.get("t") : p.tpl) : null;
   const fieldsOf = () => ((p.designs || []).find(d => d.tpl === tpl) || { fields: p.fields }).fields;
@@ -112,8 +121,14 @@ function detail(p) {
   $("#back").onclick = e => { e.preventDefault(); history.pushState(null, "", "/shop"); list(); };
   const sizes = () => { const c = $("#color") ? $("#color").value : colors[0];
     $("#size").innerHTML = p.variants.filter(v => v.color === c).map(v => `<option value="${v.id}">${esc(v.size || "One size")}${v.price_cents !== p.price_cents ? " — " + money(v.price_cents) : ""}</option>`).join(""); };
-  if ($("#color")) $("#color").onchange = () => { sizes(); quote(); };
-  sizes();
+  // A different shape, size or color gets its own photo; the live print carries over.
+  let shown = p.stage; const swapStage = () => { if (!p.stages || !$("#stg")) return;
+    const v = p.variants.find(x => String(x.id) === $("#size").value), g = v && p.stages[v.catalog_id];
+    if (!g || g === shown) return; shown = g; const src = $("#pvimg").getAttribute("src");
+    $("#stg").outerHTML = photoStage(g, p.print.bg); if (src) $("#pvimg").src = src; };
+  if ($("#color")) $("#color").onchange = () => { sizes(); swapStage(); quote(); };
+  $("#size").addEventListener("change", swapStage);
+  sizes(); swapStage();
   const vals = () => fieldsOf().map((_, i) => $("#f" + i).value);
   // The preview is the real print file, rendered small by the server. Untouched, it shows the product's example;
   // otherwise empty required fields show their placeholder.
