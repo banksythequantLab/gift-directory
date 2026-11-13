@@ -5,6 +5,7 @@ import { validatePool, contributionError, buildContributionOrder, readCapture, a
 import { ROOT, DRAFT_SYSTEM, parseDraft, validateStore, storePlanSystem, subscriptionBody, storeStatusFor, hostKey, publicStore, darkEnough } from "./stores.js";
 import { PAGES, pageBySlug, GUIDE_SYSTEM, guidePrompt, parseGuide, pageBrief, renderGuide, renderHub, MIN_LISTED, noindexed, renderTopic, topicSlug, topicBySlug, related, teamNav, TEAM_PAGES, THEME_PAGES, sitemap, adSlot, configureAds, diversify, allowed } from "./seo.js";
 import { LEGAL_SLUGS, renderLegal } from "./legal.js";
+import { REVIEW_SLUGS, renderReview } from "./reviews.js";
 import { authorizeUrl, paypalWebBase, parseUserinfo, ownsStore, validateSettings, validateItem, shelves, withoutHidden } from "./owners.js";
 import { OWN_MAX, safeHttpsUrl, shopOrigin, shopifyCards, productFromHtml, parseCsv, ownMatches } from "./own.js";
 import { ETSY_API, ETSY_NOTICE, etsyShopName, etsyShopUrl, pickShop, etsyCards } from "./etsy.js";
@@ -636,6 +637,12 @@ export default {
         configureAds(env);
         return new Response(renderLegal(parts[0], { shop: env.SHOP_PUBLIC === "1" }), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=3600" } });
       }
+      // ---------- Review pages (one merchant's products side by side) ----------
+      if (parts[0] === "reviews" && parts.length === 2 && REVIEW_SLUGS.includes(parts[1])) {
+        if (url.hostname !== ROOT && !isWorkersDev(url.hostname)) return Response.redirect(`https://${ROOT}/reviews/${parts[1]}`, 301);
+        configureAds(env);
+        return new Response(renderReview(parts[1], adSlot(env)), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=3600" } });
+      }
       // ---------- gift guides, sitemap, robots (the platform's own address) ----------
       if (parts[0] === "gifts" || url.pathname === "/sitemap.xml" || url.pathname === "/robots.txt") {
         if (url.hostname !== ROOT && !isWorkersDev(url.hostname)) return Response.redirect(`https://${ROOT}${url.pathname}`, 301);
@@ -648,7 +655,7 @@ export default {
         const rows = allRows.filter(r => r.n >= MIN_LISTED);
         if (url.pathname === "/sitemap.xml") {
           const stores = (await db.prepare("SELECT slug, updated_at FROM stores WHERE status='active'").all()).results;
-          return new Response(sitemap([{ loc: `https://${ROOT}/` }, { loc: `https://${ROOT}/gifts` }, { loc: `https://${ROOT}/registry` }, ...LEGAL_SLUGS.map(s => ({ loc: `https://${ROOT}/${s}` })),
+          return new Response(sitemap([{ loc: `https://${ROOT}/` }, { loc: `https://${ROOT}/gifts` }, { loc: `https://${ROOT}/registry` }, ...LEGAL_SLUGS.map(s => ({ loc: `https://${ROOT}/${s}` })), ...REVIEW_SLUGS.map(s => ({ loc: `https://${ROOT}/reviews/${s}` })),
             ...[...new Set(PAGES.filter(p => rows.some(r => r.slug === p.slug)).map(p => p.topic))].map(t => ({ loc: `https://${ROOT}/gifts/topic/${topicSlug(t)}` })),
             ...rows.map(r => ({ loc: `https://${ROOT}/gifts/${r.slug}`, lastmod: r.updated_at })),
             ...stores.map(s => ({ loc: `https://${s.slug}.${ROOT}/`, lastmod: s.updated_at }))]), { headers: { "content-type": "application/xml" } });
