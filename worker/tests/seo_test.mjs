@@ -178,5 +178,17 @@ eq("no storm ad elsewhere", houseAd("Holidays", "x"), "");
   eq("guides need six picks to be listed", MIN_LISTED, 6);
 }
 
+{
+  const { EXPERT, expertNote } = await import("../expert.js");
+  const { pageBySlug } = await import("../seo.js");
+  for (const slug of Object.keys(EXPERT)) eq("attorney note is for a real guide: " + slug, !!pageBySlug(slug), true);
+  const n = expertNote("thank-you-gifts-for-your-lawyer");
+  eq("note carries the byline", n.includes("By Derek Soltis, New York attorney"), true);
+  eq("note says it is not advice", n.includes("not legal or tax advice"), true);
+  eq("quotes are escaped", expertNote("bar-exam-passed-gifts").includes("&quot;you are one of us now.&quot;"), true);
+  eq("no note on other guides", expertNote("gifts-for-golfers"), "");
+  eq("no placeholders left in any note", Object.keys(EXPERT).some(s => /\[Derek|\[verify/.test(expertNote(s))), false);
+}
+
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

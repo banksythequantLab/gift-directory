@@ -1,3 +1,4 @@
+import { expertNote } from "./expert.js";
 // Long-tail gift guides at gift.directory/gifts/<slug>: one keyword per page, real products from
 // Channel3 with AI reasons, a short guide and FAQ written once and stored, server-rendered for crawlers.
 
@@ -1028,6 +1029,7 @@ export function renderGuide(p, row, related, storeUrl, ad = "", teams = "") {
 <h1 style="font-family:Georgia,serif;margin:4px 0 6px">${esc(p.keyword)}</h1>
 <p class="muted" style="margin:0 0 12px">Updated ${esc(updated)} · ${cards.length} gifts in stock now</p>
 <section class="guide">${g.intro.map(x => `<p>${esc(x)}</p>`).join("")}</section>
+${expertNote(p.slug)}
 ${related.length >= 3 ? `<p class="muted see">See also: ${related.slice(0, 3).map(r => `<a href="/gifts/${r.slug}">${esc(r.keyword.charAt(0).toLowerCase() + r.keyword.slice(1))}</a>`).join(", ").replace(/, ([^,]*)$/, " and $1")}.</p>` : ""}
 ${p.anniversary ? `<p class="muted" style="font-size:1.02rem"><b>Traditional gift:</b> ${esc(p.anniversary.traditional.replace(/\s*\(ivory-colored, never real ivory\)/, " (ivory-colored)"))} · <b>Modern gift:</b> ${esc(p.anniversary.modern)}</p>` : ""}
 ${cards.length ? (cards.some(c => c.group)
