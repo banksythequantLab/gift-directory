@@ -1,6 +1,6 @@
 // The direct shop: product cards from Printful, order checks, the design templates and print files, PayPal and Printful payloads.
 import { shopCard, shortTitle, kindOf, validateShopOrder, validateFields, pickRate, designSvg, designItems, parseKind, rowKind, TEMPLATES, SAMPLES, PTYPES,
-  shopPayPalOrder, printfulOrder, receiptEmail, storeShopShelf, STORE_SHELVES, printSize, renderWidth, salesTax, taxTable, imageInfo, photoPosition, isApparel } from "../shop.js";
+  shopPayPalOrder, printfulOrder, receiptEmail, ownerAlert, storeShopShelf, STORE_SHELVES, printSize, renderWidth, salesTax, taxTable, imageInfo, photoPosition, isApparel } from "../shop.js";
 
 let passed = 0, failed = 0;
 const ok = (n, c, d = "") => { c ? passed++ : (failed++, console.log(`FAIL  ${n}${d ? "  - " + d : ""}`)); };
@@ -239,5 +239,21 @@ eq("store mockup used when there is one", storeShopShelf(shopCards, "nurses", "h
 
 // The new stores' shelves.
 for (const slug of ["teachers", "doctors", "realtors", "police"]) ok(`${slug} has a Personalize it shelf`, (storeShopShelf(shopCards, slug) || { cards: [] }).cards.length >= 6);
+{
+  const o = { id: "ord-1", title: "Name & Role Tee", variant_label: "Black / L", qty: 1, total_cents: 3168, subtotal_cents: 2499, shipping_cents: 669, tax_cents: 0,
+    lines_json: JSON.stringify(["Ann", "Nurse", ""]), recipient_json: JSON.stringify({ name: "Ann Lee", city: "Albany", state_code: "NY", email: "ann@mail.test" }) };
+  const good = ownerAlert(o, { pf_order_id: 123, pf_status: "pending" });
+  eq("owner alert: a normal order", good.subject, "New shop order: Name & Role Tee ($31.68)");
+  eq("owner alert: a normal order is not a failure", good.failed, false);
+  has("owner alert: names the Printful order", good.text, "Printful order 123 (pending).");
+  has("owner alert: shows the buyer's text", good.text, "Text: Ann / Nurse");
+  const lost = ownerAlert(o, { pf_order_id: null, note: "Printful 400: bad variant" });
+  eq("owner alert: paid but not at the printer is loud", lost.subject.startsWith("[ACTION NEEDED] Paid, but it did not reach Printful"), true);
+  has("owner alert: says why", lost.text, "Printful said: Printful 400: bad variant.");
+  const cap = ownerAlert(o, { capture: "HTTP 422" });
+  eq("owner alert: payment not taken is loud", cap.subject.startsWith("[ACTION NEEDED] PayPal did not take the payment"), true);
+  eq("owner alert: no street address in the email", /address1|Ave|Street/.test(good.text), false);
+}
+
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

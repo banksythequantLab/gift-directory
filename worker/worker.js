@@ -13,7 +13,7 @@ import { TEE, teePromo } from "./promo.js";
 import { REG_MAX_ITEMS, REG_POOL_MIN_CENTS, validateRegistry, registrySlug, validateRegItem, publicRegistry, REG_AI_SYSTEM, regAiPrompt, parseRegAi, poolTarget, reminderSendOn, validateReminder, reminderEmail } from "./registry.js";
 import { ASSIST_SYSTEM, MAX_STEPS, SHELF_MAX, storeBrief, assistPrompt, parseAssist, matchHide, pickShelf, describeStep, PICK_SYSTEM, pickPrompt, applyPicks, capKinds } from "./assistant.js";
 import { ogTags, bootTag, poolMeta, registryMeta, storeMeta, PLATFORM_META, REGISTRY_HOME_META } from "./meta.js";
-import { shopCard, validateShopOrder, validateFields, pickRate, designSvg, PTYPES, TEMPLATES, SAMPLES, parseKind, rowKind, storeShopShelf, printSize, renderWidth, exampleFor, DESIGN_VERSION, salesTax, taxTable, shopPayPalOrder, printfulOrder, receiptEmail, imageInfo, PHOTO_ID, PHOTO_MIN, PHOTO_GOOD, PHOTO_MAX_BYTES } from "./shop.js";
+import { shopCard, validateShopOrder, validateFields, pickRate, designSvg, PTYPES, TEMPLATES, SAMPLES, parseKind, rowKind, storeShopShelf, printSize, renderWidth, exampleFor, DESIGN_VERSION, salesTax, taxTable, shopPayPalOrder, printfulOrder, receiptEmail, ownerAlert, imageInfo, PHOTO_ID, PHOTO_MIN, PHOTO_GOOD, PHOTO_MAX_BYTES } from "./shop.js";
 import { svgToPng } from "./print.js";
 import { renderSVG } from "uqr";
 import STORE_MOCKUPS from "./shop-mockups.json";
@@ -456,6 +456,16 @@ async function shopRate(env, o) {
 }
 // After PayPal captures: create the Printful order (a draft unless the shop is live and fulfilment is switched on),
 // then email the receipt. Failures are noted on the order for a person to fix; the money is already safe in PayPal.
+// Tell the shop owner (the house store's owner address) about an order. Never lets a mail problem break checkout.
+async function shopAlert(env, db, row, state) {
+  try {
+    if (!env.EMAIL) return;
+    const own = await db.prepare("SELECT owner_email FROM stores WHERE slug='lawyers'").first();
+    if (!own || !own.owner_email) return;
+    const a = ownerAlert(row, state);
+    await env.EMAIL.send({ to: own.owner_email, from: "orders@gift.directory", subject: a.subject, text: a.text });
+  } catch {}
+}
 async function shopFulfill(env, db, row) {
   const confirm = env.SHOP_FULFILL === "1" && env.PAYPAL_ENV === "live";
   const k = parseKind(row.kind);
@@ -470,8 +480,10 @@ async function shopFulfill(env, db, row) {
   } catch (e) { await db.prepare("UPDATE shop_orders SET note=?, updated_at=? WHERE id=?").bind(String(e.message || e).slice(0, 300), now(), row.id).run(); }
   if (env.EMAIL && !/@[^@]*example\.com$/i.test(row.email)) {
     const msg = receiptEmail(row); if (env.PAYPAL_ENV !== "live") msg.subject = "[Test order, not shipped] " + msg.subject;
-    try { await env.EMAIL.send({ to: row.email, from: "orders@gift.directory", ...msg }); } catch {}
+        try { await env.EMAIL.send({ to: row.email, from: "orders@gift.directory", ...msg }); } catch {}
   }
+  const saved = await db.prepare("SELECT pf_order_id, pf_status, note FROM shop_orders WHERE id=?").bind(row.id).first();
+  await shopAlert(env, db, row, saved || {});
 }
 // Registry reminders that are due: send each once, then delete the row (and with it the guest's email).
 // A send that fails stays for tomorrow's run; one for an event that has already happened is dropped.
@@ -590,7 +602,7 @@ export default {
     const db = env.DB;
     // Page-view counts by day (no cookies, nothing about the visitor is kept): which pages people and crawlers open.
     if (m === "GET" && db && parts[0] !== "api" && !/\.[a-z0-9]{2,5}$/i.test(url.pathname)) {
-      const ua = request.headers.get("user-agent") || "", kind = !ua || BOT_UA.test(ua) ? "bot" : "human";
+      const ua = request.headers.get("user-agent") || "", kind = !ua || BOT_UA.test(ua) || !request.headers.get("accept-language") ? "bot" : "human";   // every real browser sends accept-language
       ctx.waitUntil(db.prepare("INSERT INTO page_views (day,host,path,kind,n) VALUES (?,?,?,?,1) ON CONFLICT(day,host,path,kind) DO UPDATE SET n=n+1")
         .bind(now().slice(0, 10), url.hostname, url.pathname.slice(0, 120), kind).run().catch(() => {}));
     }
@@ -834,7 +846,11 @@ export default {
             if (cap && cap.status === "COMPLETED") {
               const u = await db.prepare("UPDATE shop_orders SET status='paid', updated_at=? WHERE id=? AND status='pending'").bind(now(), row.id).run();
               if (u.meta.changes) await shopFulfill(env, db, { ...row, status: "paid" });
-            } else await db.prepare("UPDATE shop_orders SET note=?, updated_at=? WHERE id=?").bind(`capture: ${cap ? cap.status : "HTTP " + r.status}`, now(), row.id).run();
+            } else {
+              const why = cap ? cap.status : "HTTP " + r.status;
+              await db.prepare("UPDATE shop_orders SET note=?, updated_at=? WHERE id=?").bind(`capture: ${why}`, now(), row.id).run();
+              await shopAlert(env, db, row, { capture: why });
+            }
           }
           return Response.redirect(`${url.origin}/shop?order=${row.id}`, 303);
         }

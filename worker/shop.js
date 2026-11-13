@@ -380,3 +380,21 @@ export function receiptEmail(row) {
 <p style="color:#6b7280;font-size:.85rem">— gift.directory</p></div>`;
   return { subject, text, html };
 }
+
+// ---------- a note to the shop owner ----------
+// One email per paid order. state: { pf_order_id, pf_status, note } as saved after the Printful call, or
+// { capture: "<what PayPal said>" } when the buyer approved but the payment was not taken.
+export function ownerAlert(row, state = {}) {
+  const r = JSON.parse(row.recipient_json || "{}"), lines = row.lines_json ? JSON.parse(row.lines_json).filter(Boolean) : [];
+  const what = `${row.title}${row.variant_label ? " (" + row.variant_label + ")" : ""} x ${row.qty}`;
+  const failed = state.capture ? "PayPal did not take the payment" : !state.pf_order_id ? "Paid, but it did not reach Printful" : "";
+  const subject = `${failed ? "[ACTION NEEDED] " + failed : "New shop order"}: ${row.title} ($${usd(row.total_cents)})`;
+  const text = [failed ? failed + "." : "A paid order went to Printful.", "", what, lines.length ? "Text: " + lines.join(" / ") : null,
+    `Total: $${usd(row.total_cents)} (items $${usd(row.subtotal_cents)}, shipping $${usd(row.shipping_cents)}${row.tax_cents ? ", tax $" + usd(row.tax_cents) : ""})`,
+    `Ship to: ${r.name || ""}, ${r.city || ""}, ${r.state_code || ""}`, `Buyer email: ${r.email || row.email || ""}`, "",
+    state.capture ? "PayPal said: " + state.capture + ". The buyer was sent back to the shop and has probably not been charged. Check PayPal before contacting them." : null,
+    !state.capture && state.pf_order_id ? `Printful order ${state.pf_order_id} (${state.pf_status || "status unknown"}).` : null,
+    !state.capture && !state.pf_order_id ? "Printful said: " + (state.note || "no reason saved") + ". The money is in PayPal; create the order in Printful by hand or refund the buyer." : null,
+    "", `Order number: ${row.id}`].filter(x => x !== null).join("\n");
+  return { subject, text, failed: !!failed };
+}
