@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="google-adsense-account" content="ca-pub-7950071846499535">
-<title>gift.directory — launch an AI gift store</title><link rel="stylesheet" href="/style.css"><link rel="icon" href="/favicon.ico" sizes="any"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<title>gift.directory — gift ideas, gift registries and group gifts</title><link rel="stylesheet" href="/style.css"><link rel="icon" href="/favicon.ico" sizes="any"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <style>
   .hero h1 { font-family:Georgia,serif; font-size:2.3rem; margin:0 0 6px; }
   .steps { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:18px 0 22px; }
@@ -12,27 +12,61 @@
   .preview .body { padding:14px 16px; }
   .addr { display:flex; align-items:center; gap:6px; }
   .addr input { flex:1; }
+  .hh { font-family:Georgia,serif; font-size:1.35rem; margin:26px 0 6px; }
+  .tiles { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:12px; }
+  .tile { display:block; text-decoration:none; color:var(--ink); }
+  .tile b { display:block; margin-bottom:2px; }
+  .rel { display:flex; flex-wrap:wrap; gap:8px; }
+  .rel a { border:1px solid var(--line); background:#fff; border-radius:999px; padding:6px 12px; font-size:.9rem; text-decoration:none; color:var(--ink); }
 </style></head>
 <body><div class="wrap"><main id="main">
 <div class="hero"><h1>gift.directory</h1>
-  <p class="muted" style="font-size:1.1rem;margin:0">Launch an AI gift store for your people in two minutes. Real products, live prices, group gifts through PayPal.</p>
-  <p style="margin:10px 0 0">Getting married, having a baby or moving? <a href="/registry"><b>Make a free gift registry from every store →</b></a></p></div>
+  <p class="muted" style="font-size:1.1rem;margin:0">Find a gift that fits the person. Real, in-stock gifts with live prices, free gift registries, and group gifts paid through PayPal.</p></div>
+
+<h2 class="hh">Shop a gift store</h2>
+<p class="muted" style="margin:0 0 10px">Each store is built around one kind of person. Describe who you're buying for and the AI gift finder picks real products, each with a reason.</p>
+<div class="tiles">
+  <a class="card tile" href="https://lawyers.gift.directory/"><b>Lawyer Gifts</b><span class="muted">For lawyers and the clients who thank them</span></a>
+  <a class="card tile" href="https://nurses.gift.directory/"><b>Nurse Gifts</b><span class="muted">Thank-you gifts for nurses</span></a>
+  <a class="card tile" href="https://teachers.gift.directory/"><b>Teacher Gifts</b><span class="muted">Gifts teachers actually use</span></a>
+  <a class="card tile" href="https://doctors.gift.directory/"><b>Doctor Gifts</b><span class="muted">From patients, families and colleagues</span></a>
+  <a class="card tile" href="https://realtors.gift.directory/"><b>Realtor Gifts</b><span class="muted">Closing gifts and gifts for agents</span></a>
+  <a class="card tile" href="https://police.gift.directory/"><b>Police Officer Gifts</b><span class="muted">From the academy to retirement</span></a>
+  <a class="card tile" href="https://firefighter-gifts.gift.directory/"><b>Firefighter Gifts Co.</b><span class="muted">For the people who run toward the fire</span></a>
+</div>
+
+<h2 class="hh">Gift guides</h2>
+<p class="muted" style="margin:0 0 10px">Gift lists by occasion, profession and budget, refreshed as prices and stock change.</p>
+<nav class="rel" aria-label="Popular gift guides">
+  <a href="/gifts/christmas-gifts-for-lawyers">Christmas gifts for lawyers</a>
+  <a href="/gifts/christmas-gifts-for-clients">Christmas gifts for clients</a>
+  <a href="/gifts/secret-santa-gifts-under-25">Secret Santa gifts under $25</a>
+  <a href="/gifts/law-school-graduation-gifts">Law school graduation gifts</a>
+  <a href="/gifts/bar-exam-passed-gifts">Gifts for passing the bar</a>
+  <a href="/gifts/thank-you-gifts-for-your-lawyer">Thank-you gifts for your lawyer</a>
+  <a href="/gifts/nurse-retirement-gifts">Nurse retirement gifts</a>
+  <a href="/gifts/teacher-retirement-gifts">Teacher retirement gifts</a>
+  <a href="/gifts/gifts-for-police-officers">Gifts for police officers</a>
+  <a href="/gifts/gifts-for-firefighters">Gifts for firefighters</a>
+  <a href="/gifts/gifts-for-doctors">Gifts for doctors</a>
+  <a href="/gifts/gifts-for-realtors">Gifts for realtors</a>
+  <a href="/gifts"><b>All gift guides →</b></a>
+</nav>
+
+<h2 class="hh">Free tools</h2>
+<div class="steps">
+  <a class="card tile" href="/registry"><b>Gift registry</b><span class="muted">One list from any store, for a wedding, baby or new home. Guests mark what they bought.</span></a>
+  <a class="card tile" href="https://lawyers.gift.directory/"><b>Group gifts</b><span class="muted">Pick a gift, share one link, and everyone chips in with PayPal, straight to the organizer.</span></a>
+  <a class="card tile" href="/christmas-shipping-deadlines"><b>Christmas shipping deadlines</b><span class="muted">The 2026 USPS send-by dates, so it arrives in time.</span></a>
+</div>
+
+<h2 class="hh" id="start">Start your own gift store</h2>
+<p class="muted" style="margin:0 0 10px">Run a gift store for your people in two minutes. <a href="#judges">Judging the PayPal AI Hackathon? Test steps are below.</a></p>
 <div class="steps">
   <div class="card"><b>1. Say who it's for</b><span class="muted">Nurses, golfers, new parents, your book club…</span></div>
   <div class="card"><b>2. AI drafts the store</b><span class="muted">Name, address, occasions and look. Change anything.</span></div>
   <div class="card"><b>3. Publish with PayPal</b><span class="muted">$19/month. Live at yourname.gift.directory.</span></div>
 </div>
-<details class="card" id="judges" style="margin:0 0 14px">
-  <summary style="cursor:pointer;font-weight:700">Judging the PayPal AI Hackathon? Test it in 5 minutes</summary>
-  <p class="muted" style="margin:10px 0 6px">Use the <b>sandbox</b> logins from our Devpost "How to test" section. With those sandbox emails every step below runs on the PayPal sandbox and no real money moves. Any PayPal sandbox account works if its email looks like <code>sb-...@personal.example.com</code>.</p>
-  <ol style="margin:0;padding-left:20px;line-height:1.6">
-    <li><b>AI gift finder:</b> open <a href="https://gifts.nota.lawyer/" target="_blank" rel="noopener">Lawyer Gifts</a> and describe the person in the search bar (e.g. "a litigator who loves coffee, $75"), or scroll to the questions (occasion, who it's for, budget, how you know them) and tap answers. The AI re-picks real, in-stock products, each with a reason.</li>
-    <li><b>Group gift with PayPal:</b> on any pick, tap <b>Group gift</b> → enter a name and, as the organizer's PayPal, our sandbox receiver <code style="word-break:break-all">sb-7bf7453357370@personal.example.com</code> (PayPal won't let an account pay itself) → <b>Create the share link</b>. Open the link, chip in with the sandbox buyer, and watch the tally update. The goal includes an estimated shipping &amp; tax amount.</li>
-    <li><b>Gift registry:</b> <a href="/registry" target="_blank" rel="noopener">make a registry</a> (use the sandbox receiver above as its PayPal email), ask the AI to fill it, then open the share link in a private window and mark an item "I bought this" or go in together on a big item.</li>
-    <li><b>Launch your own store:</b> use the form below → <b>Draft my store</b> → enter the sandbox buyer's email as <b>Your email</b> → <b>Publish</b>, and approve the $19/month PayPal sandbox subscription. Your store goes live at <i>yourname</i>.gift.directory.</li>
-    <li><b>AI assistant for owners:</b> from your new store, tap <b>Edit this store</b> → sign in with PayPal (sandbox) → the <b>AI assistant</b> tab plans shelves and applies them when you say so.</li>
-  </ol>
-</details>
 <div id="msg"></div>
 
 <form id="s1" class="card">
@@ -62,6 +96,17 @@
     </div>
   </div>
 </form>
+<details class="card" id="judges" style="margin:18px 0 0">
+  <summary style="cursor:pointer;font-weight:700">Judging the PayPal AI Hackathon? Test it in 5 minutes</summary>
+  <p class="muted" style="margin:10px 0 6px">Use the <b>sandbox</b> logins from our Devpost "How to test" section. With those sandbox emails every step below runs on the PayPal sandbox and no real money moves. Any PayPal sandbox account works if its email looks like <code>sb-...@personal.example.com</code>.</p>
+  <ol style="margin:0;padding-left:20px;line-height:1.6">
+    <li><b>AI gift finder:</b> open <a href="https://gifts.nota.lawyer/" target="_blank" rel="noopener">Lawyer Gifts</a> and describe the person in the search bar (e.g. "a litigator who loves coffee, $75"), or scroll to the questions (occasion, who it's for, budget, how you know them) and tap answers. The AI re-picks real, in-stock products, each with a reason.</li>
+    <li><b>Group gift with PayPal:</b> on any pick, tap <b>Group gift</b> → enter a name and, as the organizer's PayPal, our sandbox receiver <code style="word-break:break-all">sb-7bf7453357370@personal.example.com</code> (PayPal won't let an account pay itself) → <b>Create the share link</b>. Open the link, chip in with the sandbox buyer, and watch the tally update. The goal includes an estimated shipping &amp; tax amount.</li>
+    <li><b>Gift registry:</b> <a href="/registry" target="_blank" rel="noopener">make a registry</a> (use the sandbox receiver above as its PayPal email), ask the AI to fill it, then open the share link in a private window and mark an item "I bought this" or go in together on a big item.</li>
+    <li><b>Launch your own store:</b> use the form below → <b>Draft my store</b> → enter the sandbox buyer's email as <b>Your email</b> → <b>Publish</b>, and approve the $19/month PayPal sandbox subscription. Your store goes live at <i>yourname</i>.gift.directory.</li>
+    <li><b>AI assistant for owners:</b> from your new store, tap <b>Edit this store</b> → sign in with PayPal (sandbox) → the <b>AI assistant</b> tab plans shelves and applies them when you say so.</li>
+  </ol>
+</details>
 </main>
 <footer><a href="/gifts">Browse gift guides</a> — Christmas gifts for lawyers, nurses, coworkers, Secret Santa and more.<br>Products and prices come live from thousands of retailers through Channel3. Each store gets the AI gift finder and PayPal group gifts.
 <div style="margin-top:6px"><a href="/about">About</a> · <a href="/contact">Contact</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></div></footer>
@@ -71,7 +116,7 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const q = new URLSearchParams(location.search);
 let draft = null, niche = "";
-if (location.hash === "#judges") $("#judges").open = true;
+const openJudges = () => { if (location.hash === "#judges") $("#judges").open = true; }; openJudges(); addEventListener("hashchange", openJudges);
 if (q.get("cancelled")) $("#msg").innerHTML = `<p class="muted">Subscription cancelled at PayPal — nothing was charged and your store wasn't published.</p>`;
 if (q.get("pending")) $("#msg").innerHTML = `<p class="muted">PayPal hasn't confirmed the subscription yet. Give it a minute and reload your store's address.</p>`;
 

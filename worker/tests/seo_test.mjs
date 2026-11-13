@@ -170,5 +170,13 @@ eq("no storm ad elsewhere", houseAd("Holidays", "x"), "");
   ok("infant jersey kept off team pages", !allowed(pb("gifts-for-calgary-flames-fans"), { title: "Infant Red Calgary Flames Replica Jersey" }));
   ok("party banner kept off retirement gifts", !allowed(pb("police-retirement-gifts"), { title: "Retirement Photo Custom Banner" }));
 }
+{
+  const { noindexed, MIN_LISTED } = await import("../seo.js");
+  const page = '<head><title>x</title><link rel="canonical" href="https://gift.directory/gifts/x"></head>';
+  eq("a thin guide is marked noindex", noindexed(page).includes('<meta name="robots" content="noindex,follow"><link rel="canonical"'), true);
+  eq("marked once", noindexed(page).split("noindex").length - 1, 1);
+  eq("guides need six picks to be listed", MIN_LISTED, 6);
+}
+
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

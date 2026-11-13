@@ -1047,6 +1047,10 @@ ${g.faq.length ? `<h2 style="font-family:Georgia,serif">Questions people ask</h2
   ];
   return shell(title, g.meta, url, body, ld, ad, (cards.find(c => c.image) || {}).image);
 }
+// A guide needs at least this many picks to be listed (hub, topics, related links, sitemap) and indexed.
+// A thinner one still opens for anyone who has the link, but tells search engines not to index it.
+export const MIN_LISTED = 6;
+export const noindexed = html => html.replace('<link rel="canonical"', '<meta name="robots" content="noindex,follow"><link rel="canonical"');
 // Topic pages (/gifts/topic/<slug>): the hub shows a preview of each topic and links to the full list.
 export const topicSlug = t => String(t).toLowerCase().replace(/&/g, "and").replace(/'/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 export const topicBySlug = s => [...new Set(PAGES.map(p => p.topic))].find(t => topicSlug(t) === s) || null;
