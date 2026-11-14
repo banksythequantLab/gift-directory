@@ -79,6 +79,36 @@ export const EXPERT = {
     ]],
     ["p", "What sits in a drawer: desk gavels, novelty \"lawyer\" mugs and framed quotes about justice. Give something for the work they are actually doing."],
   ] },
+  "teacher-appreciation-gifts": { title: "Before you buy: can the teacher keep it?", blocks: [
+    ["p", "Public school teachers are government employees, so gift limits apply to them that most people never think about. The limits are low, and a gift from the whole class is the easy way to stay inside them."],
+    ["ul", [
+      ["New York City public schools.", "City ethics rules call a gift worth $50 or more to a city employee a \"valuable gift.\"{1} The city's ethics board has told school staff to keep gifts under that amount.{2}"],
+      ["A gift from the whole class.", "The same board told school staff that a class may pool money for a bigger gift if the card says it is from the class, not from the families who chipped in.{3}"],
+      ["Other New York public schools.", "Outside New York City, school district employees may not accept a gift worth $75 or more if it could reasonably look like a reward or an attempt to influence them.{4} A gift at the end of the year, after grades are in, is the safer time."],
+      ["Private schools and other states.", "The rules differ. Ask the school office or the PTA, which usually knows the policy."],
+      ["What every teacher can keep.", "A handwritten note from you or your child. Teachers keep these for years."],
+    ]],
+  ], notes: [
+    ["N.Y.C. Conflicts of Interest Board Rules, 53 RCNY § 1-01(a)(1)", "a “valuable gift” is any gift to a public servant that has a value of $50.00 or more", "https://www.nyc.gov/assets/coib/downloads/pdf2/books/current-board-rules.pdf"],
+    ["N.Y.C. Conflicts of Interest Board, flyer for Department of Education employees (July 2004)", "DOE employees are restricted from accepting gifts with a value of $50 or more", "https://www.nyc.gov/html/conflicts/downloads/pdf/doemailer.pdf"],
+    ["N.Y.C. Conflicts of Interest Board, flyer for Department of Education employees (July 2004), on a class-funded gift", "But the gift must be identified as coming from the entire class, not from the individual students who contributed.", "https://www.nyc.gov/html/conflicts/downloads/pdf/doemailer.pdf"],
+    ["N.Y. General Municipal Law § 805-a(1)(a); school districts are municipalities under § 800(4), which excludes cities of one million or more", "accept or receive any gift having a value of seventy-five dollars or more", "https://www.nysenate.gov/legislation/laws/GMU/805-A"],
+  ] },
+  "thank-you-gifts-for-doctors": { title: "Can you give your doctor a gift?", blocks: [
+    ["p", "Yes. The American Medical Association's ethics code says a gift given out of gratitude can be good for the relationship between a patient and a doctor.{1} A few things make it land better."],
+    ["ul", [
+      ["Keep it modest.", "Doctors are told to turn down gifts that are out of proportion to the patient's or the doctor's means.{2} Something the doctor wouldn't think twice about telling a colleague about is the right size."],
+      ["Give it as thanks, not as a request.", "Doctors are told to make sure a gift doesn't change the care they give.{3} A gift after a surgery or at the end of a course of treatment reads as thanks."],
+      ["Think of the whole office.", "The nurses, the front desk and the medical assistants did a lot of your care. Food or flowers the office can share gets noticed by everyone who helped."],
+      ["Ask first at a public or VA hospital.", "Doctors who work for the government are under strict gift limits. A letter is always allowed, and a copy to the department chief means a lot."],
+      ["Leaving money in a will.", "The AMA asks doctors to think about the patient's family before accepting a bequest, and to consider suggesting a gift to charity instead.{4} A donation to the hospital in the doctor's honor does both."],
+    ]],
+  ], notes: [
+    ["American Medical Ass'n, Code of Medical Ethics Op. 1.2.8, Gifts from Patients", "Accepting gifts offered for these reasons can enhance the patient-physician relationship.", "https://code-medical-ethics.ama-assn.org/ethics-opinions/gifts-patients"],
+    ["American Medical Ass'n, Code of Medical Ethics Op. 1.2.8(a)", "", "https://code-medical-ethics.ama-assn.org/ethics-opinions/gifts-patients"],
+    ["American Medical Ass'n, Code of Medical Ethics Op. 1.2.8(b)", "", "https://code-medical-ethics.ama-assn.org/ethics-opinions/gifts-patients"],
+    ["American Medical Ass'n, Code of Medical Ethics Op. 1.2.8(c)–(d)", "", "https://code-medical-ethics.ama-assn.org/ethics-opinions/gifts-patients"],
+  ] },
 };
 // Escape first, then turn {n} into a link to footnote n.
 const txt = s => esc(s).replace(/\{(\d+)\}/g, (_, n) => `<sup><a href="#fn-${n}" id="fr-${n}" aria-label="Footnote ${n}">${n}</a></sup>`);
