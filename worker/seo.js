@@ -1021,7 +1021,8 @@ const HOUSE_ADS = {
 // Outdoors pages where a storm or no-signal kit fits the reader (campers, hikers, boaters…) also get the Storm Proof ad.
 const STORM_TOO = new Set(["gifts-for-campers", "gifts-for-hikers", "gifts-for-outdoorsmen", "gifts-for-boaters", "gifts-for-kayakers"]);
 export const houseAd = (topic, slug) => HOUSE_ADS[topic] ? HOUSE_ADS[topic](slug) : STORM_TOO.has(slug) ? HOUSE_ADS.Preparedness(slug) : "";
-export function renderGuide(p, row, related, storeUrl, ad = "", teams = "") {
+// extra: more HTML after the house ad (the worker passes a link to a matching review page).
+export function renderGuide(p, row, related, storeUrl, ad = "", teams = "", extra = "") {
   const g = JSON.parse(row.guide_json), cards = JSON.parse(row.cards_json || "[]");
   const url = `${ROOT}/gifts/${p.slug}`, updated = String(row.updated_at).slice(0, 10);
   const title = `${p.keyword} (${new Date(row.updated_at).getUTCFullYear()}) — real gifts in stock | gift.directory`;
@@ -1038,7 +1039,7 @@ ${cards.length ? (cards.some(c => c.group)
 <div class="cta"><b style="font-size:1.1rem">Going in together?</b><br>${storeUrl
     ? `Find more and start a group gift at <a href="${esc(storeUrl)}">${esc(storeUrl.replace(/^https:\/\//, "").replace(/\/$/, ""))}</a> — everyone chips in with PayPal, straight to the organizer.`
     : `Every store on <a href="/">gift.directory</a> lets a group chip in with PayPal, straight to the organizer. <a href="/">Start your own gift store →</a>`}</div>
-${houseAd(p.topic, p.slug)}
+${houseAd(p.topic, p.slug)}${extra}
 ${teams}
 ${g.faq.length ? `<h2 style="font-family:Georgia,serif">Questions people ask</h2>${g.faq.map(f => `<h3>${esc(f.q)}</h3><p>${esc(f.a)}</p>`).join("")}` : ""}
 <h2 style="font-family:Georgia,serif">More gift guides</h2><nav class="rel" aria-label="Gift guides">${(related.length > 6 ? related.slice(3) : related).map(r => `<a href="/gifts/${r.slug}">${esc(r.keyword)}</a>`).join("")}<a href="/gifts/topic/${topicSlug(p.topic)}">All ${esc(p.topic)} guides →</a></nav>`;
@@ -1058,10 +1059,12 @@ export const topicSlug = t => String(t).toLowerCase().replace(/&/g, "and").repla
 export const topicBySlug = s => [...new Set(PAGES.map(p => p.topic))].find(t => topicSlug(t) === s) || null;
 const byTopicBuilt = built => { const m = {}; for (const p of PAGES) if (built.has(p.slug)) (m[p.topic] ||= []).push(p); return m; };
 const HUB_PREVIEW = 12;
-export function renderHub(built, ad = "") {
+// reviews: [{ slug, title }] from reviews.js, passed in by the worker (reviews.js imports this file).
+export function renderHub(built, ad = "", reviews = []) {
   const byTopic = byTopicBuilt(built);
   const body = `<h1 style="font-family:Georgia,serif">Gift guides</h1><p class="muted">Real, in-stock gifts picked by AI for the people on your list — with live prices, and group gifts paid through PayPal.</p>
 <p><a href="/christmas-shipping-deadlines">Christmas shipping deadlines 2026: when to order →</a></p>
+${reviews.length ? `<h2 style="font-family:Georgia,serif">Gift reviews</h2><nav class="rel" aria-label="Gift reviews">${reviews.map(r => `<a href="/reviews/${esc(r.slug)}">${esc(r.title)}</a>`).join("")}</nav>` : ""}
 <nav class="rel" aria-label="Topics" style="margin:6px 0 10px">${Object.entries(byTopic).map(([t, ps]) => `<a href="/gifts/topic/${topicSlug(t)}">${esc(t)} (${ps.length})</a>`).join("")}</nav>
 ${Object.entries(byTopic).map(([t, ps]) => `<h2 style="font-family:Georgia,serif"><a href="/gifts/topic/${topicSlug(t)}" style="color:inherit">${esc(t)}</a></h2><nav class="rel" aria-label="${esc(t)} guides">${ps.slice(0, HUB_PREVIEW).map(p => `<a href="/gifts/${p.slug}">${esc(p.keyword)}</a>`).join("")}${ps.length > HUB_PREVIEW ? `<a href="/gifts/topic/${topicSlug(t)}"><b>All ${ps.length} ${esc(t)} guides →</b></a>` : ""}</nav>`).join("")}`;
   return shell("Gift guides — real gifts in stock, picked by AI | gift.directory", "Christmas and year-round gift guides for lawyers, nurses, coworkers, family and more: real, in-stock gifts with live prices, picked by AI.", `${ROOT}/gifts`, body, [], ad);

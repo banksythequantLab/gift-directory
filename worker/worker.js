@@ -5,7 +5,7 @@ import { validatePool, contributionError, buildContributionOrder, readCapture, a
 import { ROOT, DRAFT_SYSTEM, parseDraft, validateStore, storePlanSystem, subscriptionBody, storeStatusFor, hostKey, publicStore, darkEnough } from "./stores.js";
 import { PAGES, pageBySlug, GUIDE_SYSTEM, guidePrompt, parseGuide, pageBrief, renderGuide, renderHub, MIN_LISTED, noindexed, renderTopic, topicSlug, topicBySlug, related, teamNav, TEAM_PAGES, THEME_PAGES, sitemap, adSlot, configureAds, diversify, allowed } from "./seo.js";
 import { LEGAL_SLUGS, renderLegal } from "./legal.js";
-import { REVIEW_SLUGS, renderReview } from "./reviews.js";
+import { REVIEW_SLUGS, REVIEW_INDEX, renderReview, reviewBox } from "./reviews.js";
 import { authorizeUrl, paypalWebBase, parseUserinfo, ownsStore, validateSettings, validateItem, shelves, withoutHidden } from "./owners.js";
 import { OWN_MAX, safeHttpsUrl, shopOrigin, shopifyCards, productFromHtml, parseCsv, ownMatches } from "./own.js";
 import { ETSY_API, ETSY_NOTICE, etsyShopName, etsyShopUrl, pickShop, etsyCards } from "./etsy.js";
@@ -660,7 +660,7 @@ export default {
             ...rows.map(r => ({ loc: `https://${ROOT}/gifts/${r.slug}`, lastmod: r.updated_at })),
             ...stores.map(s => ({ loc: `https://${s.slug}.${ROOT}/`, lastmod: s.updated_at }))]), { headers: { "content-type": "application/xml" } });
         }
-        if (!parts[1]) return html(renderHub(new Set(rows.map(r => r.slug)), adSlot(env)));
+        if (!parts[1]) return html(renderHub(new Set(rows.map(r => r.slug)), adSlot(env), REVIEW_INDEX));
         if (parts[1] === "topic") { const t = topicBySlug(parts[2] || ""); return t ? html(renderTopic(t, new Set(rows.map(r => r.slug)), adSlot(env))) : html(`<!doctype html><title>Not found</title><p>No such topic. <a href="/gifts">All gift guides</a></p>`, 404); }
         const p = pageBySlug(parts[1]);
         const row = p && await db.prepare("SELECT * FROM seo_pages WHERE slug=?").bind(p.slug).first();
@@ -677,7 +677,7 @@ export default {
         }
         const st = p.store && await db.prepare("SELECT slug FROM stores WHERE slug=? AND status='active'").bind(p.store).first();
         const built = new Set(rows.map(r => r.slug));
-        const guideHtml = renderGuide(p, row, related(p, built), st ? `https://${st.slug}.${ROOT}/` : null, adSlot(env), teamNav(p, built));
+        const guideHtml = renderGuide(p, row, related(p, built), st ? `https://${st.slug}.${ROOT}/` : null, adSlot(env), teamNav(p, built), reviewBox(p.slug));
         if (built.has(p.slug)) return html(guideHtml);
         const thin = html(noindexed(guideHtml)); thin.headers.set("x-robots-tag", "noindex, follow"); return thin;
       }

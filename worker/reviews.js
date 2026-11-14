@@ -167,6 +167,31 @@ ${btn(GA.home, "Visit GraphicAudio")}
 
 export const REVIEWS = { "gift-of-the-month-clubs": clubsPage, "muck-boots-gift-guide": muckPage, "graphicaudio-gift-guide": graphicAudioPage };
 export const REVIEW_SLUGS = Object.keys(REVIEWS);
+// Short link titles for the gift-guides hub.
+export const REVIEW_INDEX = [
+  { slug: "gift-of-the-month-clubs", title: "Gift of the month clubs compared" },
+  { slug: "muck-boots-gift-guide", title: "Muck boots as a gift" },
+  { slug: "graphicaudio-gift-guide", title: "GraphicAudio full-cast audiobooks" },
+];
+// Guides whose readers a review page fits: a short box after the picks links to it.
+const REVIEW_FOR = {
+  "gift-of-the-month-clubs": ["gifts-for-wine-lovers", "gifts-for-tea-lovers", "gifts-for-beer-lovers", "gifts-for-coffee-lovers-under-50", "long-distance-relationship-gifts",
+    "christmas-gifts-for-people-who-are-hard-to-shop-for", "christmas-gifts-for-dad-who-has-everything", "christmas-gifts-for-mom-who-wants-nothing", "christmas-gifts-for-grandparents"],
+  "muck-boots-gift-guide": ["gifts-for-hunters", "gifts-for-gardeners", "gifts-for-bow-hunters", "gifts-for-deer-hunters", "gifts-for-duck-hunters", "gifts-for-outdoorsmen"],
+  "graphicaudio-gift-guide": ["gifts-for-book-lovers", "gifts-for-fantasy-ranger-fans", "gifts-for-dnd-players"],
+};
+const BOX = {
+  "gift-of-the-month-clubs": ["A gift that keeps arriving", "Beer, wine, coffee, chocolate or flowers every month. We compared ten clubs: what each box holds and what it costs."],
+  "muck-boots-gift-guide": ["Boots they'll wear every day", "Which Muck boot fits the way they spend time outside, what each costs, and how to get the size right without asking."],
+  "graphicaudio-gift-guide": ["Their favorite series, as a full-cast drama", "GraphicAudio turns fantasy and sci-fi books into audio dramas with actors, music and sound effects. What it costs and how to give it."],
+};
+export function reviewBox(guideSlug) {
+  const slug = Object.keys(REVIEW_FOR).find(k => REVIEW_FOR[k].includes(guideSlug)); if (!slug) return "";
+  const [t, d] = BOX[slug];
+  return `<aside style="border:2px solid var(--accent);background:#fff;border-radius:14px;padding:16px 18px;margin:22px 0">
+<b style="font-size:1.1rem;font-family:Georgia,serif">${esc(t)}</b><p style="margin:6px 0 10px">${esc(d)}</p>
+<a href="/reviews/${slug}" style="font-weight:700">Read the guide →</a></aside>`;
+}
 export function renderReview(slug, ad = "") {
   const f = REVIEWS[slug]; if (!f) return null;
   const p = f();

@@ -32,5 +32,20 @@ for (const [slug, want] of [["muck-boots-gift-guide", 6], ["graphicaudio-gift-gu
   ok(`${slug} no ratings claimed`, !/aggregateRating|ratingValue/.test(g));
 }
 
+{ const { REVIEW_INDEX } = await import("../reviews.js"); const { renderHub } = await import("../seo.js");
+  ok("hub index covers every review", REVIEW_INDEX.map(r => r.slug).sort().join() === [...REVIEW_SLUGS].sort().join());
+  const hub = renderHub(new Set(), "", REVIEW_INDEX);
+  ok("hub links every review", REVIEW_SLUGS.every(s => hub.includes(`href="/reviews/${s}"`)));
+  ok("hub without reviews has no section", !renderHub(new Set()).includes("Gift reviews")); }
+
+{ const { reviewBox } = await import("../reviews.js"); const { PAGES } = await import("../seo.js");
+  ok("beer guide links the clubs", reviewBox("gifts-for-beer-lovers").includes('href="/reviews/gift-of-the-month-clubs"'));
+  ok("hunters guide links Muck", reviewBox("gifts-for-hunters").includes('href="/reviews/muck-boots-gift-guide"'));
+  ok("book lovers guide links GraphicAudio", reviewBox("gifts-for-book-lovers").includes('href="/reviews/graphicaudio-gift-guide"'));
+  ok("other guides get nothing", reviewBox("gifts-for-nurses") === "");
+  const src = (await import("node:fs")).readFileSync(new URL("../reviews.js", import.meta.url), "utf8");
+  const named = [...src.matchAll(/"(gifts-for-[a-z0-9-]+|christmas-gifts-[a-z0-9-]+|long-distance-relationship-gifts)"/g)].map(m => m[1]);
+  ok("every mapped guide exists", named.every(s => PAGES.some(p => p.slug === s)), named.filter(s => !PAGES.some(p => p.slug === s)).join()); }
+
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
