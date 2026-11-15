@@ -236,8 +236,95 @@ ${btn(AB.home, "Visit AbracadabraNYC")}
     meta: "Magic kits from $20 to $65 on sale, masks and costume gifts from a New York magic shop since 1981, plus its all-sales-final policy.", body, jsonld: [article(h1, slug)] };
 }
 
+const table = (heads, rows) => `<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;min-width:480px;font-size:.92rem"><thead><tr>
+${heads.map(h => `<th style="text-align:left;padding:8px 10px;border-bottom:2px solid #d1d5db">${h}</th>`).join("")}</tr></thead><tbody>
+${rows.map(r => `<tr>${r.map(c => `<td style="${td}">${esc(c)}</td>`).join("")}</tr>`).join("")}
+</tbody></table></div>`;
+
+// Aceable driver's ed, from aceable.com on 2026-11-15 (CJ advertiser 5514618). The site lists a regular and a sale price.
+function aceablePage() {
+  const slug = "drivers-ed-as-a-gift", h1 = "Driver's ed as a gift: the present a 15-year-old actually wants";
+  const body = `${head("Reviews", h1, "Checked November 15, 2026 · Aceable")}
+<div class="guide">
+<p>For a teenager close to permit age, nothing beats the keys. An online driver's ed course is the step before them: many states require teens to finish an approved course before they can get a license, and paying for it is a gift that says "we trust you." Aceable sells state-approved driver's ed that runs on a phone or a computer.</p>
+<p>We haven't taken these courses for this page. Everything below comes from Aceable's own site on November 15, 2026. <b>We earn a commission if you buy through the links on this page</b>, at no extra cost to you.</p>
+${H2("Prices in the states Aceable covers")}
+${table(["Course", "Regular", "Sale when checked"], [["California Drivers Ed", "$80", "$49"], ["Texas Parent Taught Drivers Ed (ages 14 to 17)", "$115", "about $70"],
+  ["Texas Adult Drivers Ed (ages 18 to 24)", "$99", "$49"], ["Ohio Teen Drivers Ed", "$109", "$79"], ["Georgia Drivers Ed", "$50", "$30"],
+  ["Oklahoma Parent Taught Drivers Ed", "$100", "$75"], ["Nevada Drivers Ed", "$69", "$49"], ["Illinois Adult Drivers Ed", "$85", "$49"], ["Florida teen course (DETS)", "$36", "$20"]])}
+<p class="muted small">Aceable runs frequent discounts, so check today's price. Texas's parent-taught program also has a $20 packet fee paid to the state.</p>
+${btn(15205093, "See Aceable driver's ed")}
+${H2("Before you buy")}
+<ul>
+<li><b>It has to be their state.</b> Driver's ed is approved state by state. Aceable lists courses for California, Florida, Georgia, Illinois, Nevada, Ohio, Oklahoma and Texas.</li>
+<li><b>Check the age.</b> Aceable's California course is built for teens 15 to 17½. Texas's parent-taught course is for ages 14 to 17, and Texas requires new drivers aged 18 to 24 to take a 6-hour course.</li>
+<li><b>Parent-taught means a parent drives too.</b> In Texas and Oklahoma the parent is the instructor for the driving hours, so talk to the parents before giving this to someone else's kid.</li>
+<li><b>Set it up together.</b> Aceable doesn't list gift cards, so the easiest way is to sign the teen up with them, or give a card that says the course is paid for.</li>
+<li><b>Money-back guarantee.</b> Aceable's course pages advertise a 100% money-back guarantee. Read the terms at checkout.</li>
+</ul>
+<p>Pair it with something for the car: see <a href="/gifts/car-emergency-kit-gifts">car emergency kit gifts</a>.</p>
+</div>`;
+  return { title: "Driver's ed as a gift: online courses, prices by state and what to know (2026) | gift.directory",
+    meta: "Give a teen online driver's ed: which states Aceable covers, regular and sale prices, age rules and what parents need to know.", body, jsonld: [article(h1, slug)] };
+}
+
+// Oedro, from oedro.com on 2026-11-15 (CJ advertiser 7455332).
+const OE = { home: 17050091, mats: 17050549, steps: 17050550, tonneau: 17050548 };
+function oedroPage() {
+  const slug = "truck-accessories-gifts", h1 = "Truck accessories as a gift: floor mats, running boards and bed covers";
+  const body = `${head("Reviews", h1, "Checked November 15, 2026 · OEDRO")}
+<div class="guide">
+<p>For someone who loves their truck, a part made for that exact truck beats another keychain. Oedro sells floor mats, running boards (side steps), tonneau (bed) covers and other accessories built to fit specific makes and models.</p>
+<p>We haven't installed these parts for this page. Everything below comes from Oedro's own site on November 15, 2026. <b>We earn a commission if you buy through the links on this page</b>, at no extra cost to you.</p>
+${H2("What it costs")}
+${table(["Item (example from Oedro's site)", "Price when checked", "Was"], [["All-weather floor mats, 2015–2026 Ford F-150 SuperCab", "$109.99", "$229.99"],
+  ["Floor mats, 2017–2026 Ford Super Duty Crew Cab", "$109.99", "$199.99"], ["Floor mats with under-seat storage, 2022–2026 Nissan Frontier Crew Cab", "$129.99", "$219.99"],
+  ["Running boards, 2019–2026 Chevy Silverado / GMC Sierra Crew Cab", "$289.99", "$699.99"]])}
+${btn(OE.mats, "Floor mats")}${btn(OE.steps, "Running boards")}${btn(OE.tonneau, "Tonneau covers")}
+${H2("The one thing you need: their exact truck")}
+<p>These parts are made to fit, so you need the <b>year, make, model and cab style</b> (for example, a 2021 Ford F-150 SuperCrew). The vehicle registration or insurance card in the glove box has the year, make and model. Count the doors for the cab style. Oedro's site asks for the vehicle before showing what fits.</p>
+${H2("Good to know")}
+<ul>
+<li><b>Shipping</b> is free on all orders, according to the site.</li>
+<li><b>Returns</b> within 30 days, and a 1-year warranty.</li>
+<li><b>Floor mats are the easy gift.</b> They go in by hand. Running boards and bed covers bolt on, so check that they're happy to install them or plan a shop visit.</li>
+</ul>
+${btn(OE.home, "Shop Oedro")}
+<p>More ideas: <a href="/gifts/gifts-for-car-guys">gifts for car guys</a> and <a href="/gifts/car-emergency-kit-gifts">car emergency kits</a>.</p>
+</div>`;
+  return { title: "Truck accessories as a gift: floor mats, running boards and tonneau covers (2026) | gift.directory",
+    meta: "Truck accessories that fit their exact truck: example prices for floor mats and running boards, what you need to know to order, and returns.", body, jsonld: [article(h1, slug)] };
+}
+
+// Angi, from angi.com on 2026-11-15 (CJ advertiser 7439025). Requesting quotes is free; the giver pays the pro.
+const AN = { home: 17141197, cleaning: 17142832, handyman: 17141193, moving: 17141190, lawn: 17142834, snow: 17252546 };
+function angiPage() {
+  const slug = "gift-a-home-service", h1 = "Give help instead of stuff: booking a home service as a gift";
+  const body = `${head("Reviews", h1, "Checked November 15, 2026 · Angi")}
+<div class="guide">
+<p>For a new homeowner, a new parent or a parent who's getting older, the best gift can be an afternoon of work they don't have to do. A deep clean, a handyman visit, help with a move, the lawn cut or the driveway cleared of snow. Angi (formerly Angie's List) is a marketplace for finding local pros for that kind of work.</p>
+<p>We haven't hired pros through Angi for this page. Everything below comes from Angi's own site on November 15, 2026. <b>We earn a commission when you request or book a pro through the links on this page</b>, at no extra cost to you.</p>
+${H2("Ideas by who it's for")}
+${table(["For", "Book"], [["New homeowners", "A move-in deep clean, a handyman for the list of small fixes, or help with the move itself"],
+  ["New parents", "A house cleaning in the first weeks home"], ["Parents and grandparents", "Lawn care in summer, snow removal in winter, or a handyman for the jobs on a ladder"]])}
+${btn(AN.cleaning, "House cleaning")}${btn(AN.handyman, "Handyman")}${btn(AN.moving, "Movers")}${btn(AN.lawn, "Lawn care")}${btn(AN.snow, "Snow removal")}
+${H2("How it works")}
+<ul>
+<li><b>Requesting quotes is free.</b> Angi says homeowners can book services, request quotes and research local pros at no charge. Angi recommends getting at least three quotes.</li>
+<li><b>Screening.</b> For pros marked "Angi Approved," Angi says the owner or a manager must pass a criminal background check and the business must keep its required licenses.</li>
+<li><b>Guarantee.</b> Angi's Happiness Guarantee covers jobs you book and pay for through Angi, up to the price you paid, with limited damage protection.</li>
+<li><b>Plan it with them.</b> Angi doesn't list gift cards, so you'll book for their address and pay the pro yourself. Agree on a date with them first, and put a card in the mail saying what's coming.</li>
+</ul>
+${btn(AN.home, "Find a pro on Angi")}
+<p>Want something to wrap too? See <a href="/gifts/gifts-for-new-homeowners">gifts for new homeowners</a> and <a href="/gifts/housewarming-gifts">housewarming gifts</a>.</p>
+</div>`;
+  return { title: "Give a home service as a gift: cleaning, handyman, movers and lawn care (2026) | gift.directory",
+    meta: "Gift a deep clean, a handyman visit or snow removal to a new homeowner, new parent or aging parent: how booking through Angi works.", body, jsonld: [article(h1, slug)] };
+}
+
 export const REVIEWS = { "gift-of-the-month-clubs": clubsPage, "muck-boots-gift-guide": muckPage, "graphicaudio-gift-guide": graphicAudioPage,
-  "kings-camo-gift-guide": kingsPage, "magic-kits-and-costume-gifts": abracadabraPage };
+  "kings-camo-gift-guide": kingsPage, "magic-kits-and-costume-gifts": abracadabraPage, "drivers-ed-as-a-gift": aceablePage,
+  "truck-accessories-gifts": oedroPage, "gift-a-home-service": angiPage };
 export const REVIEW_SLUGS = Object.keys(REVIEWS);
 // Short link titles for the gift-guides hub.
 export const REVIEW_INDEX = [
@@ -246,6 +333,9 @@ export const REVIEW_INDEX = [
   { slug: "graphicaudio-gift-guide", title: "GraphicAudio full-cast audiobooks" },
   { slug: "kings-camo-gift-guide", title: "Kings Camo gifts for hunters" },
   { slug: "magic-kits-and-costume-gifts", title: "Magic kits and costume gifts" },
+  { slug: "drivers-ed-as-a-gift", title: "Driver's ed as a gift" },
+  { slug: "truck-accessories-gifts", title: "Truck accessories as a gift" },
+  { slug: "gift-a-home-service", title: "Give a home service as a gift" },
 ];
 // Guides whose readers a review page fits: a short box after the picks links to it.
 const REVIEW_FOR = {
@@ -256,6 +346,11 @@ const REVIEW_FOR = {
   "kings-camo-gift-guide": ["gifts-for-hunters", "gifts-for-bow-hunters", "gifts-for-deer-hunters", "gifts-for-duck-hunters", "gifts-for-outdoorsmen"],
   "magic-kits-and-costume-gifts": ["gifts-for-7-year-old-boys", "gifts-for-7-year-old-girls", "gifts-for-8-year-old-boys", "gifts-for-8-year-old-girls", "gifts-for-9-year-old-boys",
     "gifts-for-9-year-old-girls", "gifts-for-10-year-old-boys", "gifts-for-10-year-old-girls", "christmas-gifts-for-kids-8-to-10", "white-elephant-gifts-under-30"],
+  "drivers-ed-as-a-gift": ["gifts-for-15-year-old-boys", "gifts-for-15-year-old-girls", "gifts-for-16-year-old-boys", "gifts-for-16-year-old-girls",
+    "christmas-gifts-for-teens", "christmas-gifts-for-teen-boys", "christmas-gifts-for-teen-girls"],
+  "truck-accessories-gifts": ["gifts-for-car-guys", "car-emergency-kit-gifts", "gifts-for-truck-drivers"],
+  "gift-a-home-service": ["gifts-for-new-homeowners", "housewarming-gifts", "closing-gifts-for-home-buyers", "gifts-for-new-parents",
+    "christmas-gifts-for-grandparents", "christmas-gifts-for-mom-who-wants-nothing"],
 };
 const BOX = {
   "gift-of-the-month-clubs": ["A gift that keeps arriving", "Beer, wine, coffee, chocolate or flowers every month. We compared ten clubs: what each box holds and what it costs."],
@@ -263,6 +358,9 @@ const BOX = {
   "graphicaudio-gift-guide": ["Their favorite series, as a full-cast drama", "GraphicAudio turns fantasy and sci-fi books into audio dramas with actors, music and sound effects. What it costs and how to give it."],
   "kings-camo-gift-guide": ["Camo they'll wear every season", "Kings Camo hats, hoodies and jackets for the hunter on your list, by budget, with sizing and returns."],
   "magic-kits-and-costume-gifts": ["A magic kit gets them performing by dinner", "Magic kits from a New York magic shop, with sale prices and the one policy to know before you buy."],
+  "drivers-ed-as-a-gift": ["The gift before the keys", "Online driver's ed for teens: which states it covers, what it costs, and what parents need to know first."],
+  "truck-accessories-gifts": ["A part made for their exact truck", "Floor mats, running boards and bed covers: example prices and the one thing you need to know before ordering."],
+  "gift-a-home-service": ["Give an afternoon of help", "Book a deep clean, a handyman, movers or snow removal for them: how it works and what to plan."],
 };
 // One box per matching review (a hunting guide links both boots and camo).
 export function reviewBox(guideSlug) {

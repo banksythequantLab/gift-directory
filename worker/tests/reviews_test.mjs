@@ -19,12 +19,13 @@ ok("no review stars or ratings claimed", !/aggregateRating|ratingValue/.test(h))
 ok("table anchors resolve", [...h.matchAll(/href="#([a-z]+)"/g)].every(m => h.includes(`id="${m[1]}"`)));
 ok("ad slot passed through", renderReview("gift-of-the-month-clubs", "<aside>AD</aside>").includes("<aside>AD</aside>"));
 
-for (const [slug, want] of [["muck-boots-gift-guide", 6], ["graphicaudio-gift-guide", 3], ["kings-camo-gift-guide", 5], ["magic-kits-and-costume-gifts", 5]]) {
+for (const [slug, want] of [["muck-boots-gift-guide", 6], ["graphicaudio-gift-guide", 3], ["kings-camo-gift-guide", 5], ["magic-kits-and-costume-gifts", 5],
+  ["drivers-ed-as-a-gift", 1], ["truck-accessories-gifts", 4], ["gift-a-home-service", 6]]) {
   ok(`${slug} listed`, REVIEW_SLUGS.includes(slug));
   const g = renderReview(slug);
   ok(`${slug} canonical`, g.includes(`<link rel="canonical" href="https://gift.directory/reviews/${slug}">`));
-  ok(`${slug} discloses the commission`, /earn a commission if you buy through the links/.test(g));
-  ok(`${slug} says we didn't try them`, /We haven't (worn|listened|tried)/.test(g));
+  ok(`${slug} discloses the commission`, /earn a commission (if you buy|when you request or book a pro) through the links/.test(g));
+  ok(`${slug} says we didn't try them`, /We haven't (worn|listened|tried|taken|installed|hired)/.test(g));
   const ls = [...g.matchAll(/href="(https:\/\/www\.tkqlhce\.com\/[^"]+)"/g)].map(m => m[1]);
   ok(`${slug} link count`, ls.length === want, String(ls.length));
   ok(`${slug} CJ property`, ls.every(u => /^https:\/\/www\.tkqlhce\.com\/click-101922999-\d{8}$/.test(u)));
