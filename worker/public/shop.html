@@ -71,17 +71,19 @@ const STAGE = {
 // With a blank product photo from the printer. Tees and hoodies: the garment color and photo, then the live print blended onto it.
 // Flat items (under): the blank photo first, then the live print multiplied onto it, clipped to the print area's shape.
 const photoStage = (g, bg) => { const pc = (a, b) => (100 * a / b).toFixed(2), at = `left:${pc(g.left, g.w)}%;top:${pc(g.top, g.h)}%;width:${pc(g.pw, g.w)}%`;
+  // Wrap-around items (u): only part of the print shows, so the print is widened and shifted to put that part in view.
+  const part = g.u ? `position:absolute;top:0;height:100%;max-width:none;width:${(100 / (g.u[1] - g.u[0])).toFixed(2)}%;left:${(-100 * g.u[0] / (g.u[1] - g.u[0])).toFixed(2)}%` : "width:100%;height:100%;object-fit:cover";
   if (g.under) { const mk = `url(${esc(g.mask)}) center/100% 100% no-repeat`;
     return `<div class="stage" id="stg" style="aspect-ratio:${g.w}/${g.h};background:#fff">
   <img src="${esc(g.image)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;border-radius:0;background:none;pointer-events:none">
-  <div class="on" style="${at};height:${pc(g.ph, g.h)}%;mix-blend-mode:multiply;-webkit-mask:${mk};mask:${mk}"><img id="pvimg" alt="Your text as it will print" style="width:100%;height:100%;object-fit:cover"></div></div>`; }
+  <div class="on" style="${at};height:${pc(g.ph, g.h)}%;mix-blend-mode:multiply;-webkit-mask:${mk};mask:${mk}"><img id="pvimg" alt="Your text as it will print" style="${part}"></div></div>`; }
   // The garment photo is opaque, so the print goes on top: "screen" drops a dark print background, "multiply" a light one.
   const blend = /^#[0-7]/.test(bg || "") ? "screen" : "multiply";
   return `<div class="stage" id="stg" style="aspect-ratio:${g.w}/${g.h};background:${g.bgColor || "#fff"}${g.bg ? ` url(${esc(g.bg)}) center/cover` : ""}">
   <img src="${esc(g.image)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;border-radius:0;background:none;pointer-events:none">
   <div class="on" style="${at};aspect-ratio:${g.pw}/${g.ph};mix-blend-mode:${blend}"><img id="pvimg" alt="Your text as it will print" style="width:100%"></div></div>`; };
 // What the caption calls the item when its photo is shown.
-const PHOTO_NAME = { ornament: "ornament", metal: "ornament", paw: "ornament", stocking: "stocking", board: "cutting board", deskmat: "desk mat", puzzle: "puzzle", candle: "candle", cooler: "can cooler" };
+const PHOTO_NAME = { ornament: "ornament", metal: "ornament", paw: "ornament", stocking: "stocking", board: "cutting board", deskmat: "desk mat", puzzle: "puzzle", candle: "candle", cooler: "can cooler", mug: "mug", rocks: "glass", wine: "wine glass", tumbler: "tumbler", bowl: "bowl" };
 const stageHtml = (p, st) => p.stage ? photoStage(p.stage, p.print.bg) : `<div class="stage"><svg viewBox="${st.vb}" role="img" aria-label="${esc(p.title)} with your text">${st.draw(p.print.bg)}</svg>` +
   `<div class="on" style="left:${st.at[0]}%;top:${st.at[1]}%;width:${st.at[2]}%;aspect-ratio:${st.half ? p.print.w / 2 : p.print.w}/${p.print.h}"><img id="pvimg" alt="Your text as it will print" style="width:${st.half ? 200 : 100}%"></div></div>`;
 function detail(p) {
