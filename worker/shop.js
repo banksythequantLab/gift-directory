@@ -75,7 +75,7 @@ export const PTYPES = {
   stocking: { placement: "front", w: 3184, h: 3246, ink: "#2b2118", bg: "#efe6d6", bw: 0.72,
     example: { tpl: "text", vals: ["Ava", ""] } },
   rocks: { placement: "default", w: 3060, h: 600, ink: DARK, bg: "#eef3f6", bw: 0.5, copies: [0.5],
-    example: { tpl: "milestone", vals: ["Made Partner", "2026", "Jane Doe, Esq."] } },
+    example: { tpl: "milestone", vals: ["Partner", "2026", "Jane Doe, Esq."] } },
   wine: { placement: "default", w: 3176, h: 413, ink: DARK, bg: "#eef3f6", bw: 0.45, copies: [0.5],
     example: { tpl: "milestone", vals: ["Retired", "2026", ""] } },
   tumbler: { placement: "default", w: 3017, h: 1200, ink: DARK, bg: "#ffffff", bw: 0.3, copies: [0.5],
@@ -141,7 +141,7 @@ export function shopCard(d) {
 // ---------- the "Personalize it" shelf in a store (shown only when SHOP_PUBLIC is on) ----------
 // Each store gets the shop's template products, opened with an example written for its people.
 export const STORE_SHELVES = {
-  lawyers: { role: ["Jane Doe, Esq.", "Attorney at Law", "Admitted 2026"], milestone: ["Made Partner", "2026", "Jane Doe, Esq."],
+  lawyers: { role: ["Jane Doe, Esq.", "Attorney at Law", "Admitted 2026"], milestone: ["Partner", "2026", "Jane Doe, Esq."],
     text: ["OBJECTION!", "SUSTAINED"], roster: ["Doe & Partners", "Firm Retreat 2026", "Ann, Ben, Cara, Dev"] },
   nurses: { role: ["Jane Doe, RN", "Emergency Nursing", "Est. 2026"], milestone: ["Finally an RN", "2026", "Jane Doe"],
     text: ["NURSE BY DAY", "CAFFEINATED BY NIGHT"], roster: ["4 West Night Crew", "Nurses Week 2026", "Ann, Ben, Cara, Dev"] },

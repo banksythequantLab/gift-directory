@@ -447,7 +447,7 @@ function withStage(c) {
 }
 // The shelf: every product in the gift.directory Printful store, cached for 30 minutes.
 async function shopCards(env) {
-  const key = new Request(`https://cache.gift.directory/shop-cards/${env.PRINTFUL_STORE_ID}/v8`), cache = caches.default;
+  const key = new Request(`https://cache.gift.directory/shop-cards/${env.PRINTFUL_STORE_ID}/v9`), cache = caches.default;
   const hit = await cache.match(key); if (hit) return hit.json();
   const list = await pf(env, "/store/products?limit=100");
   const cards = (await Promise.all(list.map(p => pf(env, `/store/products/${p.id}`).then(shopCard).catch(() => null)))).filter(Boolean);

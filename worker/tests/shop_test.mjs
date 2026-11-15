@@ -99,7 +99,7 @@ eq("tee keeps every line", (designSvg("roster", "tee", ["The Smiths", "Lake Week
 // a pick-your-design item
 const item = shopCard({ sync_product: { id: 20, name: "Personalized Rocks Glass, 10.5 oz", external_id: "gd-item-rocks", thumbnail_url: "https://img/r.jpg" }, sync_variants: [sv(8, "10.5 oz", "22.99")] });
 eq("item card", [item.kind, item.ptype, item.tpl, item.tpls.length, item.designs.length], ["tpl", "rocks", "milestone", 4, 4]);
-eq("item carries its example", item.example.vals[0], "Made Partner");
+eq("item carries its example", item.example.vals[0], "Partner");
 eq("unknown item type is fixed", shopCard({ sync_product: { id: 21, name: "X", external_id: "gd-item-nope" }, sync_variants: [sv(8, "M", "9")] }).kind, "fixed");
 const pick = validateShopOrder({ ...good, product_id: 20, variant_id: 8, tpl: "role", lines: ["Ann Lee", "Nurse", ""] }, item);
 eq("buyer's design choice kept", [pick.order.tpl, rowKind(item, pick.order.tpl)], ["role", "tpl:role:rocks"]);
@@ -195,7 +195,7 @@ eq("empty shop, no shelf", storeShopShelf([], "lawyers"), null);
 const withItems = [...shopCards, { ...tcard(30, "milestone", "rocks"), tpls: Object.keys(TEMPLATES) }, { ...tcard(31, "role", "deskmat"), tpls: Object.keys(TEMPLATES) }];
 const law = storeShopShelf(withItems, "lawyers");
 eq("store's items join its shelf", law.cards.length, 10);
-eq("item link opens the right design", law.cards[8].url, "https://gift.directory/shop?p=30&t=milestone&f=Made+Partner&f=2026&f=Jane+Doe%2C+Esq.");
+eq("item link opens the right design", law.cards[8].url, "https://gift.directory/shop?p=30&t=milestone&f=Partner&f=2026&f=Jane+Doe%2C+Esq.");
 eq("nurse shelf skips items the shop doesn't have", storeShopShelf(withItems, "nurses").cards.length, 8);
 eq("store mockup used when there is one", storeShopShelf(shopCards, "nurses", "https://gift.directory", { nurses: { 2: "https://m/n2.jpg" } }).cards.map(c => c.image).slice(0, 2), ["https://img/1.jpg", "https://m/n2.jpg"]);
 
