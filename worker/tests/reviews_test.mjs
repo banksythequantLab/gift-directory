@@ -19,12 +19,12 @@ ok("no review stars or ratings claimed", !/aggregateRating|ratingValue/.test(h))
 ok("table anchors resolve", [...h.matchAll(/href="#([a-z]+)"/g)].every(m => h.includes(`id="${m[1]}"`)));
 ok("ad slot passed through", renderReview("gift-of-the-month-clubs", "<aside>AD</aside>").includes("<aside>AD</aside>"));
 
-for (const [slug, want] of [["muck-boots-gift-guide", 6], ["graphicaudio-gift-guide", 3]]) {
+for (const [slug, want] of [["muck-boots-gift-guide", 6], ["graphicaudio-gift-guide", 3], ["kings-camo-gift-guide", 5], ["magic-kits-and-costume-gifts", 5]]) {
   ok(`${slug} listed`, REVIEW_SLUGS.includes(slug));
   const g = renderReview(slug);
   ok(`${slug} canonical`, g.includes(`<link rel="canonical" href="https://gift.directory/reviews/${slug}">`));
   ok(`${slug} discloses the commission`, /earn a commission if you buy through the links/.test(g));
-  ok(`${slug} says we didn't try them`, /We haven't (worn|listened)/.test(g));
+  ok(`${slug} says we didn't try them`, /We haven't (worn|listened|tried)/.test(g));
   const ls = [...g.matchAll(/href="(https:\/\/www\.tkqlhce\.com\/[^"]+)"/g)].map(m => m[1]);
   ok(`${slug} link count`, ls.length === want, String(ls.length));
   ok(`${slug} CJ property`, ls.every(u => /^https:\/\/www\.tkqlhce\.com\/click-101922999-\d{8}$/.test(u)));
@@ -43,6 +43,8 @@ for (const [slug, want] of [["muck-boots-gift-guide", 6], ["graphicaudio-gift-gu
   ok("hunters guide links Muck", reviewBox("gifts-for-hunters").includes('href="/reviews/muck-boots-gift-guide"'));
   ok("book lovers guide links GraphicAudio", reviewBox("gifts-for-book-lovers").includes('href="/reviews/graphicaudio-gift-guide"'));
   ok("other guides get nothing", reviewBox("gifts-for-nurses") === "");
+  ok("hunters guide links boots and camo", ["muck-boots-gift-guide", "kings-camo-gift-guide"].every(s => reviewBox("gifts-for-hunters").includes(`href="/reviews/${s}"`)));
+  ok("final-sale warning on the magic page", renderReview("magic-kits-and-costume-gifts").includes("all sales are final"));
   const src = (await import("node:fs")).readFileSync(new URL("../reviews.js", import.meta.url), "utf8");
   const named = [...src.matchAll(/"(gifts-for-[a-z0-9-]+|christmas-gifts-[a-z0-9-]+|long-distance-relationship-gifts)"/g)].map(m => m[1]);
   ok("every mapped guide exists", named.every(s => PAGES.some(p => p.slug === s)), named.filter(s => !PAGES.some(p => p.slug === s)).join()); }

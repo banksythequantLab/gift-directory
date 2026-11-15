@@ -165,13 +165,87 @@ ${btn(GA.home, "Visit GraphicAudio")}
     meta: "What GraphicAudio's full-cast audio dramas are, which series it covers, what a part costs, and how to give one as a gift.", body, jsonld: [article(h1, slug)] };
 }
 
-export const REVIEWS = { "gift-of-the-month-clubs": clubsPage, "muck-boots-gift-guide": muckPage, "graphicaudio-gift-guide": graphicAudioPage };
+// Kings Camo, from kingscamo.com on 2026-11-15 (CJ advertiser 7016567). The site said it was showing a price test, so the
+// page quotes ranges and regular prices only and sends readers to the site for today's price.
+const KC = { home: 15774549, best: 17290376, hats: 16994771, kids: 17271947, gifts: 16993510 };
+function kingsPage() {
+  const slug = "kings-camo-gift-guide", h1 = "Kings Camo gifts for hunters: what to buy at every budget";
+  const rows = [["Under $40", "A logo or patch hat ($19.99 to $39.99), a beanie, or a camp hoodie ($44.99 is just over)."],
+    ["$50 to $150", "A fleece hoodie, a shirt jacket, hunting pants, or a kids' insulated jacket."],
+    ["$150 and up", "Kings' XKG technical line: soft-shell, transition and down jackets that run about $200 to $330 at regular price."],
+    ["Not sure of size or pattern", "An emailed gift card, from $10 to $500."]];
+  const body = `${head("Reviews", h1, "Checked November 15, 2026 · Kings Camo")}
+<div class="guide">
+<p>Kings Camo is a hunting-clothes brand from Lindon, Utah, best known for its own camouflage patterns, starting with Desert Shadow in 2002. Today its patterns include XK7 and KC Ultra. It's a good fit for a hunter who already has the basics and would use another layer, hat or pair of pants every season.</p>
+<p>We haven't worn this gear for this page. Everything below comes from Kings Camo's own site on November 15, 2026. <b>We earn a commission if you buy through the links on this page</b>, at no extra cost to you. When we checked, the site said some visitors were seeing test prices, so treat the prices here as a guide and check the price on the site.</p>
+${H2("What to buy at each budget")}
+<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;min-width:480px;font-size:.92rem"><thead><tr>
+${["Budget", "What fits"].map(h => `<th style="text-align:left;padding:8px 10px;border-bottom:2px solid #d1d5db">${h}</th>`).join("")}</tr></thead><tbody>
+${rows.map(([a, b]) => `<tr><td style="${td};white-space:nowrap"><b>${esc(a)}</b></td><td style="${td}">${esc(b)}</td></tr>`).join("")}
+</tbody></table></div>
+${btn(KC.hats, "Kings hats")}${btn(KC.best, "Best sellers")}${btn(KC.gifts, "Kings' holiday gift guide")}
+${H2("Before you buy")}
+<ul>
+<li><b>Match their country.</b> Camo patterns are made for terrain. Ask what they hunt, or look at the pattern on gear they already own and buy the same one.</li>
+<li><b>Sizes.</b> Each product has its own size chart. Hats are the safe choice: snapbacks adjust, and the fitted R-Flex caps come in S/M and L/XL.</li>
+<li><b>Returns.</b> Kings takes returns within 60 days if the item is new, with tags on and in its packaging. A restocking fee may apply if the tags are off and it's been worn.</li>
+<li><b>Shipping.</b> Standard shipping is free on orders of $200 and up in the lower 48 states, and Kings often runs free-shipping promotions below that. In-stock orders take about 4 to 10 business days, so order early for the holidays.</li>
+<li><b>Gift cards</b> arrive by email in amounts from $10 to $500 and stay good until they're used up.</li>
+</ul>
+${H2("For young hunters")}
+<p>Kings makes a kids' line of hoodies, pants and insulated jackets, mostly from about $35 to $110 at regular price.</p>
+${btn(KC.kids, "Kids' camo")}${btn(KC.home, "Shop Kings Camo")}
+<p>Want boots to go with it? See <a href="/reviews/muck-boots-gift-guide">Muck boots as a gift</a>, or <a href="/gifts/gifts-for-hunters">all gifts for hunters</a>.</p>
+</div>`;
+  return { title: "Kings Camo gifts for hunters: hats, hoodies and jackets by budget (2026) | gift.directory",
+    meta: "What to buy a hunter from Kings Camo at every budget, from $20 hats to technical jackets, plus sizing, returns and gift cards.", body, jsonld: [article(h1, slug)] };
+}
+
+// AbracadabraNYC, from abracadabranyc.com on 2026-11-15 (CJ advertiser 7889430).
+const AB = { home: 17277658, magic: 17267165, masks: 17267167, gifts: 17267163, pranks: 17267161 };
+const KITS = [["Mysteries of the Master Magicians Royal Magic Set", 45.95, 39.95], ["Secrets of the Great Magicians Royal Magic Set", 62.95, 54.95],
+  ["Penn & Teller VR Magic Lab Kit (beginner friendly)", 105.95, 64.95], ["Doctor Strange Multiverse of Magic Collectible Set", 65.95, 44.95],
+  ["MARVEL Card Guard with Collectible Card Deck", 29.95, 19.95], ["Magic of Science Super-Pi-Riffic Experiment Set", 34.95, 24.95]];
+function abracadabraPage() {
+  const slug = "magic-kits-and-costume-gifts", h1 = "Magic kits, masks and costume gifts from a New York magic shop";
+  const body = `${head("Reviews", h1, "Checked November 15, 2026 · AbracadabraNYC")}
+<div class="guide">
+<p>AbracadabraNYC is a costume, magic and party shop in Manhattan's Flatiron district that started in 1981. Online it sells magic kits, masks, costumes, wigs, makeup, props and novelty gifts. A magic kit is a gift that gets a kid off a screen and performing for the family by dinner.</p>
+<p>We haven't tried these kits for this page. Everything below comes from AbracadabraNYC's own site on November 15, 2026. <b>We earn a commission if you buy through the links on this page</b>, at no extra cost to you.</p>
+<p style="border-left:4px solid #b45309;padding:6px 12px;background:#fffbeb"><b>Read this before you buy:</b> the store's policy says all sales are final, with no refunds, returns or exchanges. It replaces only items that arrive defective or damaged, and you have to report it within 48 hours. Buy the size and item you're sure of, or give a gift card.</p>
+${H2("Magic kits")}
+<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;min-width:480px;font-size:.92rem"><thead><tr>
+${["Kit", "Regular", "Sale when checked"].map(h => `<th style="text-align:left;padding:8px 10px;border-bottom:2px solid #d1d5db">${h}</th>`).join("")}</tr></thead><tbody>
+${KITS.map(([n, r, s]) => `<tr><td style="${td}">${esc(n)}</td><td style="${td}">${money(r)}</td><td style="${td}">${money(s)}</td></tr>`).join("")}
+</tbody></table></div>
+<p class="muted small">Some bigger kits, like Shin Lim's Evolushin set and Criss Angel's Mind Freak kit, were sold out when we checked. The store doesn't list age ranges for its kits, so check the box details for younger kids.</p>
+${btn(AB.magic, "Shop magic kits")}
+${H2("Masks and dress-up")}
+<p>Venetian and masquerade masks start around $15, with laser-cut metal masks near $37. The store also sells licensed character masks, wigs, hats and FX makeup for costume fans.</p>
+${btn(AB.masks, "Shop masks")}${btn(AB.gifts, "Unique gifts")}${btn(AB.pranks, "Pranks and jokes")}
+${H2("Good to know")}
+<ul>
+<li><b>Gift cards</b> come by email in $10, $25, $50, $100, $250 and $500, can be scheduled for a date, and don't expire.</li>
+<li><b>Shipping.</b> The site advertises free shipping on orders of $85 and up. Standard shipping usually takes about 3 business days.</li>
+<li><b>In New York?</b> The store offers same-day delivery in the city, and the shop at 19 W 21st Street is open Monday to Saturday.</li>
+</ul>
+${btn(AB.home, "Visit AbracadabraNYC")}
+<p>Shopping for a kid? See our gift guides by age, starting with <a href="/gifts/gifts-for-8-year-old-boys">8-year-old boys</a> and <a href="/gifts/gifts-for-8-year-old-girls">8-year-old girls</a>.</p>
+</div>`;
+  return { title: "Magic kits and costume gifts: prices and what to know before you buy (2026) | gift.directory",
+    meta: "Magic kits from $20 to $65 on sale, masks and costume gifts from a New York magic shop since 1981, plus its all-sales-final policy.", body, jsonld: [article(h1, slug)] };
+}
+
+export const REVIEWS = { "gift-of-the-month-clubs": clubsPage, "muck-boots-gift-guide": muckPage, "graphicaudio-gift-guide": graphicAudioPage,
+  "kings-camo-gift-guide": kingsPage, "magic-kits-and-costume-gifts": abracadabraPage };
 export const REVIEW_SLUGS = Object.keys(REVIEWS);
 // Short link titles for the gift-guides hub.
 export const REVIEW_INDEX = [
   { slug: "gift-of-the-month-clubs", title: "Gift of the month clubs compared" },
   { slug: "muck-boots-gift-guide", title: "Muck boots as a gift" },
   { slug: "graphicaudio-gift-guide", title: "GraphicAudio full-cast audiobooks" },
+  { slug: "kings-camo-gift-guide", title: "Kings Camo gifts for hunters" },
+  { slug: "magic-kits-and-costume-gifts", title: "Magic kits and costume gifts" },
 ];
 // Guides whose readers a review page fits: a short box after the picks links to it.
 const REVIEW_FOR = {
@@ -179,18 +253,23 @@ const REVIEW_FOR = {
     "christmas-gifts-for-people-who-are-hard-to-shop-for", "christmas-gifts-for-dad-who-has-everything", "christmas-gifts-for-mom-who-wants-nothing", "christmas-gifts-for-grandparents"],
   "muck-boots-gift-guide": ["gifts-for-hunters", "gifts-for-gardeners", "gifts-for-bow-hunters", "gifts-for-deer-hunters", "gifts-for-duck-hunters", "gifts-for-outdoorsmen"],
   "graphicaudio-gift-guide": ["gifts-for-book-lovers", "gifts-for-fantasy-ranger-fans", "gifts-for-dnd-players"],
+  "kings-camo-gift-guide": ["gifts-for-hunters", "gifts-for-bow-hunters", "gifts-for-deer-hunters", "gifts-for-duck-hunters", "gifts-for-outdoorsmen"],
+  "magic-kits-and-costume-gifts": ["gifts-for-7-year-old-boys", "gifts-for-7-year-old-girls", "gifts-for-8-year-old-boys", "gifts-for-8-year-old-girls", "gifts-for-9-year-old-boys",
+    "gifts-for-9-year-old-girls", "gifts-for-10-year-old-boys", "gifts-for-10-year-old-girls", "christmas-gifts-for-kids-8-to-10", "white-elephant-gifts-under-30"],
 };
 const BOX = {
   "gift-of-the-month-clubs": ["A gift that keeps arriving", "Beer, wine, coffee, chocolate or flowers every month. We compared ten clubs: what each box holds and what it costs."],
   "muck-boots-gift-guide": ["Boots they'll wear every day", "Which Muck boot fits the way they spend time outside, what each costs, and how to get the size right without asking."],
   "graphicaudio-gift-guide": ["Their favorite series, as a full-cast drama", "GraphicAudio turns fantasy and sci-fi books into audio dramas with actors, music and sound effects. What it costs and how to give it."],
+  "kings-camo-gift-guide": ["Camo they'll wear every season", "Kings Camo hats, hoodies and jackets for the hunter on your list, by budget, with sizing and returns."],
+  "magic-kits-and-costume-gifts": ["A magic kit gets them performing by dinner", "Magic kits from a New York magic shop, with sale prices and the one policy to know before you buy."],
 };
+// One box per matching review (a hunting guide links both boots and camo).
 export function reviewBox(guideSlug) {
-  const slug = Object.keys(REVIEW_FOR).find(k => REVIEW_FOR[k].includes(guideSlug)); if (!slug) return "";
-  const [t, d] = BOX[slug];
-  return `<aside style="border:2px solid var(--accent);background:#fff;border-radius:14px;padding:16px 18px;margin:22px 0">
+  return Object.keys(REVIEW_FOR).filter(k => REVIEW_FOR[k].includes(guideSlug)).map(slug => { const [t, d] = BOX[slug];
+    return `<aside style="border:2px solid var(--accent);background:#fff;border-radius:14px;padding:16px 18px;margin:22px 0">
 <b style="font-size:1.1rem;font-family:Georgia,serif">${esc(t)}</b><p style="margin:6px 0 10px">${esc(d)}</p>
-<a href="/reviews/${slug}" style="font-weight:700">Read the guide →</a></aside>`;
+<a href="/reviews/${slug}" style="font-weight:700">Read the guide →</a></aside>`; }).join("");
 }
 export function renderReview(slug, ad = "") {
   const f = REVIEWS[slug]; if (!f) return null;
