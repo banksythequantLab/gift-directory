@@ -14,6 +14,7 @@ import { SALE_BUDGETS, refreshDeals, refreshPromos, listedDeals, listedPromos, r
 import { RECS_SYSTEM, recsPrompt, recsStyle, parseRecs } from "./recs.js";
 import { pickAlternates } from "./more.js";
 import { addAlert, addedPage, runAlerts } from "./alerts.js";
+import { countClick, clickReport } from "./clicks.js";
 import { TEE, teePromo } from "./promo.js";
 import { REG_MAX_ITEMS, REG_POOL_MIN_CENTS, validateRegistry, registrySlug, validateRegItem, publicRegistry, REG_AI_SYSTEM, regAiPrompt, parseRegAi, poolTarget, reminderSendOn, validateReminder, reminderEmail } from "./registry.js";
 import { ASSIST_SYSTEM, MAX_STEPS, SHELF_MAX, storeBrief, assistPrompt, parseAssist, matchHide, pickShelf, describeStep, PICK_SYSTEM, pickPrompt, applyPicks, capKinds } from "./assistant.js";
@@ -648,6 +649,12 @@ export default {
       ctx.waitUntil(db.prepare("INSERT INTO page_views (day,host,path,kind,n) VALUES (?,?,?,?,1) ON CONFLICT(day,host,path,kind) DO UPDATE SET n=n+1")
         .bind(now().slice(0, 10), url.hostname, url.pathname.slice(0, 120), kind).run().catch(() => {}));
     }
+    // A click out to a store, reported by the page as the reader leaves (see clicks.js). Always answers 204.
+    if (m === "POST" && url.pathname === "/api/click" && db) {
+      const raw = await request.text().catch(() => "");
+      ctx.waitUntil(countClick(db, { raw, host: url.hostname, ua: request.headers.get("user-agent"), lang: request.headers.get("accept-language"), day: now().slice(0, 10) }).catch(() => {}));
+      return new Response(null, { status: 204, headers: { "cache-control": "no-store" } });
+    }
     try {
       const { store, platform, setCookie } = await resolveStore(db, env, url, request, ctx);
       const page = path => withCookie(env.ASSETS.fetch(new Request(new URL(path, url), request)), setCookie);
@@ -758,6 +765,11 @@ export default {
         return J(await buildGuide(db, env, p, { cardsOnly: url.searchParams.get("cards") === "1" }));
       }
       // One round of the sales refresh (deals.js), for the operator: {"max": 30} catalog price checks, {"promos": true} to re-pull CJ offers. Needs the build token.
+      // Operator: clicks out to stores and human page views for the last ?days= days (default 7). Needs the build token.
+      if (url.pathname === "/api/seo/clicks" && m === "GET") {
+        if (!env.BUILD_TOKEN || request.headers.get("x-build-token") !== env.BUILD_TOKEN) return J({ error: "not allowed" }, 403);
+        return J(await clickReport(db, Number(url.searchParams.get("days")) || 7));
+      }
       // Operator: run one round of price-drop checks now. Needs the build token.
       if (url.pathname === "/api/seo/alerts-run" && m === "POST") {
         if (!env.BUILD_TOKEN || request.headers.get("x-build-token") !== env.BUILD_TOKEN) return J({ error: "not allowed" }, 403);

@@ -1,5 +1,6 @@
 import { expertNote } from "./expert.js";
 import { alertForm, ALERT_CSS } from "./alerts.js";
+import { CLICK_SCRIPT } from "./clicks.js";
 import { RECS_CSS, liveRecs, renderRecs, howWeChose } from "./recs.js";
 // Long-tail gift guides at gift.directory/gifts/<slug>: one keyword per page, real products from
 // Channel3 with AI reasons, a short guide and FAQ written once and stored, server-rendered for crawlers.
@@ -1097,7 +1098,7 @@ ${RECS_CSS}${ALERT_CSS}
 .rel{display:flex;flex-wrap:wrap;gap:8px}.rel a{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;font-size:.88rem;text-decoration:none;color:var(--ink)}</style>
 </head><body><div class="wrap"><main id="main">${body}</main>
 ${ad}
-<footer><a href="/">gift.directory</a> · <a href="/gifts">All gift guides</a> · <a href="https://gift.directory/sales">Sales</a> · <a href="/registry">Gift registry</a> · <a href="https://gift.directory/about">About</a> · <a href="https://gift.directory/contact">Contact</a> · <a href="https://gift.directory/privacy">Privacy</a> · <a href="https://gift.directory/terms">Terms</a><br>Prices and stock come live from retailers through Channel3 and may change; links go to the retailer. We may earn a commission when you buy through these links.</footer></div></body></html>`;
+<footer><a href="/">gift.directory</a> · <a href="/gifts">All gift guides</a> · <a href="https://gift.directory/sales">Sales</a> · <a href="/registry">Gift registry</a> · <a href="https://gift.directory/about">About</a> · <a href="https://gift.directory/contact">Contact</a> · <a href="https://gift.directory/privacy">Privacy</a> · <a href="https://gift.directory/terms">Terms</a><br>Prices and stock come live from retailers through Channel3 and may change; links go to the retailer. We may earn a commission when you buy through these links.</footer></div>${CLICK_SCRIPT}</body></html>`;
 
 // House ad for our affiliate site Storm Proof AI (stormproof.us), on the preparedness guides only. It sits in the
 // page body after the picks (never in the <head>), and its wording follows what stormproof.us itself says.
