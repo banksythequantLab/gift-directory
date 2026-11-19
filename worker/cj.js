@@ -49,6 +49,22 @@ export function cjRelevant(title, query) {
   return need.every(w => have.has(w) || flat.includes(" " + w));
 }
 
+// Advertisers in CJ's network matching some keywords, joined or not: for choosing which programs to apply to.
+// Read-only. Returns name, id, category, status, the network's earnings-per-100-clicks figures and its 1-5 rank.
+export async function cjAdvertisers(env, keywords, { joined = false, fetchImpl = fetch, page = 1 } = {}) {
+  if (!cjOn(env)) return { error: "CJ is not configured" };
+  const u = `https://advertiser-lookup.api.cj.com/v2/advertiser-lookup?requestor-cid=${encodeURIComponent(env.CJ_CID)}&advertiser-ids=${joined ? "joined" : "notjoined"}&keywords=${encodeURIComponent(keywords)}&records-per-page=100&page-number=${page}`;
+  const r = await fetchImpl(u, { headers: { authorization: `Bearer ${env.CJ_TOKEN}` }, signal: AbortSignal.timeout(15000) });
+  const xml = await r.text();
+  if (!r.ok) return { error: `cj ${r.status}`, body: xml.slice(0, 300) };
+  const un = s => String(s).replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;|&#39;/g, "'").replace(/&amp;/g, "&");
+  const f = (b, n) => { const m = new RegExp(`<${n}>([\\s\\S]*?)</${n}>`).exec(b); return m ? un(m[1]).replace(/\s+/g, " ").trim() : ""; };
+  const total = (/total-matched="(\d+)"/.exec(xml) || [])[1];
+  const list = [...xml.matchAll(/<advertiser>([\s\S]*?)<\/advertiser>/g)].map(m => ({ id: f(m[1], "advertiser-id"), name: f(m[1], "advertiser-name"), url: f(m[1], "program-url"),
+    status: f(m[1], "account-status"), relationship: f(m[1], "relationship-status"), epc7: f(m[1], "seven-day-epc"), epc90: f(m[1], "three-month-epc"), rank: f(m[1], "network-rank"),
+    category: [f(m[1], "parent"), f(m[1], "child")].filter(Boolean).join(" > "), commission: f(m[1], "default"), language: f(m[1], "language") }));
+  return { total: Number(total) || list.length, advertisers: list };
+}
 export async function cjSearch(env, query, brief = {}, { fetchImpl = fetch, limit = 24, advertiser = null } = {}) {
   if (!cjOn(env)) return [];
   const r = await fetchImpl(CJ_URL, { method: "POST", headers: { authorization: `Bearer ${env.CJ_TOKEN}`, "content-type": "application/json" },

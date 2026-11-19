@@ -31,7 +31,7 @@ const STYLES = [
   "Open each reason with a circumstance of the giver that really applies to that product (how well they know the recipient, who the gift is from, what the recipient already owns, how it will be given), and close with who it fits. Use a different circumstance for each reason.",
   "Open each reason by naming the product by its plain kind, then say who it is for and when to pick it.",
   "Write each reason as direct advice to the giver, opening each one with a different verb.",
-  "Open each reason with what sets the product apart from the other kinds of gift on the page, then say who that suits.",
+  "In each reason, say first what this product gives that the other kinds of gift on the page do not, then who that suits. Phrase the opening differently every time and never begin with 'What'.",
   "Give one sentence about the person and one short sentence naming the kind of gift on the page it beats for them, and why.",
 ];
 export function recsStyle(slug) {
