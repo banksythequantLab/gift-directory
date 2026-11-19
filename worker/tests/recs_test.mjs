@@ -1,6 +1,6 @@
 // Top picks on a guide: only products on the page, labels from real prices, and nothing claimed that nobody did.
 import { recsStyle, recsPrompt, parseRecs, liveRecs, renderRecs, howWeChose, underLabel, RECS_SYSTEM } from "../recs.js";
-import { renderGuide, pageBySlug, saveBadge, configureAds, amazonLink, amazonTag, ownerPicks, AMAZON_DISCLOSURE, shell } from "../seo.js";
+import { renderGuide, pageBySlug, saveBadge, configureAds, amazonLink, amazonTag, ownerPicks, unfilledSlots, amazonMore, AMAZON_DISCLOSURE, shell } from "../seo.js";
 
 let passed = 0, failed = 0;
 const ok = (n, c, d = "") => { c ? passed++ : (failed++, console.log(`FAIL  ${n}${d ? "  - " + d : ""}`)); };
@@ -130,6 +130,26 @@ ok("the editor is told not to invent details for those", /no details listed/.tes
   eq("a guide without owner picks shows no such box", ownerPicks(pageBySlug("gifts-for-gardeners")), "");
   const page = renderGuide(sweet, { guide_json: JSON.stringify({ intro: ["x"], tips: [], faq: [] }), cards_json: "[]", updated_at: "2026-11-19T00:00:00Z" }, [], null);
   ok("and the box is on the page", page.includes("Derek&#39;s Picks"));
+}
+{
+  const g = { slug: "x", keyword: "Gifts for anglers", slots: ["tackle bag", "fishing pliers", "fishing hat", "rod holder"] };
+  const cs = [{ title: "Trophy Tackle Bag" }, { title: "Sandhamn 21 Fishing Hat" }];
+  eq("kinds with no product on the page are the missing ones", unfilledSlots(g, cs).join("|"), "fishing pliers|rod holder");
+  eq("nothing is missing when every kind is on the page", unfilledSlots(g, [...cs, { title: "Forged Pliers 7in" }, { title: "Triple Rod Holder" }]).length, 0);
+  eq("a page with a first choice for every kind is missing nothing, whatever the titles say", unfilledSlots({ slug: "y", keyword: "Wedding gifts", slots: ["picnic basket for two", "history of medicine book"] }, [{ title: "Wicker Hamper" }, { title: "A Scandalous History" }]).length, 0);
+  eq("runners-up do not count as first choices", unfilledSlots(g, [...cs, { title: "Another Tackle Bag", alt: true }, { title: "Another Fishing Hat", alt: true }]).join("|"), "fishing pliers|rod holder");
+  eq("never more missing kinds than the page is short by", unfilledSlots(g, [{ title: "Mystery Item One" }, { title: "Mystery Item Two" }, { title: "Mystery Item Three" }]).length, 1);
+  const team = pageBySlug("gifts-for-boston-bruins-fans");
+  const tc = [{ title: "Boston Bruins Home Jersey" }, { title: "Boston Bruins Hoodie" }];
+  ok("on a team guide the team's name alone does not count as covering a kind", unfilledSlots(team, tc).some(x => /hockey puck/.test(x)) && !unfilledSlots(team, tc).some(x => /jersey$/.test(x)));
+  configureAds({});
+  eq("with no Amazon tag there is no such section", amazonMore(g, cs), "");
+  configureAds({ AMAZON_TAG: "giftdirectory-20" });
+  const more = amazonMore(g, cs);
+  ok("the missing kinds become tagged Amazon searches", more.includes("More ideas, on Amazon") && more.includes("k=fishing%20pliers&amp;tag=giftdirectory-20") && more.includes(">Rod holder<") && !more.includes("tackle%20bag"));
+  ok("and the section says they are searches", /runs an Amazon search/.test(more));
+  eq("a full guide gets no such section", amazonMore(g, [...cs, { title: "Forged Pliers 7in" }, { title: "Triple Rod Holder" }]), "");
+  configureAds({});
 }
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

@@ -1101,6 +1101,37 @@ export function amazonLink(c) {
   if (q.length < 4) return "";
   return `<p class="amz"><a href="https://www.amazon.com/s?k=${encodeURIComponent(q)}&amp;tag=${AMAZON_TAG}" target="_blank" rel="noopener sponsored nofollow" data-m="Amazon">Search Amazon for this</a></p>`;
 }
+// A guide is planned as a list of kinds of gift (its slots). Where our stores had nothing in stock for a kind, the page
+// used to say nothing about it. With the Associates tag set it offers an Amazon search for each missing kind instead,
+// so a thin guide still covers what it set out to. `unfilledSlots` judges "missing" from the titles on the page: a
+// kind counts as covered when some product's title names it.
+export function unfilledSlots(p, cards) {
+  if (!p || !Array.isArray(p.slots)) return [];
+  // Each kind gets one first choice (runners-up are marked `alt`), so a page with as many first choices as kinds is
+  // missing nothing, whatever its titles say. Otherwise at most that many kinds are missing.
+  const open = new Set(p.openSlots || []), kinds = p.slots.filter((_, i) => !open.has(i));
+  const short = kinds.length - (cards || []).filter(c => !c.alt && !c.group?.startsWith?.("For any")).length;
+  if (short <= 0) return [];
+  const titles = (cards || []).map(c => String(c.title || "").toLowerCase());
+  const own = new Set([...(p.require || []), p.keyword || ""].join(" ").toLowerCase().split(/[^a-z0-9]+/).filter(Boolean));
+  const stem = w => w.replace(/(es|s)$/, "");
+  const missing = p.slots.filter((s, i) => {
+    if (open.has(i)) return false;
+    const words = p.slotMust && p.slotMust[i] ? p.slotMust[i].map(w => String(w).toLowerCase())
+      : String(s).toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length > 3 && !own.has(w)).slice(-1).map(stem);
+    return !titles.some(t => words.some(w => w.length > 2 && t.includes(w)));
+  });
+  return missing.slice(0, short);
+}
+export function amazonMore(p, cards) {
+  if (!AMAZON_TAG) return "";
+  const miss = unfilledSlots(p, cards).slice(0, 8);
+  if (!miss.length) return "";
+  const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+  return `<section style="margin:22px 0"><h2 style="font-family:Georgia,serif;margin:0 0 4px">More ideas, on Amazon</h2>
+<p class="muted" style="margin:0 0 10px">We planned this guide around more kinds of gift than our usual stores had in stock. For the rest, each link below runs an Amazon search.</p>
+<ul style="margin:0;padding-left:20px;columns:2;column-gap:32px">${miss.map(s => `<li style="margin:0 0 8px;break-inside:avoid"><a href="https://www.amazon.com/s?k=${encodeURIComponent(p.topic === "Dog breeds" ? s + " dog" : s)}&amp;tag=${AMAZON_TAG}" target="_blank" rel="noopener sponsored nofollow" data-m="Amazon">${esc(cap(s))}</a></li>`).join("")}</ul></section>`;
+}
 // The owner's own favorites at the top of a guide. Each name links to an Amazon search when the Associates tag is set.
 export function ownerPicks(p) {
   const o = p && p.ownerPicks; if (!o || !Array.isArray(o.groups)) return "";
@@ -1169,7 +1200,7 @@ ${related.length >= 3 ? `<p class="muted see">See also: ${related.slice(0, 3).ma
 ${p.anniversary ? `<p class="muted" style="font-size:1.02rem"><b>Traditional gift:</b> ${esc(p.anniversary.traditional.replace(/\s*\(ivory-colored, never real ivory\)/, " (ivory-colored)"))} · <b>Modern gift:</b> ${esc(p.anniversary.modern)}</p>` : ""}
 ${ownerPicks(p)}${renderRecs(recs, saveBadge)}${cards.length ? (cards.some(c => c.group)
   ? groupCards(cards).map(([label, cs]) => `<h2 style="font-family:Georgia,serif">${esc(label)}</h2><div class="grid">${cs.map(c => card(c, p.slug)).join("")}</div>`).join("")
-  : `<h2 style="font-family:Georgia,serif">${recs ? `All ${cards.length} picks` : "Our picks"}</h2><div class="grid">${cards.map(c => card(c, p.slug)).join("")}</div>`) : ""}${onSale ? `<p class="muted">${onSale} of these ${onSale === 1 ? "is" : "are"} marked down from the retailer's regular price as of ${esc(updated)}. <a href="/sales">See every gift on sale now →</a></p>` : ""}${cards.length ? howWeChose(p, cards.length, updated, !!AMAZON_TAG) : ""}
+  : `<h2 style="font-family:Georgia,serif">${recs ? `All ${cards.length} picks` : "Our picks"}</h2><div class="grid">${cards.map(c => card(c, p.slug)).join("")}</div>`) : ""}${onSale ? `<p class="muted">${onSale} of these ${onSale === 1 ? "is" : "are"} marked down from the retailer's regular price as of ${esc(updated)}. <a href="/sales">See every gift on sale now →</a></p>` : ""}${p.ownerPicks ? "" : amazonMore(p, cards)}${cards.length ? howWeChose(p, cards.length, updated, !!AMAZON_TAG) : ""}
 <div class="cta"><b style="font-size:1.1rem">Going in together?</b><br>${storeUrl
     ? `Find more and start a group gift at <a href="${esc(storeUrl)}">${esc(storeUrl.replace(/^https:\/\//, "").replace(/\/$/, ""))}</a> — everyone chips in with PayPal, straight to the organizer.`
     : `Every store on <a href="/">gift.directory</a> lets a group chip in with PayPal, straight to the organizer. <a href="/">Start your own gift store →</a>`}</div>
