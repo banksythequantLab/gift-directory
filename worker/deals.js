@@ -14,8 +14,8 @@ const clip = (s, n) => { s = String(s ?? "").replace(/\s+/g, " ").trim(); return
 const day = iso => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/New_York" });
 
 // ---------- markdowns ----------
-// A markdown counts from 10% off. Over 75% is nearly always a bad "regular" price in a feed, not a sale.
-export const DEAL_MIN_PCT = 10, DEAL_MAX_PCT = 75, DEAL_MIN_CENTS = 500;
+// A markdown counts from 10% off. Over 60% is nearly always an inflated "regular" price (department-store list prices), not a sale.
+export const DEAL_MIN_PCT = 10, DEAL_MAX_PCT = 60, DEAL_MIN_CENTS = 500;
 export const DEAL_FRESH_HOURS = 48;      // listed only if the price was checked this recently
 export const DEAL_RECHECK_HOURS = 20;    // a listed markdown is checked again after this long
 export const DEAL_RETRY_DAYS = 7;        // a product that was not on sale is looked at again after this long
@@ -185,7 +185,7 @@ export function dealCard(c, { from = true } = {}) {
   return `<article class="card gift">${c.image ? `<img src="${esc(c.image)}" alt="${esc(c.title)}" loading="lazy" width="300" height="300">` : ""}
 <h3>${esc(c.title)}</h3><div class="muted" style="font-size:.82rem">${esc(c.brand || "")}${c.brand ? " · " : ""}${esc(c.merchant)}</div>
 <div class="price">${money(c.price_cents)}${c.was_cents > c.price_cents ? `<span class="was">${money(c.was_cents)}</span>` : ""}${saleBadge(c)}</div>
-${c.reason ? `<p class="why">${esc(c.reason)}</p>` : ""}
+${c.reason && !g ? `<p class="why">${esc(c.reason)}</p>` : ""}
 <div class="acts"><a class="btn sec" href="${esc(c.url)}" target="_blank" rel="noopener sponsored nofollow">View at ${esc(c.merchant)}</a></div>
 ${c.checked_at ? `<p class="chk">Price checked ${esc(day(c.checked_at))}</p>` : ""}${g ? `<p class="from">From our guide: <a href="/gifts/${g.slug}">${esc(g.keyword)}</a></p>` : ""}</article>`;
 }
@@ -207,7 +207,7 @@ ${!shown.length && !promos.length ? `<p>No sales have been confirmed in the last
 <h2 style="font-family:Georgia,serif">How this page works</h2>
 <section class="guide"><p><b>What counts as a sale.</b> The "was" price is the regular price the retailer itself lists next to its current price. We show a markdown only when the difference is at least ${DEAL_MIN_PCT}%, and we leave out anything showing more than ${DEAL_MAX_PCT}% off, because discounts that large are usually a mistake in a store's listing.</p>
 <p><b>How fresh the prices are.</b> A markdown stays on this page only while its price has been re-checked within the last ${DEAL_FRESH_HOURS} hours. Sales end without notice, so the retailer's page always has the final price.</p>
-<p><b>What we have not done.</b> We have not handled or tested these products. The short reason on each card is why it was chosen for the guide it came from. We may earn a commission when you buy through a link, at no extra cost to you; that does not change which prices are shown.</p></section>
+<p><b>What we have not done.</b> We have not handled or tested these products. Each card links to the gift guide the product was chosen for, where the reason for choosing it is given. We may earn a commission when you buy through a link, at no extra cost to you; that does not change which prices are shown.</p></section>
 <h2 style="font-family:Georgia,serif">More ways to save on a gift</h2><nav class="rel" aria-label="Gift guides by budget"><a href="/gifts/christmas-gifts-under-10">Christmas gifts under $10</a><a href="/gifts/christmas-gifts-under-20">Christmas gifts under $20</a><a href="/gifts/secret-santa-gifts-under-25">Secret Santa gifts under $25</a><a href="/gifts/unique-gifts-under-25">Unique gifts under $25</a><a href="/gifts/tech-gifts-under-50">Tech gifts under $50</a><a href="/gifts/black-friday-gift-ideas">Black Friday gift ideas</a><a href="/gifts">All gift guides →</a></nav>`;
   const ld = [...(shown.length ? [{ "@context": "https://schema.org", "@type": "ItemList", name: "Gifts on sale now", url, numberOfItems: shown.length,
     itemListElement: shown.map((c, i) => ({ "@type": "ListItem", position: i + 1, item: productLd(c) })) }] : []),
