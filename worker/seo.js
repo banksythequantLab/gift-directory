@@ -892,7 +892,7 @@ export const PAGES = [
     notes: "sweets made for giving: assortments and gift boxes, not a single bar from the checkout aisle",
     ownerPicks: { by: "Derek's Picks", intro: "The sweets I actually buy.", groups: [
       { items: [{ name: "Dried mango", note: "It is sweet and healthier than most picks.", q: "dried mango" }] },
-      { label: "Licorice", items: [{ name: "Twizzlers Pull 'n' Peel", q: "Twizzlers Pull n Peel" }, { name: "Sour Punch", q: "Sour Punch candy" }, { name: "Wiley Wallaby licorice", q: "Wiley Wallaby licorice" }] },
+      { label: "Licorice", items: [{ name: "Twizzlers Pull 'n' Peel", q: "Twizzlers Pull n Peel" }, { name: "Sour Punch", q: "Sour Punch candy" }, { name: "Wiley Wallaby licorice", note: "I ordered the Lemonade and Watermelon and am thoroughly enjoying it.", q: "Wiley Wallaby licorice lemonade watermelon" }] },
     ], more: { label: "Other sweets that give well", note: "These are kinds of gift, not Derek's picks. Each link runs a search.", items: [
       { name: "A box of chocolate truffles", note: "The safe choice when you don't know their favorite.", q: "chocolate truffles gift box" },
       { name: "A gummy sampler", note: "For the person who skips the chocolate.", q: "gummy candy sampler gift box" },

@@ -121,7 +121,7 @@ ok("the editor is told not to invent details for those", /no details listed/.tes
   const box = ownerPicks(sweet);
   ok("the sweet-tooth guide opens with Derek's Picks", box.includes("Derek&#39;s Picks") && box.includes("Dried mango") && box.includes("Twizzlers Pull &#39;n&#39; Peel") && box.includes("Sour Punch") && box.includes("Wiley Wallaby licorice"));
   const mine = box.slice(0, box.indexOf("Other sweets that give well"));
-  ok("his note is his words and nothing more", mine.includes("It is sweet and healthier than most picks.") && (mine.match(/ — /g) || []).length === 1);
+  ok("his notes are his words and nothing more", mine.includes("It is sweet and healthier than most picks.") && mine.includes("I ordered the Lemonade and Watermelon and am thoroughly enjoying it.") && (mine.match(/ — /g) || []).length === 2);
   ok("each pick and each other idea has a tagged Amazon search", (box.match(/tag=giftdirectory-20/g) || []).length === 9);
   ok("the other ideas are marked as not his", box.indexOf("Other sweets that give well") > box.indexOf("Wiley Wallaby") && box.includes("not Derek&#39;s picks"));
   ok("a page with no catalog products does not claim any are in stock", !renderGuide(sweet, { guide_json: JSON.stringify({ intro: ["x"], tips: [], faq: [] }), cards_json: "[]", updated_at: "2026-11-19T00:00:00Z" }, [], null).includes("gifts in stock now"));
