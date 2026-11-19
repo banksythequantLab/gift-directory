@@ -1,5 +1,5 @@
 // The sales page: what counts as a markdown, the price re-check, CJ offers, and what the page says.
-import { promoTitle, DEAL_MAX_PCT, groupPromos, pctOff, isDeal, saleBadge, checkPrice, refreshDeals, listedDeals, parseCjLinks, cleanPromos, promoReview, promosForReview, renderSales, salesStrip, reviewOffers, dealCard, DEAL_FRESH_HOURS } from "../deals.js";
+import { SALE_BUDGETS, promoTitle, DEAL_MAX_PCT, groupPromos, pctOff, isDeal, saleBadge, checkPrice, refreshDeals, listedDeals, parseCjLinks, cleanPromos, promoReview, promosForReview, renderSales, salesStrip, reviewOffers, dealCard, DEAL_FRESH_HOURS } from "../deals.js";
 import { d1 } from "./d1shim.mjs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -135,6 +135,21 @@ eq("no code, no change", promoTitle({ title: "Free shipping over $50", code: "" 
   const top = await listedDeals(db2, { limit: 4, nowMs: now });
   eq("the first four are the biggest markdowns under the cap, not four over it", top.map(c => c.product_id).join(","), "e,f,g,h");
   ok("none is over the cap", DEAL_MAX_PCT === 60 && top.every(c => (1 - c.price_cents / c.was_cents) * 100 <= 60));
+}
+{
+  const mkc = (id, price, was) => ({ product_id: id, title: "Item " + id, url: "https://x.test/" + id, image: "https://x.test/" + id + ".jpg", merchant: "x.test", price_cents: price, was_cents: was, slug: "gifts-for-gardeners", checked_at: "2026-11-19T10:00:00Z" });
+  const ds = [mkc("a", 2000, 4000), mkc("b", 4500, 6000)], pr = [{ id: "p1", advertiser_id: "1", advertiser: "Shop One", title: "10% off", code: "TEN", url: "https://x.test/p", ends_at: null }];
+  const all = renderSales({ deals: ds, promos: pr, nowMs: Date.parse("2026-11-19T15:00:00Z") }).html;
+  ok("on the sales page the products come before the coupon codes", all.indexOf("Biggest markdowns") > 0 && all.indexOf("Biggest markdowns") < all.indexOf("Coupon codes and store sales"));
+  ok("and it links to the budget pages", SALE_BUDGETS.every(b => all.includes('href="/sales/under-' + b + '"')));
+  const u = renderSales({ deals: [ds[0]], promos: pr, under: 25, nowMs: Date.parse("2026-11-19T15:00:00Z") });
+  ok("a budget page has its own heading, address and no coupon section", u.html.includes("Gift deals under $25") && u.html.includes('rel="canonical" href="https://gift.directory/sales/under-25"') && !u.html.includes("Coupon codes and store sales") && u.html.includes('href="/sales">All sales'));
+  ok("Black Friday week is named only in that week", !all.includes("Black Friday and Cyber Monday week ·") && renderSales({ deals: ds, nowMs: Date.parse("2026-11-27T15:00:00Z") }).html.includes("Black Friday and Cyber Monday week ·") && !renderSales({ deals: ds, nowMs: Date.parse("2026-12-05T15:00:00Z") }).html.includes("Black Friday and Cyber Monday week ·"));
+  ok("an empty budget page says so", renderSales({ deals: [], under: 25 }).empty === true);
+  const db3 = makeDb(), now = Date.parse("2026-11-19T12:00:00Z"), at = new Date(now - 3600e3).toISOString();
+  for (const [id, price] of [["x", 2000], ["y", 4000], ["z", 9000]]) await db3.prepare("INSERT INTO deals (product_id, slug, card_json, price_cents, was_cents, pct, on_sale, checked_at) VALUES (?,?,?,?,?,?,1,?)")
+    .bind(id, "gifts-for-gardeners", JSON.stringify(mkc(id, price, price * 2)), price, price * 2, 50, at).run();
+  eq("a budget page lists only what is under the budget", (await listedDeals(db3, { maxCents: 5000, nowMs: now })).map(c => c.product_id).sort().join(","), "x,y");
 }
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

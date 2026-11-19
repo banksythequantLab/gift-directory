@@ -513,7 +513,7 @@ export const PAGES = [
     slots: ["indoor plant pot","olive wood cutting board","scented candle","personalized doormat","throw pillow","cocktail shaker set","cheese board set","herb garden kit"] }),
   P("gifts-for-new-homeowners", "Gifts for new homeowners", "new homeowners", "first home", 100, { count: 8, minCount: 6, exclude: ["saw:","billy the puppet","horror","skull","jekyll","electric shock","shock flashlight","prank","fart","smart ass","replacement","refill","bulk"], slots: ["personalized cutting board","house number plaque","welcome doormat","luxury candle","indoor tabletop fountain","cheese board set","home tool kit","smart video doorbell"], slotMust: [["cutting board"],["number","address","plaque"],["doormat","door mat"],["candle"],["fountain"],["cheese","charcuterie"],["tool"],["doorbell"]], topic: "Life events" }),
   P("gifts-for-new-parents", "Gifts for new parents (not the baby)", "new parents", "new baby", 75, { topic: "Life events", count: 8, minCount: 6,
-    slots: ["white noise machine","weighted blanket","massage gun","insulated tumbler","plush robe","digital photo frame","silk sleep mask","slippers"] }),
+    slots: ["white noise machine","meal delivery gift box","massage gun","insulated tumbler","plush robe","digital photo frame","silk sleep mask","slippers"] }),
   P("sympathy-gifts", "Thoughtful sympathy gifts", "someone who lost a loved one", "sympathy", 75, { topic: "Life events", count: 8, minCount: 6, exclude: ["saw:","billy the puppet","horror","skull","jekyll","electric shock","shock flashlight","prank"],
     slots: ["memorial wind chime","sympathy candle","memorial picture frame","soft throw blanket","remembrance ornament","grief journal","memorial garden stone","comfort tea gift set"], slotMust: [["chime"],["candle"],["frame"],["blanket","throw"],["ornament"],["journal"],["stone"],["tea"]] }),
   P("get-well-soon-gifts", "Get well soon gifts", "someone recovering", "get well", 60, { topic: "Life events", count: 8, minCount: 6,
@@ -938,6 +938,9 @@ for (const p of PAGES) {
 // AbracadabraNYC (CJ advertiser 7889430) sells jokes, horror and costume stock. On a page that asked for none of
 // that, its products read as a mistake (a horror coloring book on "get well soon"), so they appear only on pages
 // marked `novelty`. Funny, gag and white-elephant pages are marked here; the novelty guides mark themselves.
+// Weighted blankets and sleep sacks are not safe for babies, and on a page for parents or children a reader can
+// take one as meant for the child. They stay off every such page.
+for (const p of PAGES) if (/baby|newborn|new-parents|new-mom|new-dad|expecting|toddler|infant|nursery|-year-old-|for-kids|kids-|christening|baptism/.test(p.slug) || p.topic === "Kids") p.exclude = [...(p.exclude || []), "weighted"];
 export const NOVELTY_STORE = /^cj:7889430:/;
 for (const p of PAGES) if (/^(funny-|gag-|white-elephant)/.test(p.slug)) p.novelty = true;
 export const NOVELTY_ADVERTISER = "7889430";

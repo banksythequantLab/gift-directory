@@ -10,7 +10,7 @@ import { authorizeUrl, paypalWebBase, parseUserinfo, ownsStore, validateSettings
 import { OWN_MAX, safeHttpsUrl, shopOrigin, shopifyCards, productFromHtml, parseCsv, ownMatches } from "./own.js";
 import { ETSY_API, ETSY_NOTICE, etsyShopName, etsyShopUrl, pickShop, etsyCards } from "./etsy.js";
 import { cjSearch } from "./cj.js";
-import { refreshDeals, refreshPromos, listedDeals, listedPromos, renderSales, salesStrip, reviewOffers, dealCard } from "./deals.js";
+import { SALE_BUDGETS, refreshDeals, refreshPromos, listedDeals, listedPromos, renderSales, salesStrip, reviewOffers, dealCard } from "./deals.js";
 import { RECS_SYSTEM, recsPrompt, recsStyle, parseRecs } from "./recs.js";
 import { pickAlternates } from "./more.js";
 import { addAlert, addedPage, runAlerts } from "./alerts.js";
@@ -678,11 +678,13 @@ export default {
           .catch(() => ({ ok: false, error: "Something went wrong on our side. Please try again later." })));
       }
       // ---------- Sales: markdowns with a freshly checked price, and the stores' own coupon codes and sales ----------
-      if (url.pathname === "/sales") {
-        if (url.hostname !== ROOT && !isWorkersDev(url.hostname)) return Response.redirect(`https://${ROOT}/sales`, 301);
+      const saleUnder = (/^\/sales\/under-(\d+)$/.exec(url.pathname) || [])[1];
+      if (url.pathname === "/sales" || (saleUnder && SALE_BUDGETS.includes(Number(saleUnder)))) {
+        if (url.hostname !== ROOT && !isWorkersDev(url.hostname)) return Response.redirect(`https://${ROOT}${url.pathname}`, 301);
         configureAds(env);
-        const [deals, promos] = await Promise.all([listedDeals(db).catch(() => []), listedPromos(db).catch(() => [])]);
-        const pg = renderSales({ deals, promos, ad: adSlot(env) });
+        const under = saleUnder ? Number(saleUnder) : null;
+        const [deals, promos] = await Promise.all([listedDeals(db, under ? { maxCents: under * 100 } : {}).catch(() => []), under ? [] : listedPromos(db).catch(() => [])]);
+        const pg = renderSales({ deals, promos, ad: adSlot(env), under });
         // With nothing confirmed on sale the page still opens, but search engines are told not to index it that day.
         const res = new Response(pg.empty ? noindexed(pg.html) : pg.html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=900" } });
         if (pg.empty) res.headers.set("x-robots-tag", "noindex, follow");
@@ -708,7 +710,7 @@ export default {
         const rows = allRows.filter(r => r.n >= MIN_LISTED);
         if (url.pathname === "/sitemap.xml") {
           const stores = (await db.prepare("SELECT slug, updated_at FROM stores WHERE status='active'").all()).results;
-          return new Response(sitemap([{ loc: `https://${ROOT}/` }, { loc: `https://${ROOT}/gifts` }, { loc: `https://${ROOT}/sales` }, { loc: `https://${ROOT}/registry` }, ...LEGAL_SLUGS.map(s => ({ loc: `https://${ROOT}/${s}` })), ...REVIEW_SLUGS.map(s => ({ loc: `https://${ROOT}/reviews/${s}` })),
+          return new Response(sitemap([{ loc: `https://${ROOT}/` }, { loc: `https://${ROOT}/gifts` }, { loc: `https://${ROOT}/sales` }, ...SALE_BUDGETS.map(b => ({ loc: `https://${ROOT}/sales/under-${b}` })), { loc: `https://${ROOT}/registry` }, ...LEGAL_SLUGS.map(s => ({ loc: `https://${ROOT}/${s}` })), ...REVIEW_SLUGS.map(s => ({ loc: `https://${ROOT}/reviews/${s}` })),
             ...[...new Set(PAGES.filter(p => rows.some(r => r.slug === p.slug)).map(p => p.topic))].map(t => ({ loc: `https://${ROOT}/gifts/topic/${topicSlug(t)}` })),
             ...rows.map(r => ({ loc: `https://${ROOT}/gifts/${r.slug}`, lastmod: r.updated_at })),
             ...stores.map(s => ({ loc: `https://${s.slug}.${ROOT}/`, lastmod: s.updated_at }))]), { headers: { "content-type": "application/xml" } });

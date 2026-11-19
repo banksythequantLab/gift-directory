@@ -89,9 +89,11 @@ export async function refreshDeals(db, env, { max = 30, fetchImpl = fetch, nowMs
   return out;
 }
 // What the page shows: markdowns whose price was checked in the last two days, biggest first.
-export async function listedDeals(db, { limit = 160, nowMs = Date.now() } = {}) {
-  const rows = (await db.prepare("SELECT product_id, slug, card_json, checked_at FROM deals WHERE on_sale=1 AND checked_at > ? AND pct BETWEEN ? AND ? ORDER BY pct DESC, checked_at DESC LIMIT ?")
-    .bind(new Date(nowMs - DEAL_FRESH_HOURS * 3600e3).toISOString(), DEAL_MIN_PCT, DEAL_MAX_PCT, limit).all()).results;
+// `maxCents`: only markdowns selling at or under that price (the /sales/under-NN pages).
+export const SALE_BUDGETS = [25, 50, 100];
+export async function listedDeals(db, { limit = 160, nowMs = Date.now(), maxCents = null } = {}) {
+  const rows = (await db.prepare("SELECT product_id, slug, card_json, checked_at FROM deals WHERE on_sale=1 AND checked_at > ? AND pct BETWEEN ? AND ? AND price_cents <= ? ORDER BY pct DESC, checked_at DESC LIMIT ?")
+    .bind(new Date(nowMs - DEAL_FRESH_HOURS * 3600e3).toISOString(), DEAL_MIN_PCT, DEAL_MAX_PCT, maxCents || 1e12, limit).all()).results;
   return rows.map(r => { try { return { ...JSON.parse(r.card_json), product_id: r.product_id, slug: r.slug, checked_at: r.checked_at }; } catch { return null; } }).filter(c => c && isDeal(c));
 }
 
@@ -193,19 +195,24 @@ ${c.reason && !g ? `<p class="why">${esc(c.reason)}</p>` : ""}
 ${c.checked_at ? `<p class="chk">Price checked ${esc(day(c.checked_at))}</p>` : ""}${g ? `<p class="from">From our guide: <a href="/gifts/${g.slug}">${esc(g.keyword)}</a></p>` : ""}${g ? alertForm(c, c.slug) : ""}</article>`;
 }
 const TOP_N = 12, PER_TOPIC = 8;
-export function renderSales({ deals = [], promos = [], ad = "", nowMs = Date.now() } = {}) {
-  const url = "https://gift.directory/sales", today = new Date(nowMs).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "America/New_York" });
+// `under` (dollars): the same page limited to gifts at or under that price, at /sales/under-NN, without the coupon section.
+export function renderSales({ deals = [], promos = [], ad = "", nowMs = Date.now(), under = null } = {}) {
+  if (under) promos = [];
+  const et = new Date(new Date(nowMs).toLocaleString("en-US", { timeZone: "America/New_York" })), week = (et.getMonth() === 10 && et.getDate() >= 20) || (et.getMonth() === 11 && et.getDate() <= 1);
+  const h1 = under ? `Gift deals under $${under}` : "Gifts on sale now";
+  const budgets = `<nav class="rel" aria-label="Sales by budget" style="margin:0 0 12px">${under ? `<a href="/sales">All sales</a>` : ""}${SALE_BUDGETS.filter(b => b !== under).map(b => `<a href="/sales/under-${b}">Under $${b}</a>`).join("")}</nav>`;
+  const url = "https://gift.directory/sales" + (under ? `/under-${under}` : ""), today = new Date(nowMs).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "America/New_York" });
   const top = deals.slice(0, TOP_N), rest = deals.slice(TOP_N), byTopic = new Map();
   for (const c of rest) { const g = pageBySlug(c.slug), t = (g && g.topic) || "More gifts"; if (!byTopic.has(t)) byTopic.set(t, []); if (byTopic.get(t).length < PER_TOPIC) byTopic.get(t).push(c); }
   const topics = [...byTopic.entries()].filter(([, cs]) => cs.length >= 3).sort((a, b) => b[1].length - a[1].length);
   const shown = [...top, ...topics.flatMap(([, cs]) => cs)];
   const body = `${SALE_CSS}<div class="crumbs"><a href="/">gift.directory</a> › Sales</div>
-<h1 style="font-family:Georgia,serif;margin:4px 0 6px">Gifts on sale now</h1>
-<p class="muted" style="margin:0 0 12px">Updated ${esc(today)} · ${shown.length} marked-down gifts · ${promos.length} offers from ${groupPromos(promos).length} stores</p>
-<section class="guide"><p>Every gift below comes from one of our <a href="/gifts">gift guides</a> and is selling for less than the retailer's own regular price right now. We ask the retailer catalog for each price again before listing it, and the date of that check is on the card. Coupon codes and sale events come straight from the stores we work with, with the end date each store gave.</p></section>
-${promos.length ? `<h2 style="font-family:Georgia,serif">Coupon codes and store sales</h2><div class="promo">${groupPromos(promos).map(storeCard).join("")}</div>` : ""}
+<h1 style="font-family:Georgia,serif;margin:4px 0 6px">${h1}</h1>
+<p class="muted" style="margin:0 0 12px">Updated ${esc(today)} · ${week ? "Black Friday and Cyber Monday week · " : ""}${shown.length} marked-down gifts${under ? "" : ` · ${promos.length} offers from ${groupPromos(promos).length} stores`}</p>
+${budgets}<section class="guide"><p>Every gift below comes from one of our <a href="/gifts">gift guides</a>${under ? `, costs $${under} or less today,` : ""} and is selling for less than the retailer's own regular price right now. We ask the retailer catalog for each price again before listing it, and the date of that check is on the card. Coupon codes and sale events come straight from the stores we work with, with the end date each store gave.</p></section>
 ${top.length ? `<h2 style="font-family:Georgia,serif">Biggest markdowns</h2><div class="grid">${top.map(c => dealCard(c)).join("")}</div>` : ""}
 ${topics.map(([t, cs]) => `<h2 style="font-family:Georgia,serif">${esc(t)} on sale</h2><div class="grid">${cs.map(c => dealCard(c)).join("")}</div>`).join("")}
+${promos.length ? `<h2 style="font-family:Georgia,serif">Coupon codes and store sales</h2><div class="promo">${groupPromos(promos).map(storeCard).join("")}</div>` : ""}
 ${!shown.length && !promos.length ? `<p>No sales have been confirmed in the last two days. <a href="/gifts">Browse the gift guides</a> in the meantime.</p>` : ""}
 <h2 style="font-family:Georgia,serif">How this page works</h2>
 <section class="guide"><p><b>What counts as a sale.</b> The "was" price is the regular price the retailer itself lists next to its current price. We show a markdown only when the difference is at least ${DEAL_MIN_PCT}%, and we leave out anything showing more than ${DEAL_MAX_PCT}% off, because discounts that large are usually a mistake in a store's listing.</p>
@@ -215,8 +222,8 @@ ${!shown.length && !promos.length ? `<p>No sales have been confirmed in the last
   const ld = [...(shown.length ? [{ "@context": "https://schema.org", "@type": "ItemList", name: "Gifts on sale now", url, numberOfItems: shown.length,
     itemListElement: shown.map((c, i) => ({ "@type": "ListItem", position: i + 1, item: productLd(c) })) }] : []),
     { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [{ "@type": "ListItem", position: 1, name: "Sales", item: url }] }];
-  const html = shell("Gifts on sale now: checked markdowns and coupon codes | gift.directory",
-    "Gifts from our guides that are marked down right now, with the date each price was checked, plus current coupon codes and sales from the stores we work with.", url, body, ld, ad, (shown.find(c => c.image) || {}).image);
+  const html = shell(under ? `Gift deals under $${under}: price-checked markdowns | gift.directory` : "Gifts on sale now: checked markdowns and coupon codes | gift.directory",
+    under ? `Gifts from our guides that cost $${under} or less and are marked down right now, each with the date its price was checked.` : "Gifts from our guides that are marked down right now, with the date each price was checked, plus current coupon codes and sales from the stores we work with.", url, body, ld, ad, (shown.find(c => c.image) || {}).image);
   return { html, empty: !shown.length && !promos.length, markdowns: shown.length };
 }
 // A short strip for the home page and the guides hub.

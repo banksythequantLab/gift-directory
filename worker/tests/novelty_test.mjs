@@ -32,5 +32,8 @@ ok("the kids' magic page takes no card-game decks", !allowed(magic, other("Magic
 ok("novelty guides search the joke shop slot by slot", Array.isArray(horror.shop) && horror.shop.length === horror.slots.length && Array.isArray(horror.shopMust));
 ok("a page's own exclude list still applies", !allowed({ slug: "x", exclude: ["gift card"] }, other("Coffee Gift Card")));
 
+const wb = other("Weighted Blanket - Room Essentials");
+ok("no weighted blanket on pages for parents, babies or children", !allowed(pageBySlug("gifts-for-new-parents"), wb) && !allowed(pageBySlug("baby-registry-must-haves"), wb) && !allowed(pageBySlug("stocking-stuffers-for-kids"), wb));
+ok("but it is fine for an adult", allowed(pageBySlug("christmas-gifts-for-grandparents"), wb) && allowed(pageBySlug("get-well-soon-gifts"), wb));
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
