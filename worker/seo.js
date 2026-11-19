@@ -1,4 +1,5 @@
 import { expertNote } from "./expert.js";
+import { alertForm, ALERT_CSS } from "./alerts.js";
 import { RECS_CSS, liveRecs, renderRecs, howWeChose } from "./recs.js";
 // Long-tail gift guides at gift.directory/gifts/<slug>: one keyword per page, real products from
 // Channel3 with AI reasons, a short guide and FAQ written once and stored, server-rendered for crawlers.
@@ -1057,12 +1058,12 @@ export function productLd(c) {
 }
 // "Save 25%" beside a price that has a regular price next to it (same rule as deals.js: 5% to 75%).
 export const saveBadge = c => { const p = c && c.was_cents > c.price_cents && c.price_cents > 0 ? Math.round((1 - c.price_cents / c.was_cents) * 100) : 0; return p >= 5 && p <= 75 ? `<span class="save">Save ${p}%</span>` : ""; };
-function card(c) {
+function card(c, slug) {
   return `<article class="card gift">${c.image ? `<img src="${esc(c.image)}" alt="${esc(c.title)}" loading="lazy" width="300" height="300">` : ""}
 <h3>${esc(c.title)}</h3><div class="muted" style="font-size:.82rem">${esc(c.brand || "")}${c.brand ? " · " : ""}${esc(c.merchant)}</div>
 <div class="price">${money(c.price_cents)}${c.was_cents && c.was_cents > c.price_cents ? `<span class="was">${money(c.was_cents)}</span>` : ""}${saveBadge(c)}</div>
 ${c.reason ? `<p class="why">${esc(c.reason)}</p>` : `<p class="why"></p>`}
-<div class="acts"><a class="btn sec" href="${esc(c.url)}" target="_blank" rel="noopener sponsored nofollow">View at ${esc(c.merchant)}</a></div></article>`;
+<div class="acts"><a class="btn sec" href="${esc(c.url)}" target="_blank" rel="noopener sponsored nofollow">View at ${esc(c.merchant)}</a></div>${alertForm(c, slug)}</article>`;
 }
 // The one ad slot: bottom of the page, after everything a reader came for. Never in the header, and the
 // ad script itself loads down here too. Empty until real AdSense ids are configured.
@@ -1088,7 +1089,7 @@ ${jsonld.map(j => `<script type="application/ld+json">${JSON.stringify(j).replac
 <style>.wrap{max-width:1180px}.grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}.guide p{max-width:760px}.crumbs{font-size:.85rem;margin-bottom:6px}
 .gift .why{font-style:italic;color:#374151}.was{color:var(--muted);text-decoration:line-through;font-weight:400;margin-left:6px;font-size:.9rem}
 .save{display:inline-block;background:#b91c1c;color:#fff;border-radius:999px;padding:1px 9px;font-size:.74rem;font-weight:700;margin-left:8px;vertical-align:middle;white-space:nowrap}
-${RECS_CSS}
+${RECS_CSS}${ALERT_CSS}
 .cta{background:var(--accent);color:#fff;border-radius:14px;padding:18px;margin:22px 0}.cta a{color:#fff;font-weight:700}
 .rel{display:flex;flex-wrap:wrap;gap:8px}.rel a{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;font-size:.88rem;text-decoration:none;color:var(--ink)}</style>
 </head><body><div class="wrap"><main id="main">${body}</main>
@@ -1127,8 +1128,8 @@ ${expertNote(p.slug)}
 ${related.length >= 3 ? `<p class="muted see">See also: ${related.slice(0, 3).map(r => `<a href="/gifts/${r.slug}">${esc(r.keyword.charAt(0).toLowerCase() + r.keyword.slice(1))}</a>`).join(", ").replace(/, ([^,]*)$/, " and $1")}.</p>` : ""}
 ${p.anniversary ? `<p class="muted" style="font-size:1.02rem"><b>Traditional gift:</b> ${esc(p.anniversary.traditional.replace(/\s*\(ivory-colored, never real ivory\)/, " (ivory-colored)"))} · <b>Modern gift:</b> ${esc(p.anniversary.modern)}</p>` : ""}
 ${renderRecs(recs, saveBadge)}${cards.length ? (cards.some(c => c.group)
-  ? groupCards(cards).map(([label, cs]) => `<h2 style="font-family:Georgia,serif">${esc(label)}</h2><div class="grid">${cs.map(card).join("")}</div>`).join("")
-  : `<h2 style="font-family:Georgia,serif">${recs ? `All ${cards.length} picks` : "Our picks"}</h2><div class="grid">${cards.map(card).join("")}</div>`) : ""}${onSale ? `<p class="muted">${onSale} of these ${onSale === 1 ? "is" : "are"} marked down from the retailer's regular price as of ${esc(updated)}. <a href="/sales">See every gift on sale now →</a></p>` : ""}${cards.length ? howWeChose(p, cards.length, updated) : ""}
+  ? groupCards(cards).map(([label, cs]) => `<h2 style="font-family:Georgia,serif">${esc(label)}</h2><div class="grid">${cs.map(c => card(c, p.slug)).join("")}</div>`).join("")
+  : `<h2 style="font-family:Georgia,serif">${recs ? `All ${cards.length} picks` : "Our picks"}</h2><div class="grid">${cards.map(c => card(c, p.slug)).join("")}</div>`) : ""}${onSale ? `<p class="muted">${onSale} of these ${onSale === 1 ? "is" : "are"} marked down from the retailer's regular price as of ${esc(updated)}. <a href="/sales">See every gift on sale now →</a></p>` : ""}${cards.length ? howWeChose(p, cards.length, updated) : ""}
 <div class="cta"><b style="font-size:1.1rem">Going in together?</b><br>${storeUrl
     ? `Find more and start a group gift at <a href="${esc(storeUrl)}">${esc(storeUrl.replace(/^https:\/\//, "").replace(/\/$/, ""))}</a> — everyone chips in with PayPal, straight to the organizer.`
     : `Every store on <a href="/">gift.directory</a> lets a group chip in with PayPal, straight to the organizer. <a href="/">Start your own gift store →</a>`}</div>

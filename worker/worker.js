@@ -13,6 +13,7 @@ import { cjSearch } from "./cj.js";
 import { refreshDeals, refreshPromos, listedDeals, listedPromos, renderSales, salesStrip, reviewOffers, dealCard } from "./deals.js";
 import { RECS_SYSTEM, recsPrompt, recsStyle, parseRecs } from "./recs.js";
 import { pickAlternates } from "./more.js";
+import { addAlert, addedPage, runAlerts } from "./alerts.js";
 import { TEE, teePromo } from "./promo.js";
 import { REG_MAX_ITEMS, REG_POOL_MIN_CENTS, validateRegistry, registrySlug, validateRegItem, publicRegistry, REG_AI_SYSTEM, regAiPrompt, parseRegAi, poolTarget, reminderSendOn, validateReminder, reminderEmail } from "./registry.js";
 import { ASSIST_SYSTEM, MAX_STEPS, SHELF_MAX, storeBrief, assistPrompt, parseAssist, matchHide, pickShelf, describeStep, PICK_SYSTEM, pickPrompt, applyPicks, capKinds } from "./assistant.js";
@@ -669,6 +670,13 @@ export default {
         configureAds(env);
         return new Response(renderLegal(parts[0], { shop: env.SHOP_PUBLIC === "1" }), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=3600" } });
       }
+      // ---------- Price-drop alerts: the form under a guide's product cards posts here ----------
+      if (url.pathname === "/api/alerts" && request.method === "POST") {
+        const f = await request.formData().catch(() => null);
+        if (!f) return addedPage({ ok: false, error: "The form didn't come through. Please go back and try again." });
+        return addedPage(await addAlert(db, { email: f.get("email"), product_id: String(f.get("p") || ""), slug: String(f.get("s") || ""), website: f.get("website") })
+          .catch(() => ({ ok: false, error: "Something went wrong on our side. Please try again later." })));
+      }
       // ---------- Sales: markdowns with a freshly checked price, and the stores' own coupon codes and sales ----------
       if (url.pathname === "/sales") {
         if (url.hostname !== ROOT && !isWorkersDev(url.hostname)) return Response.redirect(`https://${ROOT}/sales`, 301);
@@ -742,6 +750,11 @@ export default {
         return J(await buildGuide(db, env, p, { cardsOnly: url.searchParams.get("cards") === "1" }));
       }
       // One round of the sales refresh (deals.js), for the operator: {"max": 30} catalog price checks, {"promos": true} to re-pull CJ offers. Needs the build token.
+      // Operator: run one round of price-drop checks now. Needs the build token.
+      if (url.pathname === "/api/seo/alerts-run" && m === "POST") {
+        if (!env.BUILD_TOKEN || request.headers.get("x-build-token") !== env.BUILD_TOKEN) return J({ error: "not allowed" }, 403);
+        return J(await runAlerts(db, env, { max: 10 }));
+      }
       if (url.pathname === "/api/seo/deals-run" && m === "POST") {
         if (!env.BUILD_TOKEN || request.headers.get("x-build-token") !== env.BUILD_TOKEN) return J({ error: "not allowed" }, 403);
         const b = (await readJson(request)) || {}, out = {};
@@ -1376,6 +1389,7 @@ export default {
       const hour = new Date(controller.scheduledTime || Date.now()).getUTCHours();
       if (hour % 6 === 1) await refreshPromos(db, env).then(r => console.log("promos", JSON.stringify(r))).catch(e => console.log("promos failed", String(e)));
       await refreshDeals(db, env, { max: 30 }).then(r => console.log("deals", JSON.stringify(r))).catch(e => console.log("deals failed", String(e)));
+      await runAlerts(db, env, { max: 10 }).then(r => console.log("alerts", JSON.stringify(r))).catch(e => console.log("alerts failed", String(e)));
       return;
     }
     const due = (await db.prepare("SELECT * FROM own_sources WHERE kind IN ('shopify','etsy') AND (last_synced IS NULL OR last_synced < ?) ORDER BY last_synced LIMIT 25")
