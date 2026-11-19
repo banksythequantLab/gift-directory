@@ -730,9 +730,15 @@ export default {
         }
         const st = p.store && await db.prepare("SELECT slug FROM stores WHERE slug=? AND status='active'").bind(p.store).first();
         const built = new Set(rows.map(r => r.slug));
+        // A guide whose people have a store also shows four of our own made-to-order products, plainly marked as ours.
+        const shelf = st && env.SHOP_PUBLIC === "1" && env.PRINTFUL_TOKEN ? await shopCards(env).then(c => storeShopShelf(c, st.slug, `https://${ROOT}`, STORE_MOCKUPS)).catch(() => null) : null;
+        const ownBox = shelf ? `<section style="margin:26px 0"><h2 style="font-family:Georgia,serif">Personalized, made to order</h2>
+<p class="muted" style="margin:0 0 12px">These are gift.directory's own products, not picks from other stores: you add the name or the words, and Printful prints and ships them.</p>
+<div class="grid">${shelf.cards.slice(0, 4).map(c => dealCard(c, { from: false })).join("")}</div>
+<p style="margin:10px 0 0"><a href="https://${st.slug}.${ROOT}/">See everything in the store →</a></p></section>` : "";
         const guideHtml = renderGuide(p, row, related(p, built), st ? `https://${st.slug}.${ROOT}/` : null, adSlot(env), teamNav(p, built),
           // A guide that shows AbracadabraNYC products also shows that store's current coupon codes.
-          reviewBox(p.slug) + (String(row.cards_json || "").includes('"cj:7889430:') ? reviewOffers("magic-kits-and-costume-gifts", await listedPromos(db).catch(() => [])) : ""));
+          ownBox + reviewBox(p.slug) + (String(row.cards_json || "").includes('"cj:7889430:') ? reviewOffers("magic-kits-and-costume-gifts", await listedPromos(db).catch(() => [])) : ""));
         if (built.has(p.slug)) return html(guideHtml);
         const thin = html(noindexed(guideHtml)); thin.headers.set("x-robots-tag", "noindex, follow"); return thin;
       }
