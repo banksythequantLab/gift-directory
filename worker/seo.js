@@ -1067,13 +1067,25 @@ function card(c, slug) {
 <h3>${esc(c.title)}</h3><div class="muted" style="font-size:.82rem">${esc(c.brand || "")}${c.brand ? " · " : ""}${esc(c.merchant)}</div>
 <div class="price">${money(c.price_cents)}${c.was_cents && c.was_cents > c.price_cents ? `<span class="was">${money(c.was_cents)}</span>` : ""}${saveBadge(c)}</div>
 ${c.reason ? `<p class="why">${esc(c.reason)}</p>` : `<p class="why"></p>`}
-<div class="acts"><a class="btn sec" href="${esc(c.url)}" target="_blank" rel="noopener sponsored nofollow">View at ${esc(c.merchant)}</a></div>${alertForm(c, slug)}</article>`;
+<div class="acts"><a class="btn sec" href="${esc(c.url)}" target="_blank" rel="noopener sponsored nofollow">View at ${esc(c.merchant)}</a></div>${amazonLink(c)}${alertForm(c, slug)}</article>`;
 }
 // The one ad slot: bottom of the page, after everything a reader came for. Never in the header, and the
 // ad script itself loads down here too. Empty until real AdSense ids are configured.
 // The AdSense publisher id, set once per request by the worker (ownership tag only; no ad code in <head>).
 let ADS_CLIENT = "";
-export function configureAds(env) { ADS_CLIENT = /^ca-pub-\d{10,20}$/.test((env && env.ADSENSE_CLIENT) || "") ? env.ADSENSE_CLIENT : ""; }
+export function configureAds(env) { ADS_CLIENT = /^ca-pub-\d{10,20}$/.test((env && env.ADSENSE_CLIENT) || "") ? env.ADSENSE_CLIENT : ""; AMAZON_TAG = /^[a-z0-9-]{3,40}-2\d$/.test((env && env.AMAZON_TAG) || "") ? env.AMAZON_TAG : ""; }
+// Amazon Associates. A guide card gets a second, clearly separate link that searches Amazon for the product by name,
+// carrying our tracking tag. It is a search, not a claim that Amazon has this exact item, and we show no Amazon price
+// (the program allows its prices only when they come live from its product API). Empty until AMAZON_TAG is set.
+let AMAZON_TAG = "";
+export const amazonTag = () => AMAZON_TAG;
+export function amazonLink(c) {
+  if (!AMAZON_TAG || !c || !c.title || c.own || /^(cj|shop):/.test(String(c.product_id || "")) || /amazon\./i.test(String(c.merchant || ""))) return "";
+  const q = String(c.title).replace(/[^\p{L}\p{N}' &.-]+/gu, " ").replace(/\s+/g, " ").trim().split(" ").slice(0, 9).join(" ");
+  if (q.length < 4) return "";
+  return `<p class="amz"><a href="https://www.amazon.com/s?k=${encodeURIComponent(q)}&amp;tag=${AMAZON_TAG}" target="_blank" rel="noopener sponsored nofollow" data-m="Amazon">Search Amazon for this</a></p>`;
+}
+export const AMAZON_DISCLOSURE = "As an Amazon Associate I earn from qualifying purchases.";
 export function adSlot(env) {
   const client = env && env.ADSENSE_CLIENT, slot = env && env.ADSENSE_SLOT;
   if (!/^ca-pub-\d{10,20}$/.test(client || "") || !/^\d{6,15}$/.test(slot || "")) return "";
@@ -1093,12 +1105,12 @@ ${jsonld.map(j => `<script type="application/ld+json">${JSON.stringify(j).replac
 <style>.wrap{max-width:1180px}.grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}.guide p{max-width:760px}.crumbs{font-size:.85rem;margin-bottom:6px}
 .gift .why{font-style:italic;color:#374151}.was{color:var(--muted);text-decoration:line-through;font-weight:400;margin-left:6px;font-size:.9rem}
 .save{display:inline-block;background:#b91c1c;color:#fff;border-radius:999px;padding:1px 9px;font-size:.74rem;font-weight:700;margin-left:8px;vertical-align:middle;white-space:nowrap}
-${RECS_CSS}${ALERT_CSS}
+${RECS_CSS}${ALERT_CSS}.amz{margin:8px 0 0;font-size:.82rem}
 .cta{background:var(--accent);color:#fff;border-radius:14px;padding:18px;margin:22px 0}.cta a{color:#fff;font-weight:700}
 .rel{display:flex;flex-wrap:wrap;gap:8px}.rel a{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;font-size:.88rem;text-decoration:none;color:var(--ink)}</style>
 </head><body><div class="wrap"><main id="main">${body}</main>
 ${ad}
-<footer><a href="/">gift.directory</a> · <a href="/gifts">All gift guides</a> · <a href="https://gift.directory/sales">Sales</a> · <a href="/registry">Gift registry</a> · <a href="https://gift.directory/about">About</a> · <a href="https://gift.directory/contact">Contact</a> · <a href="https://gift.directory/privacy">Privacy</a> · <a href="https://gift.directory/terms">Terms</a><br>Prices and stock come live from retailers through Channel3 and may change; links go to the retailer. We may earn a commission when you buy through these links.</footer></div>${CLICK_SCRIPT}</body></html>`;
+<footer><a href="/">gift.directory</a> · <a href="/gifts">All gift guides</a> · <a href="https://gift.directory/sales">Sales</a> · <a href="/registry">Gift registry</a> · <a href="https://gift.directory/about">About</a> · <a href="https://gift.directory/contact">Contact</a> · <a href="https://gift.directory/privacy">Privacy</a> · <a href="https://gift.directory/terms">Terms</a><br>Prices and stock come live from retailers through Channel3 and may change; links go to the retailer. We may earn a commission when you buy through these links.${AMAZON_TAG ? " " + AMAZON_DISCLOSURE : ""}</footer></div>${CLICK_SCRIPT}</body></html>`;
 
 // House ad for our affiliate site Storm Proof AI (stormproof.us), on the preparedness guides only. It sits in the
 // page body after the picks (never in the <head>), and its wording follows what stormproof.us itself says.
@@ -1133,7 +1145,7 @@ ${related.length >= 3 ? `<p class="muted see">See also: ${related.slice(0, 3).ma
 ${p.anniversary ? `<p class="muted" style="font-size:1.02rem"><b>Traditional gift:</b> ${esc(p.anniversary.traditional.replace(/\s*\(ivory-colored, never real ivory\)/, " (ivory-colored)"))} · <b>Modern gift:</b> ${esc(p.anniversary.modern)}</p>` : ""}
 ${renderRecs(recs, saveBadge)}${cards.length ? (cards.some(c => c.group)
   ? groupCards(cards).map(([label, cs]) => `<h2 style="font-family:Georgia,serif">${esc(label)}</h2><div class="grid">${cs.map(c => card(c, p.slug)).join("")}</div>`).join("")
-  : `<h2 style="font-family:Georgia,serif">${recs ? `All ${cards.length} picks` : "Our picks"}</h2><div class="grid">${cards.map(c => card(c, p.slug)).join("")}</div>`) : ""}${onSale ? `<p class="muted">${onSale} of these ${onSale === 1 ? "is" : "are"} marked down from the retailer's regular price as of ${esc(updated)}. <a href="/sales">See every gift on sale now →</a></p>` : ""}${cards.length ? howWeChose(p, cards.length, updated) : ""}
+  : `<h2 style="font-family:Georgia,serif">${recs ? `All ${cards.length} picks` : "Our picks"}</h2><div class="grid">${cards.map(c => card(c, p.slug)).join("")}</div>`) : ""}${onSale ? `<p class="muted">${onSale} of these ${onSale === 1 ? "is" : "are"} marked down from the retailer's regular price as of ${esc(updated)}. <a href="/sales">See every gift on sale now →</a></p>` : ""}${cards.length ? howWeChose(p, cards.length, updated, !!AMAZON_TAG) : ""}
 <div class="cta"><b style="font-size:1.1rem">Going in together?</b><br>${storeUrl
     ? `Find more and start a group gift at <a href="${esc(storeUrl)}">${esc(storeUrl.replace(/^https:\/\//, "").replace(/\/$/, ""))}</a> — everyone chips in with PayPal, straight to the organizer.`
     : `Every store on <a href="/">gift.directory</a> lets a group chip in with PayPal, straight to the organizer. <a href="/">Start your own gift store →</a>`}</div>

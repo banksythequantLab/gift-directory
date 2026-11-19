@@ -96,8 +96,8 @@ export function renderRecs(live, badge = () => "") {
 ${live.skip ? `<p class="muted" style="max-width:760px"><b>What to skip:</b> ${esc(live.skip)}</p>` : ""}`;
 }
 // Said on every guide, in the same words, because it is how every guide is made.
-export function howWeChose(p, n, updated) {
+export function howWeChose(p, n, updated, amazon = false) {
   return `<aside class="how"><b style="font-family:Georgia,serif;font-size:1.05rem">How we chose</b>
 <p>These ${n} gifts were in stock at the retailers shown when this page was last updated (${esc(updated)}). We searched retailer catalogs for ${esc(p.recipient)}, kept to a budget of about $${Math.round(p.budget_cents / 100)}, removed things that are not really gifts (bulk packs, refills, office supplies), and kept a spread of different kinds of gift, usually a first choice and a runner-up of each kind.</p>
-<p>An AI model sorted what was left and wrote the reason for each pick from the product's own listing. We have not handled or tested these products, and we do not show ratings because we have none of our own. Prices and stock change; the retailer's page has the current ones. We may earn a commission when you buy through a link, at no extra cost to you.</p></aside>`;
+<p>An AI model sorted what was left and wrote the reason for each pick from the product's own listing. We have not handled or tested these products, and we do not show ratings because we have none of our own. Prices and stock change; the retailer's page has the current ones. We may earn a commission when you buy through a link, at no extra cost to you.${amazon ? " The \"Search Amazon for this\" links run a search on Amazon by the product's name; what Amazon shows may be a different seller, model or price. As an Amazon Associate I earn from qualifying purchases." : ""}</p></aside>`;
 }

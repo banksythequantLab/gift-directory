@@ -30,6 +30,8 @@
   "vars": {
     "PAYPAL_ENV": "split",
     "ADSENSE_CLIENT": "ca-pub-7950071846499535",
+    // Amazon Associates tracking ID (public: it appears in every tagged link). Empty turns the Amazon links off.
+    "AMAZON_TAG": "giftdirectory-20",
     "INDEXNOW_KEY": "cdbf5866d78ab29c85ad2021cc135597",
     "PAYPAL_PLAN_ID": "P-10T383300X8815800NLWMZCY",
     // Live $19/month plan (fill in from scripts/setup-plan.mjs run with PAYPAL_ENV=live). Used only when PAYPAL_ENV is "live".

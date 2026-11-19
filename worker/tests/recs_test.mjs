@@ -1,6 +1,6 @@
 // Top picks on a guide: only products on the page, labels from real prices, and nothing claimed that nobody did.
 import { recsStyle, recsPrompt, parseRecs, liveRecs, renderRecs, howWeChose, underLabel, RECS_SYSTEM } from "../recs.js";
-import { renderGuide, pageBySlug, saveBadge } from "../seo.js";
+import { renderGuide, pageBySlug, saveBadge, configureAds, amazonLink, amazonTag, AMAZON_DISCLOSURE, shell } from "../seo.js";
 
 let passed = 0, failed = 0;
 const ok = (n, c, d = "") => { c ? passed++ : (failed++, console.log(`FAIL  ${n}${d ? "  - " + d : ""}`)); };
@@ -94,5 +94,26 @@ ok("every breed slot has its kind words", lab.slotMust.every(Boolean) && gold.sl
 ok("a product with no listed features is marked so", recsPrompt({ keyword: "k", recipient: "r", occasion: "o" }, [{ product_id: "a1", title: "Ultra Hydration Vest", price_cents: 9747, merchant: "x.test" }]).includes("(no details listed)"));
 ok("and one with features is not", !recsPrompt({ keyword: "k", recipient: "r", occasion: "o" }, [{ product_id: "a1", title: "Belt", price_cents: 2100, merchant: "x.test", features: ["Two side pockets"] }]).includes("(no details listed)"));
 ok("the editor is told not to invent details for those", /no details listed/.test(RECS_SYSTEM) && /Do not rank the products/.test(RECS_SYSTEM));
+{
+  const prod = { product_id: "p1", title: 'Fiskars PowerGear P963 Steel Bypass Pruners, 3/4" Cut <b>', merchant: "homedepot.com", url: "https://x.test/p", price_cents: 3299 };
+  configureAds({});
+  eq("with no Amazon tag there is no Amazon link", amazonLink(prod), "");
+  ok("and no Amazon line in the footer", !shell("t", "m", "https://gift.directory/x", "b").includes(AMAZON_DISCLOSURE));
+  configureAds({ AMAZON_TAG: "not a tag" });
+  eq("a malformed tag is ignored", amazonTag(), "");
+  configureAds({ AMAZON_TAG: "giftdirectory-20" });
+  const l = amazonLink(prod);
+  ok("with a tag the card gets a tagged Amazon search for the product's name", l.includes("https://www.amazon.com/s?k=Fiskars%20PowerGear%20P963") && l.includes("&amp;tag=giftdirectory-20") && l.includes('rel="noopener sponsored nofollow"'));
+  ok("the link says it is a search and names Amazon for the click count", l.includes(">Search Amazon for this<") && l.includes('data-m="Amazon"'));
+  ok("markup in a title cannot reach the link", !/[<>"]/.test(decodeURIComponent((/k=([^&]*)/.exec(l) || [])[1] || "<")));
+  eq("a product from a store that pays us directly gets no Amazon link", amazonLink({ ...prod, product_id: "cj:7889430:12" }), "");
+  eq("our own made-to-order products get no Amazon link", amazonLink({ ...prod, own: true }), "");
+  ok("the required Amazon sentence is in the footer, word for word", shell("t", "m", "https://gift.directory/x", "b").includes("As an Amazon Associate I earn from qualifying purchases."));
+  const pg = pageBySlug("gifts-for-gardeners");
+  const page = renderGuide(pg, { guide_json: JSON.stringify({ intro: ["x"], tips: [], faq: [] }), cards_json: JSON.stringify([prod]), updated_at: "2026-11-19T00:00:00Z" }, [], null);
+  ok("a guide shows the link and explains what it is", page.includes("Search Amazon for this") && page.includes("what Amazon shows may be a different seller, model or price"));
+  ok("no Amazon price is shown anywhere", !/amazon[^<]{0,40}\$\d/i.test(page));
+  configureAds({});
+}
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
