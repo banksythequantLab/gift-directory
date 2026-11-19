@@ -196,7 +196,7 @@ ${c.checked_at ? `<p class="chk">Price checked ${esc(day(c.checked_at))}</p>` : 
 }
 const TOP_N = 12, PER_TOPIC = 8;
 // `under` (dollars): the same page limited to gifts at or under that price, at /sales/under-NN, without the coupon section.
-export function renderSales({ deals = [], promos = [], ad = "", nowMs = Date.now(), under = null } = {}) {
+export function renderSales({ deals = [], promos = [], ad = "", nowMs = Date.now(), under = null, signup = "" } = {}) {
   if (under) promos = [];
   const et = new Date(new Date(nowMs).toLocaleString("en-US", { timeZone: "America/New_York" })), week = (et.getMonth() === 10 && et.getDate() >= 20) || (et.getMonth() === 11 && et.getDate() <= 1);
   const h1 = under ? `Gift deals under $${under}` : "Gifts on sale now";
@@ -214,7 +214,7 @@ ${top.length ? `<h2 style="font-family:Georgia,serif">Biggest markdowns</h2><div
 ${topics.map(([t, cs]) => `<h2 style="font-family:Georgia,serif">${esc(t)} on sale</h2><div class="grid">${cs.map(c => dealCard(c)).join("")}</div>`).join("")}
 ${promos.length ? `<h2 style="font-family:Georgia,serif">Coupon codes and store sales</h2><div class="promo">${groupPromos(promos).map(storeCard).join("")}</div>` : ""}
 ${!shown.length && !promos.length ? `<p>No sales have been confirmed in the last two days. <a href="/gifts">Browse the gift guides</a> in the meantime.</p>` : ""}
-<h2 style="font-family:Georgia,serif">How this page works</h2>
+${signup}<h2 style="font-family:Georgia,serif">How this page works</h2>
 <section class="guide"><p><b>What counts as a sale.</b> The "was" price is the regular price the retailer itself lists next to its current price. We show a markdown only when the difference is at least ${DEAL_MIN_PCT}%, and we leave out anything showing more than ${DEAL_MAX_PCT}% off, because discounts that large are usually a mistake in a store's listing.</p>
 <p><b>How fresh the prices are.</b> A markdown stays on this page only while its price has been re-checked within the last ${DEAL_FRESH_HOURS} hours. Sales end without notice, so the retailer's page always has the final price.</p>
 <p><b>What we have not done.</b> We have not handled or tested these products. Each card links to the gift guide the product was chosen for, where the reason for choosing it is given. We may earn a commission when you buy through a link, at no extra cost to you; that does not change which prices are shown.</p></section>

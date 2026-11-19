@@ -9,12 +9,13 @@ import { REVIEW_SLUGS, REVIEW_INDEX, renderReview, reviewBox } from "./reviews.j
 import { authorizeUrl, paypalWebBase, parseUserinfo, ownsStore, validateSettings, validateItem, shelves, withoutHidden } from "./owners.js";
 import { OWN_MAX, safeHttpsUrl, shopOrigin, shopifyCards, productFromHtml, parseCsv, ownMatches } from "./own.js";
 import { ETSY_API, ETSY_NOTICE, etsyShopName, etsyShopUrl, pickShop, etsyCards } from "./etsy.js";
-import { cjSearch } from "./cj.js";
+import { cjSearch, cjAdvertisers } from "./cj.js";
 import { SALE_BUDGETS, refreshDeals, refreshPromos, listedDeals, listedPromos, renderSales, salesStrip, reviewOffers, dealCard } from "./deals.js";
 import { RECS_SYSTEM, recsPrompt, recsStyle, parseRecs } from "./recs.js";
 import { pickAlternates } from "./more.js";
 import { addAlert, addedPage, runAlerts } from "./alerts.js";
 import { countClick, clickReport } from "./clicks.js";
+import { signupForm, subscribe, confirm, unsubscribe, sendWeekly, subscribedPage, confirmedPage, unsubscribedPage, weeklyEmail, pickItems } from "./newsletter.js";
 import { TEE, teePromo } from "./promo.js";
 import { REG_MAX_ITEMS, REG_POOL_MIN_CENTS, validateRegistry, registrySlug, validateRegItem, publicRegistry, REG_AI_SYSTEM, regAiPrompt, parseRegAi, poolTarget, reminderSendOn, validateReminder, reminderEmail } from "./registry.js";
 import { ASSIST_SYSTEM, MAX_STEPS, SHELF_MAX, storeBrief, assistPrompt, parseAssist, matchHide, pickShelf, describeStep, PICK_SYSTEM, pickPrompt, applyPicks, capKinds } from "./assistant.js";
@@ -686,6 +687,15 @@ export default {
         configureAds(env);
         return new Response(renderLegal(parts[0], { shop: env.SHOP_PUBLIC === "1" }), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=3600" } });
       }
+      // ---------- The weekly sales email: ask, confirm, stop ----------
+      if (url.pathname === "/api/subscribe" && request.method === "POST") {
+        const f = await request.formData().catch(() => null);
+        if (!f) return subscribedPage({ ok: false, error: "The form didn't come through. Please go back and try again." });
+        return subscribedPage(await subscribe(db, { email: f.get("email"), website: f.get("website") }, { send: env.EMAIL ? msg => env.EMAIL.send(msg) : null })
+          .catch(() => ({ ok: false, error: "Something went wrong on our side. Please try again later." })));
+      }
+      if (url.pathname === "/api/subscribe/confirm" && request.method === "GET") return confirmedPage(await confirm(db, url.searchParams.get("t")).catch(() => false));
+      if (url.pathname === "/api/subscribe/unsubscribe" && request.method === "GET") return unsubscribedPage(await unsubscribe(db, url.searchParams.get("t")).catch(() => false));
       // ---------- Price-drop alerts: the form under a guide's product cards posts here ----------
       if (url.pathname === "/api/alerts" && request.method === "POST") {
         const f = await request.formData().catch(() => null);
@@ -700,7 +710,7 @@ export default {
         configureAds(env);
         const under = saleUnder ? Number(saleUnder) : null;
         const [deals, promos] = await Promise.all([listedDeals(db, under ? { maxCents: under * 100 } : {}).catch(() => []), under ? [] : listedPromos(db).catch(() => [])]);
-        const pg = renderSales({ deals, promos, ad: adSlot(env), under });
+        const pg = renderSales({ deals, promos, ad: adSlot(env), under, signup: env.EMAIL ? signupForm() : "" });
         // With nothing confirmed on sale the page still opens, but search engines are told not to index it that day.
         const res = new Response(pg.empty ? noindexed(pg.html) : pg.html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=900" } });
         if (pg.empty) res.headers.set("x-robots-tag", "noindex, follow");
@@ -774,6 +784,21 @@ export default {
         return J(await buildGuide(db, env, p, { cardsOnly: url.searchParams.get("cards") === "1" }));
       }
       // One round of the sales refresh (deals.js), for the operator: {"max": 30} catalog price checks, {"promos": true} to re-pull CJ offers. Needs the build token.
+      // Operator: the weekly email. GET shows this week's issue as it would be sent and the list's size (sends nothing);
+      // POST {"run":true} sends the issue now to confirmed readers who haven't had it. Needs the build token.
+      if (url.pathname === "/api/seo/weekly" && (m === "GET" || m === "POST")) {
+        if (!env.BUILD_TOKEN || request.headers.get("x-build-token") !== env.BUILD_TOKEN) return J({ error: "not allowed" }, 403);
+        if (m === "POST") { const b = await request.json().catch(() => ({})); return J(b && b.run === true ? await sendWeekly(db, env, { force: true }) : { error: 'send {"run":true}' }); }
+        const counts = await db.prepare("SELECT SUM(confirmed_at IS NOT NULL) AS confirmed, SUM(confirmed_at IS NULL) AS pending FROM subscribers").first();
+        const items = pickItems(await listedDeals(db, { limit: 60 }));
+        return J({ confirmed: counts.confirmed || 0, pending: counts.pending || 0, email_binding: !!env.EMAIL, postal_address_set: String(env.MAIL_ADDRESS || "").trim().length >= 10,
+          preview: items.length ? weeklyEmail(items, { address: String(env.MAIL_ADDRESS || "[postal address not set]"), token: "00000000-0000-0000-0000-000000000000" }) : null });
+      }
+      // Operator: CJ advertisers matching ?q= (not yet joined unless &joined=1), for choosing programs to apply to. Needs the build token.
+      if (url.pathname === "/api/seo/cj-advertisers" && m === "GET") {
+        if (!env.BUILD_TOKEN || request.headers.get("x-build-token") !== env.BUILD_TOKEN) return J({ error: "not allowed" }, 403);
+        return J(await cjAdvertisers(env, url.searchParams.get("q") || "gifts", { joined: url.searchParams.get("joined") === "1", page: Number(url.searchParams.get("page")) || 1 }).catch(e => ({ error: String(e) })));
+      }
       // Operator: clicks out to stores and human page views for the last ?days= days (default 7). Needs the build token.
       if (url.pathname === "/api/seo/clicks" && m === "GET") {
         if (!env.BUILD_TOKEN || request.headers.get("x-build-token") !== env.BUILD_TOKEN) return J({ error: "not allowed" }, 403);
@@ -1419,6 +1444,7 @@ export default {
       if (hour % 6 === 1) await refreshPromos(db, env).then(r => console.log("promos", JSON.stringify(r))).catch(e => console.log("promos failed", String(e)));
       await refreshDeals(db, env, { max: 30 }).then(r => console.log("deals", JSON.stringify(r))).catch(e => console.log("deals failed", String(e)));
       await runAlerts(db, env, { max: 10 }).then(r => console.log("alerts", JSON.stringify(r))).catch(e => console.log("alerts failed", String(e)));
+      await sendWeekly(db, env).then(r => console.log("weekly", JSON.stringify(r))).catch(e => console.log("weekly failed", String(e)));
       return;
     }
     const due = (await db.prepare("SELECT * FROM own_sources WHERE kind IN ('shopify','etsy') AND (last_synced IS NULL OR last_synced < ?) ORDER BY last_synced LIMIT 25")
