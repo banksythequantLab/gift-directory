@@ -1117,7 +1117,7 @@ export const houseAd = (topic, slug) => HOUSE_ADS[topic] ? HOUSE_ADS[topic](slug
 // extra: more HTML after the house ad (the worker passes a link to a matching review page).
 export function renderGuide(p, row, related, storeUrl, ad = "", teams = "", extra = "") {
   const g = JSON.parse(row.guide_json), cards = JSON.parse(row.cards_json || "[]");
-  const url = `${ROOT}/gifts/${p.slug}`, updated = String(row.updated_at).slice(0, 10);
+  const url = `${ROOT}/gifts/${p.slug}`, updated = new Date(row.updated_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
   const title = `${p.keyword} (${new Date(row.updated_at).getUTCFullYear()}) — real gifts in stock | gift.directory`;
   const recs = liveRecs(g.recs, cards), onSale = cards.filter(c => saveBadge(c)).length;
   const body = `<div class="crumbs"><a href="/">gift.directory</a> › <a href="/gifts">Gift guides</a> › <a href="/gifts/topic/${topicSlug(p.topic)}">${esc(p.topic)}</a></div>

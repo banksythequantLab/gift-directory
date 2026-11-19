@@ -1,5 +1,5 @@
 // The sales page: what counts as a markdown, the price re-check, CJ offers, and what the page says.
-import { groupPromos, pctOff, isDeal, saleBadge, checkPrice, refreshDeals, listedDeals, parseCjLinks, cleanPromos, promoReview, promosForReview, renderSales, salesStrip, reviewOffers, dealCard, DEAL_FRESH_HOURS } from "../deals.js";
+import { promoTitle, DEAL_MAX_PCT, groupPromos, pctOff, isDeal, saleBadge, checkPrice, refreshDeals, listedDeals, parseCjLinks, cleanPromos, promoReview, promosForReview, renderSales, salesStrip, reviewOffers, dealCard, DEAL_FRESH_HOURS } from "../deals.js";
 import { d1 } from "./d1shim.mjs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -122,5 +122,19 @@ ok("review page: its store's current offers", reviewOffers("muck-boots-gift-guid
 eq("review page: none for a store with no offers", reviewOffers("drivers-ed-as-a-gift", promos), "");
 ok("a store's product card has no guide line", !dealCard(card(), { from: false }).includes("From our guide"));
 
+eq("a title does not repeat the code shown beside it", promoTitle({ title: "OEDRO 2026 Thanksgiving Specials 10% OFF Code: TSG10", code: "TSG10" }), "OEDRO 2026 Thanksgiving Specials 10% OFF");
+eq("'use code X' goes too", promoTitle({ title: "Get 15% off sitewide, use code MUCK15", code: "MUCK15" }), "Get 15% off sitewide");
+eq("a title without the code is left alone", promoTitle({ title: "Black Friday Sale: 25% on everything", code: "TAKE25" }), "Black Friday Sale: 25% on everything");
+eq("a bare lower-case title gets a capital", promoTitle({ title: "buy 1 get 1 free", code: "" }), "Buy 1 get 1 free");
+eq("no code, no change", promoTitle({ title: "Free shipping over $50", code: "" }), "Free shipping over $50");
+{
+  const db2 = makeDb(), now = Date.parse("2026-11-19T12:00:00Z"), at = new Date(now - 3600e3).toISOString();
+  const mk = (id, pct) => db2.prepare("INSERT INTO deals (product_id, slug, card_json, price_cents, was_cents, pct, on_sale, checked_at) VALUES (?,?,?,?,?,?,1,?)")
+    .bind(id, "gifts-for-gardeners", JSON.stringify({ title: "Item " + id, url: "https://x.test/" + id, image: "https://x.test/" + id + ".jpg", merchant: "x.test", price_cents: 10000 - pct * 100, was_cents: 10000 }), 10000 - pct * 100, 10000, pct, at).run();
+  for (const [id, pct] of [["a", 75], ["b", 74], ["c", 72], ["d", 70], ["e", 50], ["f", 40], ["g", 30], ["h", 20]]) await mk(id, pct);
+  const top = await listedDeals(db2, { limit: 4, nowMs: now });
+  eq("the first four are the biggest markdowns under the cap, not four over it", top.map(c => c.product_id).join(","), "e,f,g,h");
+  ok("none is over the cap", DEAL_MAX_PCT === 60 && top.every(c => (1 - c.price_cents / c.was_cents) * 100 <= 60));
+}
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

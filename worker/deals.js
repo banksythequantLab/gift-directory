@@ -90,8 +90,8 @@ export async function refreshDeals(db, env, { max = 30, fetchImpl = fetch, nowMs
 }
 // What the page shows: markdowns whose price was checked in the last two days, biggest first.
 export async function listedDeals(db, { limit = 160, nowMs = Date.now() } = {}) {
-  const rows = (await db.prepare("SELECT product_id, slug, card_json, checked_at FROM deals WHERE on_sale=1 AND checked_at > ? ORDER BY pct DESC, checked_at DESC LIMIT ?")
-    .bind(new Date(nowMs - DEAL_FRESH_HOURS * 3600e3).toISOString(), limit).all()).results;
+  const rows = (await db.prepare("SELECT product_id, slug, card_json, checked_at FROM deals WHERE on_sale=1 AND checked_at > ? AND pct BETWEEN ? AND ? ORDER BY pct DESC, checked_at DESC LIMIT ?")
+    .bind(new Date(nowMs - DEAL_FRESH_HOURS * 3600e3).toISOString(), DEAL_MIN_PCT, DEAL_MAX_PCT, limit).all()).results;
   return rows.map(r => { try { return { ...JSON.parse(r.card_json), product_id: r.product_id, slug: r.slug, checked_at: r.checked_at }; } catch { return null; } }).filter(c => c && isDeal(c));
 }
 
@@ -156,6 +156,8 @@ const REVIEW_OF = [[/muck/i, "muck-boots-gift-guide", "Muck boots as a gift"], [
   [/graphic\s*audio/i, "graphicaudio-gift-guide", "GraphicAudio audiobooks"], [/king'?s camo/i, "kings-camo-gift-guide", "Kings Camo gifts for hunters"],
   [/aceable/i, "drivers-ed-as-a-gift", "driver's ed as a gift"], [/oedro/i, "truck-accessories-gifts", "truck accessories as a gift"],
   [/angi\b|angie/i, "gift-a-home-service", "giving a home service"], [/amazing clubs/i, "gift-of-the-month-clubs", "gift of the month clubs"]];
+export const promoTitle = p => { const c = String((p && p.code) || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), s = String((p && p.title) || "");
+  return (c ? s.replace(new RegExp("[\\s,:;-]*(?:use\\s+|with\\s+)?(?:promo\\s+|coupon\\s+)?code:?\\s*" + c + "\\b\\.?", "ig"), "").trim() : s).replace(/^[a-z]/, ch => ch.toUpperCase()) || s; };
 export const promoReview = advertiser => { const m = REVIEW_OF.find(([re]) => re.test(advertiser || "")); return m ? { slug: m[1], label: m[2] } : null; };
 export const promosForReview = (slug, promos) => (promos || []).filter(p => { const r = promoReview(p.advertiser); return r && r.slug === slug; });
 // "through Nov 28": CJ's end time is midnight Pacific at the START of the next day.
@@ -176,7 +178,7 @@ const PER_STORE = 4;
 function storeCard(g) {
   const rev = promoReview(g.advertiser), shown = g.offers.slice(0, PER_STORE), more = g.offers.length - shown.length;
   return `<article class="card"><h3 style="margin:0 0 8px;font-family:Georgia,serif;font-size:1.15rem">${esc(g.advertiser)}</h3>
-<ul style="margin:0 0 10px;padding-left:18px">${shown.map(p => `<li style="margin:0 0 8px"><a href="${esc(p.url)}" target="_blank" rel="noopener sponsored nofollow">${esc(clip(p.title, 110))}</a><br>${p.code ? `Code <span class="code">${esc(p.code)}</span> ` : ""}<span class="ends">${p.ends_at ? `Through ${esc(through(p.ends_at))}` : "No end date given"}</span></li>`).join("")}</ul>
+<ul style="margin:0 0 10px;padding-left:18px">${shown.map(p => `<li style="margin:0 0 8px"><a href="${esc(p.url)}" target="_blank" rel="noopener sponsored nofollow">${esc(clip(promoTitle(p), 110))}</a><br>${p.code ? `Code <span class="code">${esc(p.code)}</span> ` : ""}<span class="ends">${p.ends_at ? `Through ${esc(through(p.ends_at))}` : "No end date given"}</span></li>`).join("")}</ul>
 ${more > 0 ? `<p class="muted" style="font-size:.85rem;margin:0 0 10px">and ${more} more offer${more === 1 ? "" : "s"} at this store</p>` : ""}
 <a class="btn sec" href="${esc(g.offers[0].url)}" target="_blank" rel="noopener sponsored nofollow">Shop at ${esc(g.advertiser)}</a>
 ${rev ? `<p class="from">Our notes: <a href="/reviews/${rev.slug}">${esc(rev.label)}</a></p>` : ""}</article>`;
@@ -222,7 +224,7 @@ export function salesStrip(deals, promos = [], n = 4) {
   if (!deals.length && !promos.length) return "";
   const p = promos.find(x => x.code) || promos[0];
   return `<h2 class="hh" style="font-family:Georgia,serif">On sale now</h2>
-${p ? `<p style="margin:0 0 4px"><b>${esc(p.advertiser)}:</b> ${esc(clip(p.title, 110))}${p.code ? ` Code <b>${esc(p.code)}</b>.` : ""} <a href="/sales">All store offers →</a></p>` : ""}
+${p ? `<p style="margin:0 0 4px"><b>${esc(p.advertiser)}:</b> ${esc(clip(promoTitle(p), 110))}${p.code ? ` Code <b>${esc(p.code)}</b>.` : ""} <a href="/sales">All store offers →</a></p>` : ""}
 ${deals.length ? `<div class="grid">${deals.slice(0, n).map(c => dealCard(c, { from: false })).join("")}</div>` : ""}
 <p style="margin:10px 0 0"><a href="/sales"><b>See every gift on sale →</b></a></p>`;
 }
@@ -231,6 +233,6 @@ export function reviewOffers(slug, promos) {
   const mine = promosForReview(slug, promos);
   if (!mine.length) return "";
   return `<aside style="border:2px solid #92400e;background:#fffbeb;border-radius:14px;padding:16px;margin:18px 0"><b style="font-family:Georgia,serif;font-size:1.1rem">Current offers from ${esc(mine[0].advertiser)}</b>
-<ul style="margin:8px 0 0;padding-left:20px">${mine.slice(0, 4).map(p => `<li style="margin:4px 0"><a href="${esc(p.url)}" target="_blank" rel="noopener sponsored nofollow">${esc(p.title)}</a>${p.code ? ` — code <b>${esc(p.code)}</b>` : ""}${p.ends_at ? ` <span class="muted">(through ${esc(through(p.ends_at))})</span>` : ""}</li>`).join("")}</ul>
+<ul style="margin:8px 0 0;padding-left:20px">${mine.slice(0, 4).map(p => `<li style="margin:4px 0"><a href="${esc(p.url)}" target="_blank" rel="noopener sponsored nofollow">${esc(promoTitle(p))}</a>${p.code ? ` — code <b>${esc(p.code)}</b>` : ""}${p.ends_at ? ` <span class="muted">(through ${esc(through(p.ends_at))})</span>` : ""}</li>`).join("")}</ul>
 <p class="muted" style="font-size:.82rem;margin:8px 0 0">From the store's own offer feed. <a href="/sales">All sales →</a></p></aside>`;
 }
