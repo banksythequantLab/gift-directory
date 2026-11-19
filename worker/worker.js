@@ -40,6 +40,7 @@ async function retryTeamPages(db, env, max = 6) {
   console.log("team retry", JSON.stringify(out.map(o => [o.slug, o.ok])));
   return out;
 }
+const PROBE_PATH = /^\/(\.|wp-|wordpress|actuator|cgi-bin|phpmyadmin|pma|vendor\/|config\/|application\/|backup|admin\/|administrator|terraform|server-status|v1\/|_profiler|debug|console|owa|autodiscover|xmlrpc)|\.(php|asp|aspx|jsp|cgi|sql|bak|env|ya?ml|tfstate)(\b|$)/i;
 const uid = () => crypto.randomUUID();
 const J = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 async function readJson(req) { try { return await req.json(); } catch { return null; } }
@@ -645,7 +646,7 @@ export default {
     const db = env.DB;
     // Page-view counts by day (no cookies, nothing about the visitor is kept): which pages people and crawlers open.
     if (m === "GET" && db && parts[0] !== "api" && !/\.[a-z0-9]{2,5}$/i.test(url.pathname)) {
-      const ua = request.headers.get("user-agent") || "", kind = !ua || BOT_UA.test(ua) || !request.headers.get("accept-language") ? "bot" : "human";   // every real browser sends accept-language
+      const ua = request.headers.get("user-agent") || "", kind = !ua || BOT_UA.test(ua) || !request.headers.get("accept-language") || PROBE_PATH.test(url.pathname) ? "bot" : "human";   // every real browser sends accept-language
       ctx.waitUntil(db.prepare("INSERT INTO page_views (day,host,path,kind,n) VALUES (?,?,?,?,1) ON CONFLICT(day,host,path,kind) DO UPDATE SET n=n+1")
         .bind(now().slice(0, 10), url.hostname, url.pathname.slice(0, 120), kind).run().catch(() => {}));
     }
@@ -658,6 +659,14 @@ export default {
     try {
       const { store, platform, setCookie } = await resolveStore(db, env, url, request, ctx);
       const page = path => withCookie(env.ASSETS.fetch(new Request(new URL(path, url), request)), setCookie);
+      // A subdomain nobody registered is not a store. Scanners try dozens (nexus., kms., docker., ...) and used to get an
+      // empty store page with a 200 on every path, which reads as "something lives here". Now: www goes to the main site,
+      // anything else is a plain 404.
+      if (!platform && !store && url.hostname.endsWith("." + ROOT)) {
+        if (url.hostname === "www." + ROOT) return Response.redirect(`https://${ROOT}${url.pathname}${url.search}`, 301);
+        return new Response(`<!doctype html><meta charset="utf-8"><meta name="robots" content="noindex"><title>Not found</title><p>There is no gift store at this address. <a href="https://${ROOT}/">gift.directory</a></p>`,
+          { status: 404, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-robots-tag": "noindex" } });
+      }
       // The tab icon, in the store's own color (the platform's navy elsewhere). Same drawing as favicon.ico.
       if (url.pathname === "/favicon.svg") {
         let accent = "#1f3a5f";
