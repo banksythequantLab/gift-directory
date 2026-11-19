@@ -11,7 +11,7 @@ import { OWN_MAX, safeHttpsUrl, shopOrigin, shopifyCards, productFromHtml, parse
 import { ETSY_API, ETSY_NOTICE, etsyShopName, etsyShopUrl, pickShop, etsyCards } from "./etsy.js";
 import { cjSearch } from "./cj.js";
 import { refreshDeals, refreshPromos, listedDeals, listedPromos, renderSales, salesStrip, reviewOffers, dealCard } from "./deals.js";
-import { RECS_SYSTEM, recsPrompt, parseRecs } from "./recs.js";
+import { RECS_SYSTEM, recsPrompt, recsStyle, parseRecs } from "./recs.js";
 import { pickAlternates } from "./more.js";
 import { TEE, teePromo } from "./promo.js";
 import { REG_MAX_ITEMS, REG_POOL_MIN_CENTS, validateRegistry, registrySlug, validateRegItem, publicRegistry, REG_AI_SYSTEM, regAiPrompt, parseRegAi, poolTarget, reminderSendOn, validateReminder, reminderEmail } from "./registry.js";
@@ -72,7 +72,7 @@ const faviconSvg = accent => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0
 
 // ---------- gift guides ----------
 // Top picks for a guide's products (recs.js): one model call; anything unusable just leaves the page without them.
-async function makeRecs(ai, p, cards) { try { return parseRecs(await ai(RECS_SYSTEM, recsPrompt(p, cards)), cards) || undefined; } catch { return undefined; } }
+async function makeRecs(ai, p, cards) { try { return parseRecs(await ai(RECS_SYSTEM, recsPrompt(p, cards) + recsStyle(p.slug)), cards) || undefined; } catch { return undefined; } }
 // The guide text is written once; the products are found the same way a store's finder finds them.
 async function buildGuide(db, env, p, { cardsOnly = false } = {}) {
   const ai = aiFor(env);

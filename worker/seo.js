@@ -94,13 +94,13 @@ const TEAMS = {
     "Belgium", "Croatia", "Uruguay", "Morocco", "South Korea", "Scotland"],
 };
 const LEAGUE = {
-  NFL: { strict: true, sport: "football", slots: ["jersey", "hoodie", "knit beanie", "throw blanket", "coffee mug", "Christmas ornament", "wall sign"] },
-  MLB: { strict: true, sport: "baseball", slots: ["jersey", "fitted cap", "hoodie", "throw blanket", "coffee mug", "Christmas ornament", "wall sign"] },
-  NBA: { strict: true, sport: "basketball", slots: ["jersey", "hoodie", "snapback hat", "throw blanket", "coffee mug", "Christmas ornament", "mini basketball"] },
-  NHL: { strict: true, sport: "hockey", slots: ["jersey", "hoodie", "knit beanie", "throw blanket", "coffee mug", "Christmas ornament", "wall sign"] },
+  NFL: { strict: true, sport: "football", slots: ["jersey", "hoodie", "knit beanie", "throw blanket", "coffee mug", "Christmas ornament", "wall sign", "garden flag", "socks"] },
+  MLB: { strict: true, sport: "baseball", slots: ["jersey", "fitted cap", "hoodie", "throw blanket", "coffee mug", "Christmas ornament", "wall sign", "baseball", "socks"] },
+  NBA: { strict: true, sport: "basketball", slots: ["jersey", "hoodie", "snapback hat", "throw blanket", "coffee mug", "Christmas ornament", "mini basketball", "pennant", "socks"] },
+  NHL: { strict: true, sport: "hockey", slots: ["jersey", "hoodie", "knit beanie", "throw blanket", "coffee mug", "Christmas ornament", "wall sign", "hockey puck", "pint glass"] },
   WNBA: { sport: "basketball", min: 4, strict: true, slots: ["jersey", "hoodie", "hat", "t-shirt", "coffee mug", "throw blanket", "mini basketball"] },
   MLS: { sport: "soccer", min: 4, strict: true, slots: ["jersey", "scarf", "hoodie", "knit beanie", "throw blanket", "coffee mug", "soccer ball"] },
-  College: { strict: true, sport: "college sports", topic: "College fans", slots: ["hoodie", "football jersey", "knit beanie", "throw blanket", "coffee mug", "Christmas ornament", "wall sign"] },
+  College: { strict: true, sport: "college sports", topic: "College fans", slots: ["hoodie", "football jersey", "knit beanie", "throw blanket", "coffee mug", "Christmas ornament", "wall sign", "garden flag", "socks"] },
   Clubs: { sport: "soccer (football)", topic: "Soccer clubs", min: 4, strict: true, slots: ["jersey", "scarf", "hoodie", "knit beanie", "throw blanket", "mug", "soccer ball"] },
   National: { sport: "international soccer (football)", topic: "National soccer teams", min: 4, strict: true, exclude: ["New England", "Patriots", "Canada Goose", "Brazil nut", "rugby", "cricket", "starbucks"], label: n => /^US[MW]NT$/.test(n) ? n : `${n} soccer`,
     slots: ["soccer jersey", "soccer scarf", "soccer hoodie", "soccer hat", "soccer ball", "national team flag", "soccer t-shirt"] },
@@ -118,7 +118,9 @@ const teamSpellings = full => [...new Set([full, full.replace("St. ", "St "), fu
 // Words a product title must contain to fill a slot of that kind (strict leagues only).
 const SLOT_WORDS = { ornament: ["ornament", "topper"], cap: ["cap", "hat"], sign: ["sign", "banner", "art", "flag", "print", "pennant"], jersey: ["jersey", "shirt", "kit"], scarf: ["scarf"], hoodie: ["hoodie", "hoody", "sweatshirt", "pullover", "zip"],
   hat: ["hat", "cap", "beanie", "knit", "toque", "headwear", "woolie"], beanie: ["beanie", "knit", "toque", "hat", "woolie"], blanket: ["blanket", "throw"],
-  mug: ["mug", "tumbler", "cup", "flask"], ball: ["ball"], flag: ["flag", "banner"], "t-shirt": ["t-shirt", "tee"] };
+  mug: ["mug", "tumbler", "cup", "flask"], ball: ["ball"], flag: ["flag", "banner"], "t-shirt": ["t-shirt", "tee"],
+  // Each league's own extras (a puck for hockey, a baseball for baseball), so team pages differ by sport, not only by name.
+  socks: ["sock"], puck: ["puck"], pennant: ["pennant"], "pint glass": ["pint", "beer glass", "rocks glass", "glassware"] };
 const slotWords = s => { const k = Object.keys(SLOT_WORDS).filter(w => s.toLowerCase().includes(w)).pop(); return k ? SLOT_WORDS[k] : null; };
 // Soccer pages also get a few gifts for any soccer fan (shown under their own heading), since licensed
 // gear for many clubs is thin in the catalog. These slots skip the team-name rule (`openSlots`).
@@ -145,6 +147,7 @@ const THEME_WORDS = { ...SLOT_WORDS, plush: ["plush", "stuffed", "plushie", "pil
   "tote bag": ["bag", "tote"], book: ["book", "novel", "guide", "handbook"], figurine: ["figurine", "statue", "figure", "sculpture"],
   statue: ["statue", "figurine", "sculpture", "gnome"], lego: ["lego"], "funko pop": ["funko", "pop!"], poster: ["poster", "print", "art"],
   "wall art": ["framed", "canvas", "wall art", "wall decor", "art print", "wall poster"], "graphic novel": ["graphic novel", "omnibus", "book", "vol.", "volume", "library", "collection"], "dice set": ["dice"],
+  keychain: ["keychain", "key chain", "keyring", "key ring"], doormat: ["doormat", "door mat", "welcome mat"], sweatshirt: ["sweatshirt", "hoodie", "crewneck"], calendar: ["calendar"], "garden flag": ["flag"],
   "dice tower": ["tower"], "dice tray": ["tray"], miniature: ["miniature", "mini", "figure"], "costume": ["costume"], ornament: ["ornament"] };
 const themeWords = s => { const k = Object.keys(THEME_WORDS).filter(w => s.toLowerCase().includes(w)).sort((a, b) => s.toLowerCase().lastIndexOf(b) - s.toLowerCase().lastIndexOf(a) || b.length - a.length)[0]; return k ? THEME_WORDS[k] : null; };
 const FAN_EXCLUDE = ["vibrator", "adult toy", "sexy", "lingerie", "wine", "shot glass", "vape", "bong", "rolling paper", "gift card", "nsfw"];
@@ -223,8 +226,10 @@ export const THEME_PAGES = [
     ["chihuahua", "Chihuahua", ["chihuahua"]], ["border-collie", "Border Collie", ["border collie"]], ["bernese-mountain-dog", "Bernese Mountain Dog", ["bernese"]],
     ["doberman", "Doberman", ["doberman"]], ["pit-bull", "Pit Bull", ["pit bull", "pitbull"]], ["schnauzer", "Schnauzer", ["schnauzer"]], ["shiba-inu", "Shiba Inu", ["shiba"]],
     ["goldendoodle", "Goldendoodle", ["goldendoodle"]], ["greyhound", "Greyhound", ["greyhound dog", "italian greyhound", "greyhound art", "greyhound mug", "greyhound print"]],
-  ].map(([slug, name, req]) => T(`gifts-for-${slug}-lovers`, `Gifts for ${name} lovers`, `someone who loves their ${name}`, 50, "Dog breeds", req,
-    [`${name} mug`, `${name} ornament`, `${name} socks`, `${name} plush`, `${name} framed wall art`, `${name} necklace`, `${name} blanket`],
+  ].map(([slug, name, req], i) => T(`gifts-for-${slug}-lovers`, `Gifts for ${name} lovers`, `someone who loves their ${name}`, 50, "Dog breeds", req,
+    [`${name} mug`, `${name} ornament`, `${name} socks`, `${name} plush`, `${name} framed wall art`, `${name} necklace`, `${name} blanket`,
+      // Two more kinds that differ from breed to breed, so the breed pages are not one list with the name swapped.
+      ...[0, 3].map(k => `${name} ${["tote bag", "keychain", "doormat", "sweatshirt", "calendar", "garden flag"][(i + k) % 6]}`)],
     { exclude: ["collar", "harness", "leash", "dog food", "treats", "dog bed", "chew", "kibble", "flea", "shampoo", "crate", "boxer brief", "husky tool", "greyhound bus", "mr. worldwide", "labradorite", ...(slug === "bulldog" ? ["french"] : [])] })),
   // Doodle dogs together: one breed alone is too thin. "Doodle" is also drawing, so drawing toys stay out.
   T("gifts-for-doodle-lovers", "Gifts for doodle lovers (Goldendoodle, Labradoodle, Bernedoodle)", "someone who loves their Goldendoodle, Labradoodle or Bernedoodle", 50, "Dog breeds",

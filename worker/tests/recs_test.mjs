@@ -1,5 +1,5 @@
 // Top picks on a guide: only products on the page, labels from real prices, and nothing claimed that nobody did.
-import { recsPrompt, parseRecs, liveRecs, renderRecs, howWeChose, underLabel, RECS_SYSTEM } from "../recs.js";
+import { recsStyle, recsPrompt, parseRecs, liveRecs, renderRecs, howWeChose, underLabel, RECS_SYSTEM } from "../recs.js";
 import { renderGuide, pageBySlug, saveBadge } from "../seo.js";
 
 let passed = 0, failed = 0;
@@ -82,5 +82,14 @@ ok("guide: points to the sales page when something is marked down", page.include
 const plain = renderGuide(p, { ...row, guide_json: JSON.stringify({ meta: "m".repeat(100), intro: ["An intro paragraph that is long enough to be kept on the page."], faq: [] }) }, [], null);
 ok("guide without saved picks: the old heading, no empty section", plain.includes("Our picks") && !plain.includes("Top picks"));
 
+ok("a page always gets the same shape", recsStyle("gifts-for-fishermen") === recsStyle("gifts-for-fishermen") && recsStyle("gifts-for-fishermen").includes("Shape for this page"));
+ok("team pages do not all get one shape", new Set(["dallas-cowboys", "new-york-giants", "green-bay-packers", "chicago-bears", "miami-dolphins", "buffalo-bills", "denver-broncos", "detroit-lions"].map(t => recsStyle("gifts-for-" + t + "-fans"))).size >= 3);
+ok("the editor is told not to open every reason the same way", /no two may open with the same words/.test(RECS_SYSTEM));
+const cow = pageBySlug("gifts-for-dallas-cowboys-fans"), nhl = pageBySlug("gifts-for-boston-bruins-fans");
+ok("football and hockey pages ask for different extras", cow.slots.some(x => /garden flag/.test(x)) && nhl.slots.some(x => /hockey puck/.test(x)) && !cow.slots.some(x => /puck/.test(x)));
+ok("every team slot has its kind words", cow.slotMust.length === cow.slots.length && cow.slotMust.every(Boolean) && nhl.slotMust.every(Boolean));
+const lab = pageBySlug("gifts-for-labrador-lovers"), gold = pageBySlug("gifts-for-golden-retriever-lovers");
+ok("two breeds do not ask for the same list", lab.slots.length === 9 && gold.slots.length === 9 && lab.slots.slice(7).map(x => x.replace("Labrador", "")).join() !== gold.slots.slice(7).map(x => x.replace("Golden Retriever", "")).join());
+ok("every breed slot has its kind words", lab.slotMust.every(Boolean) && gold.slotMust.every(Boolean));
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
