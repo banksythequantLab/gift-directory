@@ -10,6 +10,8 @@ import { authorizeUrl, paypalWebBase, parseUserinfo, ownsStore, validateSettings
 import { OWN_MAX, safeHttpsUrl, shopOrigin, shopifyCards, productFromHtml, parseCsv, ownMatches } from "./own.js";
 import { ETSY_API, ETSY_NOTICE, etsyShopName, etsyShopUrl, pickShop, etsyCards } from "./etsy.js";
 import { cjSearch } from "./cj.js";
+import { refreshDeals, refreshPromos, listedDeals, listedPromos, renderSales, salesStrip, reviewOffers, dealCard } from "./deals.js";
+import { RECS_SYSTEM, recsPrompt, parseRecs } from "./recs.js";
 import { TEE, teePromo } from "./promo.js";
 import { REG_MAX_ITEMS, REG_POOL_MIN_CENTS, validateRegistry, registrySlug, validateRegItem, publicRegistry, REG_AI_SYSTEM, regAiPrompt, parseRegAi, poolTarget, reminderSendOn, validateReminder, reminderEmail } from "./registry.js";
 import { ASSIST_SYSTEM, MAX_STEPS, SHELF_MAX, storeBrief, assistPrompt, parseAssist, matchHide, pickShelf, describeStep, PICK_SYSTEM, pickPrompt, applyPicks, capKinds } from "./assistant.js";
@@ -68,6 +70,8 @@ const faviconSvg = accent => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0
   `<ellipse cx="39" cy="17" rx="5" ry="4" fill="none" stroke="#b08d57" stroke-width="4"/></svg>`;
 
 // ---------- gift guides ----------
+// Top picks for a guide's products (recs.js): one model call; anything unusable just leaves the page without them.
+async function makeRecs(ai, p, cards) { try { return parseRecs(await ai(RECS_SYSTEM, recsPrompt(p, cards)), cards) || undefined; } catch { return undefined; } }
 // The guide text is written once; the products are found the same way a store's finder finds them.
 async function buildGuide(db, env, p, { cardsOnly = false } = {}) {
   const ai = aiFor(env);
@@ -108,6 +112,7 @@ async function buildGuide(db, env, p, { cardsOnly = false } = {}) {
     });
     if (chosen.length < (p.minCount || p.count || chosen.length)) return { ok: false, error: `only ${chosen.length} of ${p.slots.length} slots found a product` };
     const cards = chosen.slice(0, p.count || 16), t = now();
+    guide.recs = await makeRecs(ai, p, cards);
     await db.prepare("INSERT INTO seo_pages (slug,guide_json,cards_json,updated_at,created_at) VALUES (?,?,?,?,?) " +
       "ON CONFLICT(slug) DO UPDATE SET guide_json=excluded.guide_json, cards_json=excluded.cards_json, updated_at=excluded.updated_at")
       .bind(p.slug, JSON.stringify(guide), JSON.stringify(cards), t, t).run();
@@ -132,6 +137,7 @@ async function buildGuide(db, env, p, { cardsOnly = false } = {}) {
     for (const r of (out && Array.isArray(out.reasons) ? out.reasons : []))
       if (r && Number.isInteger(r.i) && bare[r.i] && typeof r.reason === "string" && r.reason.length > 10) bare[r.i].reason = r.reason.slice(0, 220);
   } catch {}
+  guide.recs = await makeRecs(ai, p, cards);
   const t = now();
   await db.prepare("INSERT INTO seo_pages (slug,guide_json,cards_json,updated_at,created_at) VALUES (?,?,?,?,?) " +
     "ON CONFLICT(slug) DO UPDATE SET guide_json=excluded.guide_json, cards_json=excluded.cards_json, updated_at=excluded.updated_at")
@@ -554,9 +560,22 @@ async function withBoot(resP, bootP) {
   const res = await resP;
   if (!boot || !res.ok || !/text\/html/.test(res.headers.get("content-type") || "")) return res;
   const tag = bootTag(boot);
-  const out = new HTMLRewriter().on("head", { element(el) { el.append(tag, { html: true }); } }).transform(res);
+  // The store's name and its front-page gifts are also written into the page itself, so a reader without scripts (and a
+  // crawler) gets the store rather than an empty frame. The page's own script draws over them as soon as it runs.
+  const s = boot.store || {}, first = [...(s.shelves || []).flatMap(sh => sh.cards || []), ...(boot.browse || [])].filter(c => c && c.title && c.url && c.price_cents).slice(0, 16);
+  const text = v => ({ element(el) { if (v) el.setInnerContent(String(v)); } });
+  const out = new HTMLRewriter().on("head", { element(el) { el.append(tag, { html: true }); } })
+    .on("title", text(s.name)).on("#sname", text(s.name)).on("#stag", text(s.tagline))
+    .on("#grid", { element(el) { if (first.length) el.setInnerContent(first.map(c => dealCard(c, { from: false })).join(""), { html: true }); } }).transform(res);
   const h = new Headers(out.headers); h.set("cache-control", "private, no-cache"); h.delete("etag"); h.delete("last-modified");
   return new Response(out.body, { status: out.status, headers: h });
+}
+// The platform's home page gets a short "On sale now" strip (nothing is added when no sale is confirmed).
+async function withSales(resP, db) {
+  const [res, deals, promos] = await Promise.all([resP, listedDeals(db, { limit: 4 }).catch(() => []), listedPromos(db).catch(() => [])]);
+  if (!res.ok || !/text\/html/.test(res.headers.get("content-type") || "") || (!deals.length && !promos.length)) return res;
+  const strip = salesStrip(deals, promos);
+  return new HTMLRewriter().on("#sales-strip", { element(el) { el.setInnerContent(strip, { html: true }); } }).transform(res);
 }
 function withCookie(resP, cookie) {
   if (!cookie) return resP;
@@ -637,11 +656,24 @@ export default {
         configureAds(env);
         return new Response(renderLegal(parts[0], { shop: env.SHOP_PUBLIC === "1" }), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=3600" } });
       }
+      // ---------- Sales: markdowns with a freshly checked price, and the stores' own coupon codes and sales ----------
+      if (url.pathname === "/sales") {
+        if (url.hostname !== ROOT && !isWorkersDev(url.hostname)) return Response.redirect(`https://${ROOT}/sales`, 301);
+        configureAds(env);
+        const [deals, promos] = await Promise.all([listedDeals(db).catch(() => []), listedPromos(db).catch(() => [])]);
+        const pg = renderSales({ deals, promos, ad: adSlot(env) });
+        // With nothing confirmed on sale the page still opens, but search engines are told not to index it that day.
+        const res = new Response(pg.empty ? noindexed(pg.html) : pg.html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=900" } });
+        if (pg.empty) res.headers.set("x-robots-tag", "noindex, follow");
+        return res;
+      }
       // ---------- Review pages (one merchant's products side by side) ----------
       if (parts[0] === "reviews" && parts.length === 2 && REVIEW_SLUGS.includes(parts[1])) {
         if (url.hostname !== ROOT && !isWorkersDev(url.hostname)) return Response.redirect(`https://${ROOT}/reviews/${parts[1]}`, 301);
         configureAds(env);
-        return new Response(renderReview(parts[1], adSlot(env)), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=3600" } });
+        // The store's current coupon codes and sales, when it has any, go above the first section.
+        const offers = reviewOffers(parts[1], await listedPromos(db).catch(() => []));
+        return new Response(offers ? renderReview(parts[1], adSlot(env)).replace("<h2", () => offers + "<h2") : renderReview(parts[1], adSlot(env)), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=3600" } });
       }
       // ---------- gift guides, sitemap, robots (the platform's own address) ----------
       if (parts[0] === "gifts" || url.pathname === "/sitemap.xml" || url.pathname === "/robots.txt") {
@@ -655,7 +687,7 @@ export default {
         const rows = allRows.filter(r => r.n >= MIN_LISTED);
         if (url.pathname === "/sitemap.xml") {
           const stores = (await db.prepare("SELECT slug, updated_at FROM stores WHERE status='active'").all()).results;
-          return new Response(sitemap([{ loc: `https://${ROOT}/` }, { loc: `https://${ROOT}/gifts` }, { loc: `https://${ROOT}/registry` }, ...LEGAL_SLUGS.map(s => ({ loc: `https://${ROOT}/${s}` })), ...REVIEW_SLUGS.map(s => ({ loc: `https://${ROOT}/reviews/${s}` })),
+          return new Response(sitemap([{ loc: `https://${ROOT}/` }, { loc: `https://${ROOT}/gifts` }, { loc: `https://${ROOT}/sales` }, { loc: `https://${ROOT}/registry` }, ...LEGAL_SLUGS.map(s => ({ loc: `https://${ROOT}/${s}` })), ...REVIEW_SLUGS.map(s => ({ loc: `https://${ROOT}/reviews/${s}` })),
             ...[...new Set(PAGES.filter(p => rows.some(r => r.slug === p.slug)).map(p => p.topic))].map(t => ({ loc: `https://${ROOT}/gifts/topic/${topicSlug(t)}` })),
             ...rows.map(r => ({ loc: `https://${ROOT}/gifts/${r.slug}`, lastmod: r.updated_at })),
             ...stores.map(s => ({ loc: `https://${s.slug}.${ROOT}/`, lastmod: s.updated_at }))]), { headers: { "content-type": "application/xml" } });
@@ -693,6 +725,30 @@ export default {
         if (!env.BUILD_TOKEN || request.headers.get("x-build-token") !== env.BUILD_TOKEN) return J({ error: "not allowed" }, 403);
         const p = pageBySlug(parts[3]); if (!p) return J({ error: "unknown page" }, 404);
         return J(await buildGuide(db, env, p, { cardsOnly: url.searchParams.get("cards") === "1" }));
+      }
+      // One round of the sales refresh (deals.js), for the operator: {"max": 30} catalog price checks, {"promos": true} to re-pull CJ offers. Needs the build token.
+      if (url.pathname === "/api/seo/deals-run" && m === "POST") {
+        if (!env.BUILD_TOKEN || request.headers.get("x-build-token") !== env.BUILD_TOKEN) return J({ error: "not allowed" }, 403);
+        const b = (await readJson(request)) || {}, out = {};
+        if (b.promos) out.promos = await refreshPromos(db, env).catch(e => ({ ok: false, error: String((e && e.message) || e) }));
+        if (b.max !== 0) out.deals = await refreshDeals(db, env, { max: Math.max(1, Math.min(Number(b.max) || 30, 40)) });
+        return J(out);
+      }
+      // Guides that have no top picks yet (?all=1: every built guide). Needs the build token.
+      if (url.pathname === "/api/seo/recs-todo" && m === "GET") {
+        if (!env.BUILD_TOKEN || request.headers.get("x-build-token") !== env.BUILD_TOKEN) return J({ error: "not allowed" }, 403);
+        const rows = (await db.prepare("SELECT slug FROM seo_pages WHERE json_array_length(cards_json) >= 4" + (url.searchParams.get("all") === "1" ? "" : " AND json_extract(guide_json,'$.recs') IS NULL") + " ORDER BY slug").all()).results;
+        return J({ slugs: rows.map(r => r.slug).filter(s => pageBySlug(s)) });
+      }
+      // Writes a guide's top picks from the products it already shows (products, prices and the page's date stay as they are). Needs the build token.
+      if (url.pathname.startsWith("/api/seo/recs/") && m === "POST") {
+        if (!env.BUILD_TOKEN || request.headers.get("x-build-token") !== env.BUILD_TOKEN) return J({ error: "not allowed" }, 403);
+        const p = pageBySlug(parts[3]); if (!p) return J({ error: "unknown page" }, 404);
+        const row = await db.prepare("SELECT guide_json, cards_json FROM seo_pages WHERE slug=?").bind(p.slug).first(); if (!row) return J({ error: "not built" }, 404);
+        const recs = await makeRecs(aiFor(env), p, JSON.parse(row.cards_json || "[]"));
+        if (!recs) return J({ ok: false, error: "the model gave no usable picks" });
+        await db.prepare("UPDATE seo_pages SET guide_json=? WHERE slug=?").bind(JSON.stringify({ ...JSON.parse(row.guide_json), recs }), p.slug).run();
+        return J({ ok: true, slug: p.slug, picks: recs.picks.map(x => x.label), skip: !!recs.skip });
       }
       // The store assistant's plan for a store, without logging in as its owner: a check for the operator.
       // Plan only (nothing is applied). Needs the build token.
@@ -747,7 +803,7 @@ export default {
           if (url.hostname !== ROOT && !isWorkersDev(url.hostname) && url.hostname.endsWith("." + ROOT)) return Response.redirect(`https://${ROOT}/admin`, 302);
           return page("/admin");
         }
-        if (platform && (parts.length === 0 || parts[0] === "new")) return withPreview(page("/platform"), PLATFORM_META);
+        if (platform && (parts.length === 0 || parts[0] === "new")) return withSales(withPreview(page("/platform"), PLATFORM_META), db);
         if (parts.length === 0) {
           if (!store || store.status !== "active") return withPreview(page("/"), null);
           // Always the whole page (never "not modified"): the data built into it changes with the store and the visitor.
@@ -1300,6 +1356,13 @@ export default {
   // Daily: re-pull every connected Shopify and Etsy shop (prices, stock, new products), oldest sync first.
   async scheduled(controller, env, ctx) {
     const db = env.DB;
+    // Hourly (the second trigger): re-check sale prices, and four times a day re-pull the stores' coupon codes and sales.
+    if (controller.cron && controller.cron !== "23 8 * * *") {
+      const hour = new Date(controller.scheduledTime || Date.now()).getUTCHours();
+      if (hour % 6 === 1) await refreshPromos(db, env).then(r => console.log("promos", JSON.stringify(r))).catch(e => console.log("promos failed", String(e)));
+      await refreshDeals(db, env, { max: 30 }).then(r => console.log("deals", JSON.stringify(r))).catch(e => console.log("deals failed", String(e)));
+      return;
+    }
     const due = (await db.prepare("SELECT * FROM own_sources WHERE kind IN ('shopify','etsy') AND (last_synced IS NULL OR last_synced < ?) ORDER BY last_synced LIMIT 25")
       .bind(new Date(Date.now() - 20 * 3600 * 1000).toISOString()).all()).results;
     for (const src of due) ctx.waitUntil(syncSource(env, db, src));

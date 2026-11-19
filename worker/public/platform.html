@@ -16,12 +16,17 @@
   .tiles { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:12px; }
   .tile { display:block; text-decoration:none; color:var(--ink); }
   .tile b { display:block; margin-bottom:2px; }
+  #sales-strip .grid { grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); }
+  .save { display:inline-block; background:#b91c1c; color:#fff; border-radius:999px; padding:1px 9px; font-size:.74rem; font-weight:700; margin-left:8px; vertical-align:middle; white-space:nowrap; }
+  .chk { font-size:.76rem; color:var(--muted); margin:4px 0 0; }
   .rel { display:flex; flex-wrap:wrap; gap:8px; }
   .rel a { border:1px solid var(--line); background:#fff; border-radius:999px; padding:6px 12px; font-size:.9rem; text-decoration:none; color:var(--ink); }
 </style></head>
 <body><div class="wrap"><main id="main">
 <div class="hero"><h1>gift.directory</h1>
   <p class="muted" style="font-size:1.1rem;margin:0">Find a gift that fits the person. Real, in-stock gifts with live prices, free gift registries, and group gifts paid through PayPal.</p></div>
+
+<div id="sales-strip"></div>
 
 <h2 class="hh">Shop a gift store</h2>
 <p class="muted" style="margin:0 0 10px">Each store is built around one kind of person. Describe who you're buying for and the AI gift finder picks real products, each with a reason.</p>

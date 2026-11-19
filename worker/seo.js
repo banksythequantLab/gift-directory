@@ -1,4 +1,5 @@
 import { expertNote } from "./expert.js";
+import { RECS_CSS, liveRecs, renderRecs, howWeChose } from "./recs.js";
 // Long-tail gift guides at gift.directory/gifts/<slug>: one keyword per page, real products from
 // Channel3 with AI reasons, a short guide and FAQ written once and stored, server-rendered for crawlers.
 
@@ -968,10 +969,12 @@ export function productLd(c) {
     ...(price ? { offers: { "@type": "Offer", url: c.url, price, priceCurrency: "USD", availability: "https://schema.org/InStock",
       ...(c.merchant ? { seller: { "@type": "Organization", name: c.merchant } } : {}) } } : { url: c.url }) };
 }
+// "Save 25%" beside a price that has a regular price next to it (same rule as deals.js: 5% to 75%).
+export const saveBadge = c => { const p = c && c.was_cents > c.price_cents && c.price_cents > 0 ? Math.round((1 - c.price_cents / c.was_cents) * 100) : 0; return p >= 5 && p <= 75 ? `<span class="save">Save ${p}%</span>` : ""; };
 function card(c) {
   return `<article class="card gift">${c.image ? `<img src="${esc(c.image)}" alt="${esc(c.title)}" loading="lazy" width="300" height="300">` : ""}
 <h3>${esc(c.title)}</h3><div class="muted" style="font-size:.82rem">${esc(c.brand || "")}${c.brand ? " · " : ""}${esc(c.merchant)}</div>
-<div class="price">${money(c.price_cents)}${c.was_cents && c.was_cents > c.price_cents ? `<span class="was">${money(c.was_cents)}</span>` : ""}</div>
+<div class="price">${money(c.price_cents)}${c.was_cents && c.was_cents > c.price_cents ? `<span class="was">${money(c.was_cents)}</span>` : ""}${saveBadge(c)}</div>
 ${c.reason ? `<p class="why">${esc(c.reason)}</p>` : `<p class="why"></p>`}
 <div class="acts"><a class="btn sec" href="${esc(c.url)}" target="_blank" rel="noopener sponsored nofollow">View at ${esc(c.merchant)}</a></div></article>`;
 }
@@ -997,11 +1000,14 @@ export const shell = (title, meta, canonical, body, jsonld = [], ad = "", image 
 <link rel="stylesheet" href="/style.css"><link rel="icon" href="/favicon.ico" sizes="any"><link rel="icon" href="/favicon.svg" type="image/svg+xml">
 ${jsonld.map(j => `<script type="application/ld+json">${JSON.stringify(j).replace(/</g, "\\u003c")}</script>`).join("")}
 <style>.wrap{max-width:1180px}.grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}.guide p{max-width:760px}.crumbs{font-size:.85rem;margin-bottom:6px}
-.gift .why{font-style:italic;color:#374151}.cta{background:var(--accent);color:#fff;border-radius:14px;padding:18px;margin:22px 0}.cta a{color:#fff;font-weight:700}
+.gift .why{font-style:italic;color:#374151}.was{color:var(--muted);text-decoration:line-through;font-weight:400;margin-left:6px;font-size:.9rem}
+.save{display:inline-block;background:#b91c1c;color:#fff;border-radius:999px;padding:1px 9px;font-size:.74rem;font-weight:700;margin-left:8px;vertical-align:middle;white-space:nowrap}
+${RECS_CSS}
+.cta{background:var(--accent);color:#fff;border-radius:14px;padding:18px;margin:22px 0}.cta a{color:#fff;font-weight:700}
 .rel{display:flex;flex-wrap:wrap;gap:8px}.rel a{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;font-size:.88rem;text-decoration:none;color:var(--ink)}</style>
 </head><body><div class="wrap"><main id="main">${body}</main>
 ${ad}
-<footer><a href="/">gift.directory</a> · <a href="/gifts">All gift guides</a> · <a href="/registry">Gift registry</a> · <a href="https://gift.directory/about">About</a> · <a href="https://gift.directory/contact">Contact</a> · <a href="https://gift.directory/privacy">Privacy</a> · <a href="https://gift.directory/terms">Terms</a><br>Prices and stock come live from retailers through Channel3 and may change; links go to the retailer. We may earn a commission when you buy through these links.</footer></div></body></html>`;
+<footer><a href="/">gift.directory</a> · <a href="/gifts">All gift guides</a> · <a href="https://gift.directory/sales">Sales</a> · <a href="/registry">Gift registry</a> · <a href="https://gift.directory/about">About</a> · <a href="https://gift.directory/contact">Contact</a> · <a href="https://gift.directory/privacy">Privacy</a> · <a href="https://gift.directory/terms">Terms</a><br>Prices and stock come live from retailers through Channel3 and may change; links go to the retailer. We may earn a commission when you buy through these links.</footer></div></body></html>`;
 
 // House ad for our affiliate site Storm Proof AI (stormproof.us), on the preparedness guides only. It sits in the
 // page body after the picks (never in the <head>), and its wording follows what stormproof.us itself says.
@@ -1026,6 +1032,7 @@ export function renderGuide(p, row, related, storeUrl, ad = "", teams = "", extr
   const g = JSON.parse(row.guide_json), cards = JSON.parse(row.cards_json || "[]");
   const url = `${ROOT}/gifts/${p.slug}`, updated = String(row.updated_at).slice(0, 10);
   const title = `${p.keyword} (${new Date(row.updated_at).getUTCFullYear()}) — real gifts in stock | gift.directory`;
+  const recs = liveRecs(g.recs, cards), onSale = cards.filter(c => saveBadge(c)).length;
   const body = `<div class="crumbs"><a href="/">gift.directory</a> › <a href="/gifts">Gift guides</a> › <a href="/gifts/topic/${topicSlug(p.topic)}">${esc(p.topic)}</a></div>
 <h1 style="font-family:Georgia,serif;margin:4px 0 6px">${esc(p.keyword)}</h1>
 <p class="muted" style="margin:0 0 12px">Updated ${esc(updated)} · ${cards.length} gifts in stock now</p>
@@ -1033,9 +1040,9 @@ export function renderGuide(p, row, related, storeUrl, ad = "", teams = "", extr
 ${expertNote(p.slug)}
 ${related.length >= 3 ? `<p class="muted see">See also: ${related.slice(0, 3).map(r => `<a href="/gifts/${r.slug}">${esc(r.keyword.charAt(0).toLowerCase() + r.keyword.slice(1))}</a>`).join(", ").replace(/, ([^,]*)$/, " and $1")}.</p>` : ""}
 ${p.anniversary ? `<p class="muted" style="font-size:1.02rem"><b>Traditional gift:</b> ${esc(p.anniversary.traditional.replace(/\s*\(ivory-colored, never real ivory\)/, " (ivory-colored)"))} · <b>Modern gift:</b> ${esc(p.anniversary.modern)}</p>` : ""}
-${cards.length ? (cards.some(c => c.group)
+${renderRecs(recs, saveBadge)}${cards.length ? (cards.some(c => c.group)
   ? groupCards(cards).map(([label, cs]) => `<h2 style="font-family:Georgia,serif">${esc(label)}</h2><div class="grid">${cs.map(card).join("")}</div>`).join("")
-  : `<h2 style="font-family:Georgia,serif">Our picks</h2><div class="grid">${cards.map(card).join("")}</div>`) : ""}
+  : `<h2 style="font-family:Georgia,serif">${recs ? `All ${cards.length} picks` : "Our picks"}</h2><div class="grid">${cards.map(card).join("")}</div>`) : ""}${onSale ? `<p class="muted">${onSale} of these ${onSale === 1 ? "is" : "are"} marked down from the retailer's regular price as of ${esc(updated)}. <a href="/sales">See every gift on sale now →</a></p>` : ""}${cards.length ? howWeChose(p, cards.length, updated) : ""}
 <div class="cta"><b style="font-size:1.1rem">Going in together?</b><br>${storeUrl
     ? `Find more and start a group gift at <a href="${esc(storeUrl)}">${esc(storeUrl.replace(/^https:\/\//, "").replace(/\/$/, ""))}</a> — everyone chips in with PayPal, straight to the organizer.`
     : `Every store on <a href="/">gift.directory</a> lets a group chip in with PayPal, straight to the organizer. <a href="/">Start your own gift store →</a>`}</div>
@@ -1063,6 +1070,7 @@ const HUB_PREVIEW = 12;
 export function renderHub(built, ad = "", reviews = []) {
   const byTopic = byTopicBuilt(built);
   const body = `<h1 style="font-family:Georgia,serif">Gift guides</h1><p class="muted">Real, in-stock gifts picked by AI for the people on your list — with live prices, and group gifts paid through PayPal.</p>
+<p><a href="/sales"><b>Gifts on sale now: checked markdowns and coupon codes →</b></a></p>
 <p><a href="/christmas-shipping-deadlines">Christmas shipping deadlines 2026: when to order →</a></p>
 ${reviews.length ? `<h2 style="font-family:Georgia,serif">Gift reviews</h2><nav class="rel" aria-label="Gift reviews">${reviews.map(r => `<a href="/reviews/${esc(r.slug)}">${esc(r.title)}</a>`).join("")}</nav>` : ""}
 <nav class="rel" aria-label="Topics" style="margin:6px 0 10px">${Object.entries(byTopic).map(([t, ps]) => `<a href="/gifts/topic/${topicSlug(t)}">${esc(t)} (${ps.length})</a>`).join("")}</nav>
