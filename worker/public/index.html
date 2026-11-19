@@ -136,7 +136,7 @@ function card(p) {
     <h3>${esc(p.title)}</h3><div class="muted" style="font-size:.82rem">${esc(p.brand || "")}${p.brand ? " · " : ""}${esc(p.merchant)}</div>
     <div class="price">${money(p.price_cents)}${p.was_cents && p.was_cents > p.price_cents ? `<span class="was">${money(p.was_cents)}</span>` : ""}</div>
     ${p.reason ? `<span class="badge">Picked for you</span><div class="why">${esc(p.reason)}</div>` : `<div class="why"></div>`}
-    <div class="acts"><a class="btn sec" href="${esc(p.url)}" target="_blank" rel="noopener sponsored">View</a>
+    <div class="acts"><a class="btn sec" href="${esc(p.url)}" target="_blank" rel="noopener sponsored" data-m="${esc(p.merchant || "")}">View</a>
     <button class="btn gold" data-pool="${esc(p.product_id)}">Group gift</button></div></div>`;
 }
 function qcard(q) {
@@ -267,4 +267,5 @@ $("#pf").onsubmit = async e => {
   } catch (err) { $("#perr").textContent = err.message; $("#pgo").disabled = false; }
 };
 </script>
+<script>addEventListener("click",function(e){var a=e.target&&e.target.closest&&e.target.closest('a[rel~="sponsored"]');if(!a||!navigator.sendBeacon)return;try{var t=(a.textContent||"").trim(),m=/^(?:View|Shop|Buy|Buy it now|See it) at (.+)$/.exec(t);navigator.sendBeacon("/api/click",JSON.stringify({p:location.pathname,m:a.getAttribute("data-m")||(m?m[1]:new URL(a.href).hostname)}))}catch(_){}},true)</script>
 </body></html>

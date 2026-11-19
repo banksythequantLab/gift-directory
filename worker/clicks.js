@@ -1,8 +1,9 @@
 // Counting clicks out to stores: which of our pages earned the click, and which store it went to. A count per day,
 // nothing about the visitor. The page reports the click with a beacon as the reader leaves; the link itself is untouched.
 
-// In every page's footer. "View at levenger.com" / "Shop at Oedro" name the store; otherwise the link's own host does.
-export const CLICK_SCRIPT = `<script>addEventListener("click",function(e){var a=e.target&&e.target.closest&&e.target.closest('a[rel~="sponsored"]');if(!a||!navigator.sendBeacon)return;try{var t=(a.textContent||"").trim(),m=/^(?:View|Shop) at (.+)$/.exec(t);navigator.sendBeacon("/api/click",JSON.stringify({p:location.pathname,m:m?m[1]:new URL(a.href).hostname}))}catch(_){}},true)</script>`;
+// In every page's footer, and written into the store, registry and group-gift pages in public/ (a test keeps them the same).
+// The store is the link's data-m if it has one, else the name in "View at levenger.com" / "Buy at Oedro", else the link's host.
+export const CLICK_SCRIPT = `<script>addEventListener("click",function(e){var a=e.target&&e.target.closest&&e.target.closest('a[rel~="sponsored"]');if(!a||!navigator.sendBeacon)return;try{var t=(a.textContent||"").trim(),m=/^(?:View|Shop|Buy|Buy it now|See it) at (.+)$/.exec(t);navigator.sendBeacon("/api/click",JSON.stringify({p:location.pathname,m:a.getAttribute("data-m")||(m?m[1]:new URL(a.href).hostname)}))}catch(_){}},true)</script>`;
 
 export const cleanPath = p => { p = String(p || ""); return /^\/[A-Za-z0-9/_.-]{0,119}$/.test(p) ? p : null; };
 export const cleanMerchant = m => { m = String(m || "").replace(/[^\p{L}\p{N} .&'\/–-]/gu, "").replace(/\s+/g, " ").trim().slice(0, 60); return m.length >= 2 ? m : null; };

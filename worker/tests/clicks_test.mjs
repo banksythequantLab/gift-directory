@@ -1,6 +1,7 @@
 // Click counts: what is counted, what is refused, and that nothing about the visitor is stored.
 import { countClick, clickReport, cleanPath, cleanMerchant, CLICK_SCRIPT } from "../clicks.js";
 import { shell } from "../seo.js";
+import { readFileSync } from "node:fs";
 import { d1 } from "./d1shim.mjs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -39,5 +40,11 @@ eq("an old click falls out of a seven-day report", (await clickReport(db, 7, Dat
 ok("every page built on the shared shell carries the click reporter", shell("t", "m", "https://gift.directory/x", "<p>b</p>").includes(CLICK_SCRIPT));
 ok("the reporter only watches links marked as leaving for a store", CLICK_SCRIPT.includes('a[rel~="sponsored"]') && CLICK_SCRIPT.includes("sendBeacon") && !/cookie|localStorage/.test(CLICK_SCRIPT));
 
+for (const f of ["index.html", "registry.html", "pool.html"]) {
+  const page = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "public", f), "utf8");
+  eq(`${f} carries the same reporter, once`, page.split(CLICK_SCRIPT).length - 1, 1);
+}
+ok("a store card's link names its store", readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "public", "index.html"), "utf8").includes('data-m="${esc(p.merchant || "")}"'));
+ok("the reporter prefers the link's own store name", CLICK_SCRIPT.includes('getAttribute("data-m")'));
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

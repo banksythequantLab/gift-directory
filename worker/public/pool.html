@@ -80,4 +80,5 @@ async function load() {
 }
 load();
 </script>
+<script>addEventListener("click",function(e){var a=e.target&&e.target.closest&&e.target.closest('a[rel~="sponsored"]');if(!a||!navigator.sendBeacon)return;try{var t=(a.textContent||"").trim(),m=/^(?:View|Shop|Buy|Buy it now|See it) at (.+)$/.exec(t);navigator.sendBeacon("/api/click",JSON.stringify({p:location.pathname,m:a.getAttribute("data-m")||(m?m[1]:new URL(a.href).hostname)}))}catch(_){}},true)</script>
 </body></html>
