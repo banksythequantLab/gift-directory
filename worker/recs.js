@@ -10,6 +10,7 @@ export const RECS_SYSTEM =
   "choice the way a knowledgeable friend would. Each reason is two sentences that together say what kind of person or situation the gift suits and when to choose it rather than " +
   "the other things on the page (for example, when they already own the basics, when you do not know their size, when it is from a group). " +
   "Vary how the reasons begin: no two may open with the same words, and none may open with 'This gift', 'This pick', 'This', 'Choose' or 'Ideal'. " +
+  "Write every sentence fresh for this page: never reuse a phrase from these instructions. Mention size or fit only for clothing and footwear. " +
   "The skip sentence must fit this recipient as described (a fan is not a player; someone who loves their dog is not a breeder). Write about the person and the giving, not a list of features. " +
   "Use ONLY what each product's title, brand, price and listed features say. Never invent specifications, materials, sizes, " +
   "ratings, reviews, awards, popularity or any claim that anyone tested, tried or owns the product, and never promise results " +
@@ -24,11 +25,11 @@ export const RECS_SYSTEM =
 // Six hundred guides written to one pattern read as one template, so each page is asked for one of several shapes,
 // fixed by its slug (the same page always gets the same shape).
 const STYLES = [
-  "Begin each reason with the person (\"A fan who...\", \"Someone who...\"), then say what tips the choice toward this product.",
-  "Begin each reason with the giver's situation (\"When you don't know their size, ...\", \"If this is from a group, ...\"), then say who it fits.",
-  "Begin each reason by naming the product by its plain kind (\"The hoodie is for...\", \"The mug works when...\"), then say when to pick it.",
-  "Write each reason as direct advice to the giver (\"Go with the blanket if...\", \"Pick the jersey for...\"), then give the reason in a second sentence.",
-  "Begin each reason with what sets the product apart from the other kinds of gift on the page, then say who that suits.",
+  "Open each reason with the kind of person the product suits, in your own words, and close with what tips the choice toward it.",
+  "Open each reason with a circumstance of the giver that really applies to that product (how well they know the recipient, who the gift is from, what the recipient already owns, how it will be given), and close with who it fits. Use a different circumstance for each reason.",
+  "Open each reason by naming the product by its plain kind, then say who it is for and when to pick it.",
+  "Write each reason as direct advice to the giver, opening each one with a different verb.",
+  "Open each reason with what sets the product apart from the other kinds of gift on the page, then say who that suits.",
   "Give one sentence about the person and one short sentence naming the kind of gift on the page it beats for them, and why.",
 ];
 export function recsStyle(slug) {
