@@ -7,10 +7,12 @@ export const cjOn = env => !!(env && env.CJ_TOKEN && env.CJ_CID && env.CJ_PID);
 const str = s => JSON.stringify(String(s));
 const clip = (s, n) => { s = String(s ?? "").replace(/\s+/g, " ").trim(); return s.length > n ? s.slice(0, n - 1) + "…" : s; };
 
-export function cjQuery(env, query, { highCents = null, limit = 24 } = {}) {
+// `advertiser`: only that advertiser's products (CJ's partnerIds filter).
+export function cjQuery(env, query, { highCents = null, limit = 24, advertiser = null } = {}) {
   const args = [`companyId: ${str(env.CJ_CID)}`, "partnerStatus: JOINED", "availability: IN_STOCK", 'currency: "USD"',
     `keywords: [${str(clip(query, 120))}]`, `limit: ${Math.max(1, Math.min(100, limit | 0))}`];
   if (highCents) args.push(`highPrice: ${(highCents / 100).toFixed(2)}`);
+  if (advertiser && /^\d+$/.test(String(advertiser))) args.push(`partnerIds: [${str(String(advertiser))}]`);
   return `{ shoppingProducts(${args.join(", ")}) { resultList { id title description advertiserId advertiserName brand imageLink ` +
     `availability condition adult multipack price { amount currency } salePrice { amount currency } linkCode(pid: ${str(env.CJ_PID)}) { clickUrl } } } }`;
 }
@@ -47,10 +49,10 @@ export function cjRelevant(title, query) {
   return need.every(w => have.has(w) || flat.includes(" " + w));
 }
 
-export async function cjSearch(env, query, brief = {}, { fetchImpl = fetch, limit = 24 } = {}) {
+export async function cjSearch(env, query, brief = {}, { fetchImpl = fetch, limit = 24, advertiser = null } = {}) {
   if (!cjOn(env)) return [];
   const r = await fetchImpl(CJ_URL, { method: "POST", headers: { authorization: `Bearer ${env.CJ_TOKEN}`, "content-type": "application/json" },
-    body: JSON.stringify({ query: cjQuery(env, query, { highCents: brief.budget_cents || null, limit }) }), signal: AbortSignal.timeout(3500) });
+    body: JSON.stringify({ query: cjQuery(env, query, { highCents: brief.budget_cents || null, limit, advertiser }) }), signal: AbortSignal.timeout(3500) });
   if (!r.ok) throw new Error(`cj ${r.status}`);
   const j = await r.json();
   if (j && j.errors && j.errors.length && !(j.data && j.data.shoppingProducts)) throw new Error(`cj ${clip(j.errors[0].message, 120)}`);

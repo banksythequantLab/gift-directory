@@ -876,6 +876,37 @@ export const PAGES = [
   P("gifts-for-hairstylists", "Gifts for hairstylists", "a hairstylist", "Christmas", 75, { topic: "Professions", count: 6, minCount: 5, exclude: NICHE_NOVELTY,
     slots: ["professional hair shears", "anti fatigue mat", "salon tool belt", "hair clip set", "compression socks", "salon apron"],
     notes: "practical gifts for stylists on their feet all day" }),
+  // Novelty, magic and costume guides: the pages where a joke shop's stock is the right answer (see NOVELTY_STORE below).
+  P("white-elephant-gifts-that-get-stolen", "White elephant gifts that get stolen", "anyone at a gift exchange", "white elephant", 30, { topic: "Holidays", count: 8, minCount: 5,
+    slots: ["heat changing mug", "novelty scented candle", "party card game", "novelty socks", "desktop game", "funny doormat", "LED bluetooth speaker", "novelty throw blanket"],
+    notes: "the gifts people fight over at a swap: funny or surprisingly useful, never crude" }),
+  P("gag-gifts-for-coworkers-under-15", "Gag gifts for coworkers under $15", "a coworker with a sense of humor", "Secret Santa", 15, { topic: "Work & office", count: 7, minCount: 5,
+    slots: ["funny coffee mug", "desk toy", "novelty pen", "stress ball", "funny sticky notes", "novelty keychain", "novelty socks"],
+    notes: "office-safe jokes: nothing crude, nothing HR would mind" }),
+  P("magic-kits-for-kids", "Magic kits for kids", "a child age 6 to 12", "birthday or Christmas", 50, { topic: "Kids", novelty: true, count: 7, minCount: 5, exclude: KIDS_EXCLUDE,
+    slots: ["beginner magic kit", "magic card tricks deck", "magic wand", "cups and balls magic trick", "magic coin trick", "magician top hat", "magician cape"],
+    notes: "a first magic set and the props to put on a show for the family" }),
+  P("gifts-for-horror-movie-fans", "Gifts for horror movie fans", "someone who loves horror movies", "Christmas or birthday", 50, { topic: "Family & interests", novelty: true, horror: true, count: 8, minCount: 5,
+    slots: ["horror movie puzzle", "horror movie mug", "horror coloring book", "horror movie blanket", "horror enamel pin", "horror movie candle", "horror movie socks", "horror movie poster"],
+    notes: "for a fan of slashers and classic monsters; collectibles and cozy things for movie night" }),
+  P("prank-gifts", "Prank gifts for brothers and dads", "a brother or dad who loves a practical joke", "birthday or Christmas", 25, { topic: "Family & interests", novelty: true, count: 7, minCount: 5,
+    slots: ["whoopee cushion", "fake lottery tickets", "prank gift box", "snake in a can prank", "fake spider prank", "squirting flower", "joke book"],
+    notes: "harmless practical jokes; nothing that hurts or makes a real mess" }),
+  P("gothic-gifts", "Gifts for the goth in your life", "someone with a gothic style", "birthday or Christmas", 50, { topic: "Family & interests", novelty: true, count: 8, minCount: 5,
+    slots: ["skull candle", "bat necklace", "gothic journal", "coffin jewelry box", "black lace choker", "skull mug", "tarot deck", "gothic wall decor"],
+    notes: "dark, elegant and a little dramatic; jewelry, candles and decor" }),
+  P("weird-candles-and-mugs", "Weird candles and mugs", "someone who likes odd, funny things on their desk", "any occasion", 30, { topic: "Holidays", novelty: true, count: 7, minCount: 5,
+    slots: ["funny scented candle", "heat changing mug", "novelty shaped mug", "skull candle", "donut mug", "food shaped candle", "funny wine glass"],
+    notes: "strange scents and odd shapes that start a conversation" }),
+  P("funny-stocking-stuffers-under-10", "Funny stocking stuffers under $10", "anyone with a sense of humor", "Christmas stocking", 10, { topic: "Holidays", count: 7, minCount: 5,
+    slots: ["novelty keychain", "funny socks", "mini card game", "novelty pen", "fidget toy", "funny magnet", "novelty lip balm"],
+    notes: "small, cheap and good for a laugh on Christmas morning" }),
+  P("gifts-for-theater-kids", "Gifts for theater kids", "a teenager who lives for the school musical", "opening night or birthday", 40, { topic: "Family & interests", novelty: true, count: 7, minCount: 5, exclude: KIDS_EXCLUDE,
+    slots: ["stage makeup kit", "comedy tragedy mask", "musical theater mug", "makeup brush set", "theater tote bag", "costume wig", "costume hat"],
+    notes: "for a young performer: makeup, props and things for the dressing room" }),
+  P("bachelorette-party-gifts", "Bachelorette party gifts", "a bride and her friends", "bachelorette party", 40, { topic: "Life events", novelty: true, count: 7, minCount: 5,
+    slots: ["bride to be sash", "bachelorette tiara", "bachelorette party game", "bride tumbler", "team bride sunglasses", "bridal veil", "bachelorette party favors"],
+    notes: "fun and photo-ready, nothing explicit" }),
 ];
 // Guides whose people now have their own store link there (set after the list so each entry stays as written).
 const STORE_OF = {
@@ -898,6 +929,53 @@ for (const p of PAGES) {
   const extra = [...(AUDIT_EXCLUDE[p.slug] || []), ...(p.team ? ["panini", "infant", "toddler", "newborn"] : [])];
   if (extra.length) p.exclude = [...(p.exclude || []), ...extra];
 }
+// AbracadabraNYC (CJ advertiser 7889430) sells jokes, horror and costume stock. On a page that asked for none of
+// that, its products read as a mistake (a horror coloring book on "get well soon"), so they appear only on pages
+// marked `novelty`. Funny, gag and white-elephant pages are marked here; the novelty guides mark themselves.
+export const NOVELTY_STORE = /^cj:7889430:/;
+for (const p of PAGES) if (/^(funny-|gag-|white-elephant)/.test(p.slug)) p.novelty = true;
+export const NOVELTY_ADVERTISER = "7889430";
+// The novelty guides also search that one store, slot by slot, in the store's own words (`shop`), and those results
+// are offered first. Titles there rarely say "horror movie" or "gothic", so the general search misses them.
+const SHOP_SEARCHES = {
+  "white-elephant-gifts-that-get-stolen": ["mug", "candle", "card game", "socks", "game", "doormat", "speaker", "blanket"],
+  "gag-gifts-for-coworkers-under-15": ["mug", "desk", "pen", "stress", "notes", "keychain", "socks"],
+  "magic-kits-for-kids": ["magic kit", "card trick", "magic wand", "magic trick", "coin trick", "magician hat", "magician cape"],
+  "gifts-for-horror-movie-fans": ["puzzle", "mug", "coloring book", "blanket", "pin", "candle", "socks", "poster"],
+  "prank-gifts": ["whoopee cushion", "lottery", "prank", "snake", "spider", "squirting", "joke"],
+  "gothic-gifts": ["skull candle", "bat necklace", "journal", "coffin", "choker", "skull mug", "tarot", "gothic"],
+  "weird-candles-and-mugs": ["scented candle", "changing mug", "mug", "skull candle", "donut mug", "candle", "wine glass"],
+  "funny-stocking-stuffers-under-10": ["keychain", "socks", "card game", "pen", "fidget", "magnet", "lip balm"],
+  "gifts-for-theater-kids": ["makeup kit", "mask", null, "makeup brush", null, "wig", "hat"],
+  "bachelorette-party-gifts": ["sash", "tiara", "bachelorette", null, null, "veil", "bachelorette"],
+};
+// On a themed page the shop's result must also name the theme (a pizza blanket is not a horror gift).
+const SHOP_MUST = {
+  "gifts-for-horror-movie-fans": ["horror", "terrifier", "corpses", "saw", "killer klown", "wolfman", "wolf man", "dracula", "frankenstein", "monster", "zombie", "pennywise", "chucky", "beetlejuice", "halloween", "scream", "ghostface", "creature", "nightmare", "friday the 13th", "exorcist", "vampire", "mummy", "spine", "skull", "bloody", "coffin"],
+  "gothic-gifts": ["skull", "bat", "goth", "coffin", "black", "raven", "crow", "dragon", "spider", "lace", "tarot", "vampire", "moon", "witch", "spine", "skeleton", "rose", "victorian"],
+};
+// What a first build put on these pages that doesn't belong there.
+const NOVELTY_EXCLUDE = {
+  "gag-gifts-for-coworkers-under-15": ["rifle", "gun", "tactical", "grenade", "bullet", "halloween", "shock", "pussycat", "drinking"],
+  "white-elephant-gifts-that-get-stolen": ["naughty", "drinking game", "shock"],
+  "weird-candles-and-mugs": ["buds"],
+  "bachelorette-party-gifts": ["naughty", "coin sash", "pet "],
+  "magic-kits-for-kids": ["gathering", "treat", "science", "juggling", "pokemon", "dog", "costume makeup"],
+  "prank-gifts": ["raffle", "can glass", "halloween", "itching", "spider ring", "shock"],
+  "funny-stocking-stuffers-under-10": ["hello kitty"],
+  "gifts-for-theater-kids": ["halloween", "pursonic"],
+};
+for (const p of PAGES) {
+  if (SHOP_SEARCHES[p.slug]) p.shop = SHOP_SEARCHES[p.slug];
+  if (SHOP_MUST[p.slug]) p.shopMust = SHOP_MUST[p.slug];
+  if (NOVELTY_EXCLUDE[p.slug]) p.exclude = [...(p.exclude || []), ...NOVELTY_EXCLUDE[p.slug]];
+}
+// No guide shows these, whoever sells them.
+const SEX_DRUG = /\b(stoners?|marijuana|cannabis|bongs?|take a hit|pot leaf|weed (?:grinder|pipe|leaf)|vape|boob\w*|penis|thong|teddy set|lingerie|sexy|nsfw|x-rated|vibrator|adult toy|sex|kinky|horny|orgasm\w*|erotic\w*|bdsm|bondage|strippers?|kama sutra|dildos?|condoms?|nipples?|thc|schlong|lust|pussy|fishnets?|fuck\w*|f\*ck\w*|sh\*t\w*)\b/i;
+// Gross-out jokes belong on the joke pages only.
+const GROSS = /\b(vomit|poop\w*|poo|doggie doo|fart\w*|snot|booger\w*|barf)\b/i;
+// Horror-film and gore items stay on pages for horror fans (`horror`).
+const GORE = /\b(terrifier|corpses?|massacre|chainsaw|billy the puppet|bloody|severed|zombies?|slasher|horror|gore|pennywise|michael myers|freddy krueger|jason voorhees|chucky|ghostface)\b|saw:/i;
 export const pageBySlug = slug => PAGES.find(p => p.slug === slug) || null;
 
 // No page should be seven candles: at most `cap` products of one kind, in the order they came.
@@ -922,6 +1000,9 @@ export function diversify(cards, cap = 3) {
 // `slot`: on slot pages, an open slot (`openSlots`) skips `require` (general soccer-fan gifts on a club page).
 export function allowed(p, c, slot) {
   const t = String((c && c.title) || "").toLowerCase();
+  if (SEX_DRUG.test(t)) return false;
+  if (!p.novelty && (NOVELTY_STORE.test(String((c && c.product_id) || "")) || GROSS.test(t))) return false;
+  if (!p.horror && GORE.test(t)) return false;
   if ((p.exclude || []).some(w => t.includes(String(w).toLowerCase()))) return false;
   if (slot !== undefined && p.openSlots && p.openSlots.includes(slot)) return true;
   return !p.require || p.require.some(w => t.includes(String(w).toLowerCase()));

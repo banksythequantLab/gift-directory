@@ -3,7 +3,7 @@ import { paypalFetch, link, paypalMode, paypalFor, isSandboxEmail, ensureStorePl
 import { validateBrief, findGifts, browseGifts, channel3Search, toCard, mergeCards } from "./finder.js";
 import { validatePool, contributionError, buildContributionOrder, readCapture, applyCapture, publicPool } from "./pools.js";
 import { ROOT, DRAFT_SYSTEM, parseDraft, validateStore, storePlanSystem, subscriptionBody, storeStatusFor, hostKey, publicStore, darkEnough } from "./stores.js";
-import { PAGES, pageBySlug, GUIDE_SYSTEM, guidePrompt, parseGuide, pageBrief, renderGuide, renderHub, MIN_LISTED, noindexed, renderTopic, topicSlug, topicBySlug, related, teamNav, TEAM_PAGES, THEME_PAGES, sitemap, adSlot, configureAds, diversify, allowed } from "./seo.js";
+import { PAGES, pageBySlug, GUIDE_SYSTEM, guidePrompt, parseGuide, pageBrief, renderGuide, renderHub, MIN_LISTED, noindexed, renderTopic, topicSlug, topicBySlug, related, teamNav, TEAM_PAGES, THEME_PAGES, sitemap, adSlot, configureAds, diversify, allowed, NOVELTY_ADVERTISER } from "./seo.js";
 import { LEGAL_SLUGS, renderLegal } from "./legal.js";
 import { REVIEW_SLUGS, REVIEW_INDEX, renderReview, reviewBox } from "./reviews.js";
 import { authorizeUrl, paypalWebBase, parseUserinfo, ownsStore, validateSettings, validateItem, shelves, withoutHidden } from "./owners.js";
@@ -84,10 +84,12 @@ async function buildGuide(db, env, p, { cardsOnly = false } = {}) {
   // A "10 best" page with fixed slots: one search per category, the top in-stock product of each, then one AI call for the reasons.
   if (p.slots) {
     // CJ products from joined advertisers come first (they pay us directly); Channel3 fills the rest. No CJ keys, no CJ.
-    const found = await Promise.all(p.slots.map(q => Promise.all([
+    const found = await Promise.all(p.slots.map((q, i) => Promise.all([
+      // A novelty guide asks the joke shop first, in the shop's own words for this slot.
+      p.shop && p.shop[i] ? cjSearch(env, p.shop[i], brief, { limit: 40, advertiser: NOVELTY_ADVERTISER }).then(cs => cs.filter(c => !p.shopMust || p.shopMust.some(w => String(c.title || "").toLowerCase().includes(w))).slice(0, 3)).catch(() => []) : [],
       cjSearch(env, q, brief, { limit: 40 }).then(cs => cs.slice(0, 6)).catch(() => []),
       channel3Search(env, q, brief).then(ps => ps.map(x => toCard(x, brief.budget_cents))).catch(() => []),
-    ]).then(([cj, c3]) => [...cj, ...c3])));
+    ]).then(([shop, cj, c3]) => [...shop, ...cj, ...c3])));
     // Up to six candidates per slot; the AI picks the best-known, best-reviewed-sounding one by index and says why.
     // `slotMust[i]`: the product title must name that slot's kind (a scarf slot can't fill with a fourth jersey).
     const fits = (c, i) => !p.slotMust || !p.slotMust[i] || p.slotMust[i].some(w => String(c.title || "").toLowerCase().includes(w));
@@ -720,7 +722,9 @@ export default {
         }
         const st = p.store && await db.prepare("SELECT slug FROM stores WHERE slug=? AND status='active'").bind(p.store).first();
         const built = new Set(rows.map(r => r.slug));
-        const guideHtml = renderGuide(p, row, related(p, built), st ? `https://${st.slug}.${ROOT}/` : null, adSlot(env), teamNav(p, built), reviewBox(p.slug));
+        const guideHtml = renderGuide(p, row, related(p, built), st ? `https://${st.slug}.${ROOT}/` : null, adSlot(env), teamNav(p, built),
+          // A guide that shows AbracadabraNYC products also shows that store's current coupon codes.
+          reviewBox(p.slug) + (String(row.cards_json || "").includes('"cj:7889430:') ? reviewOffers("magic-kits-and-costume-gifts", await listedPromos(db).catch(() => [])) : ""));
         if (built.has(p.slug)) return html(guideHtml);
         const thin = html(noindexed(guideHtml)); thin.headers.set("x-robots-tag", "noindex, follow"); return thin;
       }
