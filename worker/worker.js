@@ -12,6 +12,7 @@ import { ETSY_API, ETSY_NOTICE, etsyShopName, etsyShopUrl, pickShop, etsyCards }
 import { cjSearch } from "./cj.js";
 import { refreshDeals, refreshPromos, listedDeals, listedPromos, renderSales, salesStrip, reviewOffers, dealCard } from "./deals.js";
 import { RECS_SYSTEM, recsPrompt, parseRecs } from "./recs.js";
+import { pickAlternates } from "./more.js";
 import { TEE, teePromo } from "./promo.js";
 import { REG_MAX_ITEMS, REG_POOL_MIN_CENTS, validateRegistry, registrySlug, validateRegItem, publicRegistry, REG_AI_SYSTEM, regAiPrompt, parseRegAi, poolTarget, reminderSendOn, validateReminder, reminderEmail } from "./registry.js";
 import { ASSIST_SYSTEM, MAX_STEPS, SHELF_MAX, storeBrief, assistPrompt, parseAssist, matchHide, pickShelf, describeStep, PICK_SYSTEM, pickPrompt, applyPicks, capKinds } from "./assistant.js";
@@ -111,8 +112,18 @@ async function buildGuide(db, env, p, { cardsOnly = false } = {}) {
       chosen.push({ ...(ch && typeof ch.reason === "string" && ch.reason.length > 10 && c === l[k] ? { ...c, reason: ch.reason.slice(0, 220) } : c), ...(group ? { group } : {}) });
     });
     if (chosen.length < (p.minCount || p.count || chosen.length)) return { ok: false, error: `only ${chosen.length} of ${p.slots.length} slots found a product` };
-    const cards = chosen.slice(0, p.count || 16), t = now();
-    guide.recs = await makeRecs(ai, p, cards);
+    // A runner-up for each kind, from the searches already made (no extra searches), each with its own reason.
+    const main = chosen.slice(0, p.count || 16), t = now(), alts = pickAlternates(p, cands, main);
+    if (alts.length) try {
+      const out = await ai("You write one warm sentence (under 25 words) on why each product makes a good gift, for a page titled \"" + p.keyword + "\". " +
+        "Only use what the title says; never invent specs. Never mention the price or compare products. " +
+        "Answer only JSON: {\"reasons\":[{\"i\":0,\"reason\":\"...\"}]} with one entry per product.", JSON.stringify(alts.map((c, i) => `${i}: ${c.title}`)));
+      for (const r of (out && Array.isArray(out.reasons) ? out.reasons : []))
+        if (r && Number.isInteger(r.i) && alts[r.i] && typeof r.reason === "string" && r.reason.length > 10) alts[r.i].reason = r.reason.slice(0, 220);
+    } catch {}
+    const cards = [...main, ...alts];
+    // Top picks come from the first choices; if the model gives none this time, the page keeps the ones it had.
+    guide.recs = (await makeRecs(ai, p, main)) || guide.recs || null;
     await db.prepare("INSERT INTO seo_pages (slug,guide_json,cards_json,updated_at,created_at) VALUES (?,?,?,?,?) " +
       "ON CONFLICT(slug) DO UPDATE SET guide_json=excluded.guide_json, cards_json=excluded.cards_json, updated_at=excluded.updated_at")
       .bind(p.slug, JSON.stringify(guide), JSON.stringify(cards), t, t).run();
