@@ -1,6 +1,6 @@
 // Top picks on a guide: only products on the page, labels from real prices, and nothing claimed that nobody did.
 import { recsStyle, recsPrompt, parseRecs, liveRecs, renderRecs, howWeChose, underLabel, RECS_SYSTEM } from "../recs.js";
-import { renderGuide, pageBySlug, saveBadge, configureAds, amazonLink, amazonTag, AMAZON_DISCLOSURE, shell } from "../seo.js";
+import { renderGuide, pageBySlug, saveBadge, configureAds, amazonLink, amazonTag, ownerPicks, AMAZON_DISCLOSURE, shell } from "../seo.js";
 
 let passed = 0, failed = 0;
 const ok = (n, c, d = "") => { c ? passed++ : (failed++, console.log(`FAIL  ${n}${d ? "  - " + d : ""}`)); };
@@ -114,6 +114,22 @@ ok("the editor is told not to invent details for those", /no details listed/.tes
   ok("a guide shows the link and explains what it is", page.includes("Search Amazon for this") && page.includes("what Amazon shows may be a different seller, model or price"));
   ok("no Amazon price is shown anywhere", !/amazon[^<]{0,40}\$\d/i.test(page));
   configureAds({});
+}
+{
+  const sweet = pageBySlug("what-to-get-someone-with-a-sweet-tooth");
+  configureAds({ AMAZON_TAG: "giftdirectory-20" });
+  const box = ownerPicks(sweet);
+  ok("the sweet-tooth guide opens with Derek's Picks", box.includes("Derek&#39;s Picks") && box.includes("Dried mango") && box.includes("Twizzlers Pull &#39;n&#39; Peel") && box.includes("Sour Punch") && box.includes("Wiley Wallaby licorice"));
+  const mine = box.slice(0, box.indexOf("Other sweets that give well"));
+  ok("his note is his words and nothing more", mine.includes("It is sweet and healthier than most picks.") && (mine.match(/ — /g) || []).length === 1);
+  ok("each pick and each other idea has a tagged Amazon search", (box.match(/tag=giftdirectory-20/g) || []).length === 9);
+  ok("the other ideas are marked as not his", box.indexOf("Other sweets that give well") > box.indexOf("Wiley Wallaby") && box.includes("not Derek&#39;s picks"));
+  ok("a page with no catalog products does not claim any are in stock", !renderGuide(sweet, { guide_json: JSON.stringify({ intro: ["x"], tips: [], faq: [] }), cards_json: "[]", updated_at: "2026-11-19T00:00:00Z" }, [], null).includes("gifts in stock now"));
+  configureAds({});
+  ok("with no Amazon tag the picks are still listed, without links", ownerPicks(sweet).includes("Dried mango") && !ownerPicks(sweet).includes("amazon.com"));
+  eq("a guide without owner picks shows no such box", ownerPicks(pageBySlug("gifts-for-gardeners")), "");
+  const page = renderGuide(sweet, { guide_json: JSON.stringify({ intro: ["x"], tips: [], faq: [] }), cards_json: "[]", updated_at: "2026-11-19T00:00:00Z" }, [], null);
+  ok("and the box is on the page", page.includes("Derek&#39;s Picks"));
 }
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

@@ -883,6 +883,22 @@ export const PAGES = [
   P("gifts-for-hairstylists", "Gifts for hairstylists", "a hairstylist", "Christmas", 75, { topic: "Professions", count: 6, minCount: 5, exclude: NICHE_NOVELTY,
     slots: ["professional hair shears", "anti fatigue mat", "salon tool belt", "hair clip set", "compression socks", "salon apron"],
     notes: "practical gifts for stylists on their feet all day" }),
+  // A guide that opens with the owner's own favorites, in his words (`ownerPicks`); the catalog picks follow as usual.
+  // Nothing is written on his behalf: an item with no note is listed by name only.
+  P("what-to-get-someone-with-a-sweet-tooth", "What to get someone with a sweet tooth", "someone with a sweet tooth", "Christmas or a birthday", 40, { topic: "Hobbies", count: 8, minCount: 5,
+    exclude: ["gift card", "bulk", "case of", "vending", "wholesale", "dog", "pet ", "animal", "scented", "candle", "soap", "lip ", "toy", " lab", "roleplay", "role play", "play set", "playset", "pretend", "ornament", "favor box", "decorating", "make it mini", "kid's concept", "wooden", "plush", "puzzle", "costume", "sticker", "book", "mold", "maker", "machine", "dispenser", "jar", "dish", "bowl", "mug only", "print", "poster", "shirt", "socks", "earring", "necklace", "charm", "pajama", "blanket", "pillow", "squishy", "inflatable", "doll", "scentsy", "holder", "stand", "glass covered", "blind box", "game", "card", "advent"],
+    slotMust: [["godiva"], ["lindt", "lindor"], ["ghirardelli"], ["ferrero"], ["sugarfina"], ["jelly belly"], ["haribo"], ["russell stover", "whitman"]],
+    slots: ["Godiva chocolate gift box", "Lindt Lindor truffles", "Ghirardelli chocolate squares", "Ferrero Rocher gift box", "Sugarfina candy", "Jelly Belly jelly beans gift box", "Haribo gummies", "Russell Stover assorted chocolates"],
+    notes: "sweets made for giving: assortments and gift boxes, not a single bar from the checkout aisle",
+    ownerPicks: { by: "Derek's Picks", intro: "The sweets I actually buy.", groups: [
+      { items: [{ name: "Dried mango", note: "It is sweet and healthier than most picks.", q: "dried mango" }] },
+      { label: "Licorice", items: [{ name: "Twizzlers Pull 'n' Peel", q: "Twizzlers Pull n Peel" }, { name: "Sour Punch", q: "Sour Punch candy" }, { name: "Wiley Wallaby licorice", q: "Wiley Wallaby licorice" }] },
+    ], more: { label: "Other sweets that give well", note: "These are kinds of gift, not Derek's picks. Each link runs a search.", items: [
+      { name: "A box of chocolate truffles", note: "The safe choice when you don't know their favorite.", q: "chocolate truffles gift box" },
+      { name: "A gummy sampler", note: "For the person who skips the chocolate.", q: "gummy candy sampler gift box" },
+      { name: "Salted caramels", note: "Small box, keeps well, easy to mail.", q: "salted caramels gift box" },
+      { name: "A retro candy box", note: "Pick the decade they grew up in.", q: "retro candy gift box" },
+      { name: "A hot chocolate set", note: "A winter gift that isn't more candy.", q: "hot chocolate gift set" }] } } }),
   // Novelty, magic and costume guides: the pages where a joke shop's stock is the right answer (see NOVELTY_STORE below).
   P("white-elephant-gifts-that-get-stolen", "White elephant gifts that get stolen", "anyone at a gift exchange", "white elephant", 30, { topic: "Holidays", count: 8, minCount: 5,
     slots: ["heat changing mug", "novelty scented candle", "party card game", "novelty socks", "desktop game", "funny doormat", "LED bluetooth speaker", "novelty throw blanket"],
@@ -1085,6 +1101,14 @@ export function amazonLink(c) {
   if (q.length < 4) return "";
   return `<p class="amz"><a href="https://www.amazon.com/s?k=${encodeURIComponent(q)}&amp;tag=${AMAZON_TAG}" target="_blank" rel="noopener sponsored nofollow" data-m="Amazon">Search Amazon for this</a></p>`;
 }
+// The owner's own favorites at the top of a guide. Each name links to an Amazon search when the Associates tag is set.
+export function ownerPicks(p) {
+  const o = p && p.ownerPicks; if (!o || !Array.isArray(o.groups)) return "";
+  const item = it => { const u = AMAZON_TAG && it.q ? `https://www.amazon.com/s?k=${encodeURIComponent(it.q)}&amp;tag=${AMAZON_TAG}` : "";
+    return `<li style="margin:0 0 8px"><b>${esc(it.name)}</b>${it.note ? ` — ${esc(it.note)}` : ""}${u ? ` <a href="${u}" target="_blank" rel="noopener sponsored nofollow" data-m="Amazon" style="white-space:nowrap">Search Amazon</a>` : ""}</li>`; };
+  return `<section style="border:2px solid var(--accent,#1e3a5f);border-radius:14px;padding:16px 18px;margin:18px 0;background:#fff"><h2 style="font-family:Georgia,serif;margin:0 0 4px">${esc(o.by)}</h2>
+${o.intro ? `<p class="muted" style="margin:0 0 10px">${esc(o.intro)}</p>` : ""}${o.groups.map(g => `${g.label ? `<p style="margin:10px 0 4px;font-weight:700">${esc(g.label)}</p>` : ""}<ul style="margin:0;padding-left:20px">${(g.items || []).map(item).join("")}</ul>`).join("")}</section>${o.more ? `<section style="margin:18px 0"><h2 style="font-family:Georgia,serif;margin:0 0 4px">${esc(o.more.label)}</h2>${o.more.note ? `<p class="muted" style="margin:0 0 10px">${esc(o.more.note)}</p>` : ""}<ul style="margin:0;padding-left:20px">${o.more.items.map(item).join("")}</ul></section>` : ""}`;
+}
 export const AMAZON_DISCLOSURE = "As an Amazon Associate I earn from qualifying purchases.";
 export function adSlot(env) {
   const client = env && env.ADSENSE_CLIENT, slot = env && env.ADSENSE_SLOT;
@@ -1134,16 +1158,16 @@ export const houseAd = (topic, slug) => HOUSE_ADS[topic] ? HOUSE_ADS[topic](slug
 export function renderGuide(p, row, related, storeUrl, ad = "", teams = "", extra = "") {
   const g = JSON.parse(row.guide_json), cards = JSON.parse(row.cards_json || "[]");
   const url = `${ROOT}/gifts/${p.slug}`, updated = new Date(row.updated_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
-  const title = `${p.keyword} (${new Date(row.updated_at).getUTCFullYear()}) — real gifts in stock | gift.directory`;
+  const title = cards.length ? `${p.keyword} (${new Date(row.updated_at).getUTCFullYear()}) — real gifts in stock | gift.directory` : `${p.keyword} | gift.directory`;
   const recs = liveRecs(g.recs, cards), onSale = cards.filter(c => saveBadge(c)).length;
   const body = `<div class="crumbs"><a href="/">gift.directory</a> › <a href="/gifts">Gift guides</a> › <a href="/gifts/topic/${topicSlug(p.topic)}">${esc(p.topic)}</a></div>
 <h1 style="font-family:Georgia,serif;margin:4px 0 6px">${esc(p.keyword)}</h1>
-<p class="muted" style="margin:0 0 12px">Updated ${esc(updated)} · ${cards.length} gifts in stock now</p>
+<p class="muted" style="margin:0 0 12px">Updated ${esc(updated)}${cards.length ? ` · ${cards.length} gifts in stock now` : ""}</p>
 <section class="guide">${g.intro.map(x => `<p>${esc(x)}</p>`).join("")}</section>
 ${expertNote(p.slug)}
 ${related.length >= 3 ? `<p class="muted see">See also: ${related.slice(0, 3).map(r => `<a href="/gifts/${r.slug}">${esc(r.keyword.charAt(0).toLowerCase() + r.keyword.slice(1))}</a>`).join(", ").replace(/, ([^,]*)$/, " and $1")}.</p>` : ""}
 ${p.anniversary ? `<p class="muted" style="font-size:1.02rem"><b>Traditional gift:</b> ${esc(p.anniversary.traditional.replace(/\s*\(ivory-colored, never real ivory\)/, " (ivory-colored)"))} · <b>Modern gift:</b> ${esc(p.anniversary.modern)}</p>` : ""}
-${renderRecs(recs, saveBadge)}${cards.length ? (cards.some(c => c.group)
+${ownerPicks(p)}${renderRecs(recs, saveBadge)}${cards.length ? (cards.some(c => c.group)
   ? groupCards(cards).map(([label, cs]) => `<h2 style="font-family:Georgia,serif">${esc(label)}</h2><div class="grid">${cs.map(c => card(c, p.slug)).join("")}</div>`).join("")
   : `<h2 style="font-family:Georgia,serif">${recs ? `All ${cards.length} picks` : "Our picks"}</h2><div class="grid">${cards.map(c => card(c, p.slug)).join("")}</div>`) : ""}${onSale ? `<p class="muted">${onSale} of these ${onSale === 1 ? "is" : "are"} marked down from the retailer's regular price as of ${esc(updated)}. <a href="/sales">See every gift on sale now →</a></p>` : ""}${cards.length ? howWeChose(p, cards.length, updated, !!AMAZON_TAG) : ""}
 <div class="cta"><b style="font-size:1.1rem">Going in together?</b><br>${storeUrl

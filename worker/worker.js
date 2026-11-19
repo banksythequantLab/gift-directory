@@ -117,7 +117,11 @@ async function buildGuide(db, env, p, { cardsOnly = false } = {}) {
       const group = p.slotGroups ? p.slotGroups[i] : undefined;
       chosen.push({ ...(ch && typeof ch.reason === "string" && ch.reason.length > 10 && c === l[k] ? { ...c, reason: ch.reason.slice(0, 220) } : c), ...(group ? { group } : {}) });
     });
-    if (chosen.length < (p.minCount || p.count || chosen.length)) return { ok: false, error: `only ${chosen.length} of ${p.slots.length} slots found a product` };
+    if (chosen.length < (p.minCount || p.count || chosen.length)) {
+      // The catalog is thin on some things (it carries almost no candy). A page with the owner's own picks goes up without catalog products.
+      if (p.ownerPicks && !old) { const t0 = now(); await db.prepare("INSERT INTO seo_pages (slug,guide_json,cards_json,updated_at,created_at) VALUES (?,?,?,?,?) ON CONFLICT(slug) DO NOTHING").bind(p.slug, JSON.stringify(guide), "[]", t0, t0).run(); return { ok: true, slug: p.slug, products: 0, owner_picks_only: true, faq: guide.faq.length }; }
+      return { ok: false, error: `only ${chosen.length} of ${p.slots.length} slots found a product` };
+    }
     // A runner-up for each kind, from the searches already made (no extra searches), each with its own reason.
     const main = chosen.slice(0, p.count || 16), t = now(), alts = pickAlternates(p, cands, main);
     if (alts.length) try {
@@ -733,7 +737,7 @@ export default {
           return new Response(`User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin\nDisallow: /login\n\nSitemap: https://${ROOT}/sitemap.xml\n`, { headers: { "content-type": "text/plain" } });
         // Listed guides only: one with too few picks stays reachable by its link but is not shown or indexed.
         const allRows = (await db.prepare("SELECT slug, updated_at, json_array_length(cards_json) AS n FROM seo_pages").all()).results;
-        const rows = allRows.filter(r => r.n >= MIN_LISTED);
+        const rows = allRows.filter(r => r.n >= MIN_LISTED || (pageBySlug(r.slug) || {}).ownerPicks);
         if (url.pathname === "/sitemap.xml") {
           const stores = (await db.prepare("SELECT slug, updated_at FROM stores WHERE status='active'").all()).results;
           return new Response(sitemap([{ loc: `https://${ROOT}/` }, { loc: `https://${ROOT}/gifts` }, { loc: `https://${ROOT}/sales` }, ...SALE_BUDGETS.map(b => ({ loc: `https://${ROOT}/sales/under-${b}` })), { loc: `https://${ROOT}/registry` }, ...LEGAL_SLUGS.map(s => ({ loc: `https://${ROOT}/${s}` })), ...REVIEW_SLUGS.map(s => ({ loc: `https://${ROOT}/reviews/${s}` })),
