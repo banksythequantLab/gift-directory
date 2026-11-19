@@ -10,6 +10,8 @@ export const RECS_SYSTEM =
   "choice the way a knowledgeable friend would. Each reason is two sentences that together say what kind of person or situation the gift suits and when to choose it rather than " +
   "the other things on the page (for example, when they already own the basics, when you do not know their size, when it is from a group). " +
   "Vary how the reasons begin: no two may open with the same words, and none may open with 'This gift', 'This pick', 'This', 'Choose' or 'Ideal'. " +
+  "For a product marked '(no details listed)', say nothing about what it includes, holds, is made of or can do beyond what its title says; write about who it is for instead. " +
+  "Do not rank the products against each other on quality, power, completeness or price (no 'most complete', 'more powerful', 'lowest price', 'high output'). " +
   "Write every sentence fresh for this page: never reuse a phrase from these instructions. Mention size or fit only for clothing and footwear. " +
   "The skip sentence must fit this recipient as described (a fan is not a player; someone who loves their dog is not a breeder). Write about the person and the giving, not a list of features. " +
   "Use ONLY what each product's title, brand, price and listed features say. Never invent specifications, materials, sizes, " +
@@ -39,7 +41,7 @@ export function recsStyle(slug) {
 export function recsPrompt(p, cards) {
   return `Page: ${p.keyword}\nWho it's for: ${p.recipient}\nOccasion: ${p.occasion}\n\nProducts:\n` + cards.map(c =>
     `${c.product_id} | ${c.title}${c.brand ? " by " + c.brand : ""} | $${(c.price_cents / 100).toFixed(2)} at ${c.merchant}` +
-    ((c.features || []).length ? ` | ${c.features.slice(0, 4).join("; ")}` : "") + (c.group ? ` | section: ${c.group}` : "")).join("\n");
+    ((c.features || []).length ? ` | ${c.features.slice(0, 4).join("; ")}` : " | (no details listed)") + (c.group ? ` | section: ${c.group}` : "")).join("\n");
 }
 // Things a model must not claim, because nobody did them.
 const UNTRUE = /\b(we|i|our team|our testers?|testers?|reviewers?|customers?|buyers?|users?|owners?)\b[^.]{0,40}\b(tested|tried|tests?|reviews?|rated|rave|love[ds]?|swear|report)|\b\d(\.\d)?[- ]stars?\b|\bbest[- ]sell(er|ing)\b|\baward[- ]winning\b|\btop[- ]rated\b|\bhighly rated\b|\$\s?\d/i;

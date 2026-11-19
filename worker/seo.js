@@ -972,7 +972,7 @@ const NOVELTY_EXCLUDE = {
   "gifts-for-theater-kids": ["halloween", "pursonic"],
 };
 for (const p of PAGES) {
-  if (SHOP_SEARCHES[p.slug]) p.shop = SHOP_SEARCHES[p.slug];
+  if (SHOP_SEARCHES[p.slug]) { p.shop = SHOP_SEARCHES[p.slug]; p.topic = "Jokes, magic & spooky"; }   // one shelf on the guides page, not ten corners of it
   if (SHOP_MUST[p.slug]) p.shopMust = SHOP_MUST[p.slug];
   if (NOVELTY_EXCLUDE[p.slug]) p.exclude = [...(p.exclude || []), ...NOVELTY_EXCLUDE[p.slug]];
 }

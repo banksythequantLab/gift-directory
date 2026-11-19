@@ -5,6 +5,7 @@
 //   2. Store offers: coupon codes and sale events from the CJ advertisers we have joined (CJ Link Search).
 // Nothing here is written by a model, and no discount is computed from anything but the retailer's two prices.
 import { shell, pageBySlug, productLd } from "./seo.js";
+import { alertForm } from "./alerts.js";
 import { toCard, isJunk } from "./finder.js";
 
 const C3 = "https://api.trychannel3.com";
@@ -89,9 +90,9 @@ export async function refreshDeals(db, env, { max = 30, fetchImpl = fetch, nowMs
 }
 // What the page shows: markdowns whose price was checked in the last two days, biggest first.
 export async function listedDeals(db, { limit = 160, nowMs = Date.now() } = {}) {
-  const rows = (await db.prepare("SELECT slug, card_json, checked_at FROM deals WHERE on_sale=1 AND checked_at > ? ORDER BY pct DESC, checked_at DESC LIMIT ?")
+  const rows = (await db.prepare("SELECT product_id, slug, card_json, checked_at FROM deals WHERE on_sale=1 AND checked_at > ? ORDER BY pct DESC, checked_at DESC LIMIT ?")
     .bind(new Date(nowMs - DEAL_FRESH_HOURS * 3600e3).toISOString(), limit).all()).results;
-  return rows.map(r => { try { return { ...JSON.parse(r.card_json), slug: r.slug, checked_at: r.checked_at }; } catch { return null; } }).filter(c => c && isDeal(c));
+  return rows.map(r => { try { return { ...JSON.parse(r.card_json), product_id: r.product_id, slug: r.slug, checked_at: r.checked_at }; } catch { return null; } }).filter(c => c && isDeal(c));
 }
 
 // ---------- store offers (CJ) ----------
@@ -187,7 +188,7 @@ export function dealCard(c, { from = true } = {}) {
 <div class="price">${money(c.price_cents)}${c.was_cents > c.price_cents ? `<span class="was">${money(c.was_cents)}</span>` : ""}${saleBadge(c)}</div>
 ${c.reason && !g ? `<p class="why">${esc(c.reason)}</p>` : ""}
 <div class="acts"><a class="btn sec" href="${esc(c.url)}" target="_blank" rel="noopener sponsored nofollow">View at ${esc(c.merchant)}</a></div>
-${c.checked_at ? `<p class="chk">Price checked ${esc(day(c.checked_at))}</p>` : ""}${g ? `<p class="from">From our guide: <a href="/gifts/${g.slug}">${esc(g.keyword)}</a></p>` : ""}</article>`;
+${c.checked_at ? `<p class="chk">Price checked ${esc(day(c.checked_at))}</p>` : ""}${g ? `<p class="from">From our guide: <a href="/gifts/${g.slug}">${esc(g.keyword)}</a></p>` : ""}${g ? alertForm(c, c.slug) : ""}</article>`;
 }
 const TOP_N = 12, PER_TOPIC = 8;
 export function renderSales({ deals = [], promos = [], ad = "", nowMs = Date.now() } = {}) {

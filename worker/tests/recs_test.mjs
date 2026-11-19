@@ -91,5 +91,8 @@ ok("every team slot has its kind words", cow.slotMust.length === cow.slots.lengt
 const lab = pageBySlug("gifts-for-labrador-lovers"), gold = pageBySlug("gifts-for-golden-retriever-lovers");
 ok("two breeds do not ask for the same list", lab.slots.length === 9 && gold.slots.length === 9 && lab.slots.slice(7).map(x => x.replace("Labrador", "")).join() !== gold.slots.slice(7).map(x => x.replace("Golden Retriever", "")).join());
 ok("every breed slot has its kind words", lab.slotMust.every(Boolean) && gold.slotMust.every(Boolean));
+ok("a product with no listed features is marked so", recsPrompt({ keyword: "k", recipient: "r", occasion: "o" }, [{ product_id: "a1", title: "Ultra Hydration Vest", price_cents: 9747, merchant: "x.test" }]).includes("(no details listed)"));
+ok("and one with features is not", !recsPrompt({ keyword: "k", recipient: "r", occasion: "o" }, [{ product_id: "a1", title: "Belt", price_cents: 2100, merchant: "x.test", features: ["Two side pockets"] }]).includes("(no details listed)"));
+ok("the editor is told not to invent details for those", /no details listed/.test(RECS_SYSTEM) && /Do not rank the products/.test(RECS_SYSTEM));
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
