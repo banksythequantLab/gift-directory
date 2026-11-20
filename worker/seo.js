@@ -138,6 +138,47 @@ const SOCCER_AMAZON = [
   { asin: "B0C1XKQZRZ", name: "adidas Starlancer Club soccer ball", note: "A sturdy everyday ball for the park or the backyard." },
   { asin: "B002OMD4DM", name: "Baden mini gold trophy soccer ball", note: "A small gold ball for the shelf or for collecting autographs." },
 ];
+const A = (asin, name, note) => ({ asin, name, note });
+const BLANKET = A("B07HC4KMRC", "Tirrinia waterproof outdoor blanket", "Keeps a fan warm and dry in the stands or at the tailgate.");
+const CUSHIONS = A("B0DS65MGZF", "Stadium seat cushions", "Padding for hard bleacher seats; folds up to carry.");
+const CORNHOLE = A("B07TC5X8P5", "GoSports regulation cornhole boards", "The tailgate game, in full regulation size.");
+const FOOTBALL_CASE = A("B0C18J65DT", "Football display case", "A UV-protected case for a signed or game ball.");
+const BASKETBALL = [
+  A("B08QJL66SY", "Spalding indoor/outdoor basketball", "A composite ball that holds up on any court."),
+  A("B001I912SQ", "SKLZ Pro Mini over-the-door basketball hoop", "Hoops in the office or the bedroom, with a mini ball."),
+  A("B0DM8YX2NX", "Basketball display case", "A clear case with a wood base for a signed ball."),
+  A("B0CZPG8K9Y", "Basketball coach's dry-erase clipboard", "For the fan who draws up plays during the game."),
+  CUSHIONS,
+];
+// Hand-picked Amazon products by league (all checked in stock, Nov 2026), with the heading's sport word.
+const SPORT_AMAZON = {
+  MLS: { label: "soccer", items: SOCCER_AMAZON }, Clubs: { label: "soccer", items: SOCCER_AMAZON }, National: { label: "soccer", items: SOCCER_AMAZON },
+  NFL: { label: "football", items: [
+    A("B08BZX1BL2", "Wilson official NFL Duke football", "The ball used in NFL games, in full size or mini."),
+    FOOTBALL_CASE,
+    A("B0CF64L8RC", "Football coach's dry-erase board", "Two-sided, for drawing up plays."),
+    A("0684870185", "When Pride Still Mattered, by David Maraniss", "The life of Vince Lombardi, a classic football biography."),
+    CORNHOLE, BLANKET ] },
+  MLB: { label: "baseball", items: [
+    A("B08CJM38TS", "Rawlings official league baseballs", "Competition-grade balls for catch or for autographs."),
+    A("B0C6DWRCVN", "Baseball display cases (8-pack)", "UV-protected cubes for signed or milestone balls."),
+    A("B08F37VLDM", "Wall-mount baseball bat display rack", "Shows off a bat on the wall."),
+    A("0393324818", "Moneyball, by Michael Lewis", "How the Oakland A's rethought the game."),
+    A("0060883960", "The Boys of Summer, by Roger Kahn", "The classic memoir of Jackie Robinson's Brooklyn Dodgers."),
+    CUSHIONS ] },
+  NBA: { label: "basketball", items: [...BASKETBALL.slice(0, 3), A("0345520106", "The Book of Basketball, by Bill Simmons", "A fan's long, opinionated history of the NBA."), ...BASKETBALL.slice(3)] },
+  WNBA: { label: "basketball", items: BASKETBALL },
+  NHL: { label: "hockey", items: [
+    A("B01FQ6H3V6", "Official regulation hockey pucks (18-pack)", "For practice, or for collecting autographs."),
+    A("B0BM2CHG4Z", "Hockey puck display case", "Fits a regulation puck; for a signed or game puck."),
+    A("B00NAUGV8W", "Franklin Sports NHL mini knee hockey goal set", "Two goals with sticks and a ball for hallway hockey."),
+    A("1600789617", "The Game, by Ken Dryden", "The Hall of Fame goalie's account of a season with the Canadiens."),
+    A("B0BR4HX8ZP", "Hockey coach's dry-erase board", "Two-sided, with a rink diagram."),
+    BLANKET ] },
+  College: { label: "college sports", items: [
+    A("B09P9TYK6Z", "Maelstrom insulated cooler backpack", "Carries drinks to the tailgate hands-free."),
+    CORNHOLE, CUSHIONS, BLANKET, FOOTBALL_CASE ] },
+};
 export const TEAM_PAGES = Object.entries(TEAMS).flatMap(([lg, teams]) => teams.map(t => {
   const full = teamName(t), nick = teamNick(full), L = LEAGUE[lg], name = L.label ? L.label(full) : full;
   const extra = SOCCER_LEAGUES.has(lg) ? SOCCER_EXTRA : [], n = L.slots.length;
@@ -146,7 +187,7 @@ export const TEAM_PAGES = Object.entries(TEAMS).flatMap(([lg, teams]) => teams.m
     slots: [...L.slots.map(s => `${full} ${s}`), ...extra.map(x => x[0])],
     ...(L.strict ? { slotMust: [...L.slots.map(slotWords), ...extra.map(x => x[1])] } : {}),
     ...(extra.length ? { openSlots: extra.map((_, k) => n + k), slotGroups: [...L.slots.map(() => `${name} gear`), ...extra.map(() => "For any soccer fan")] } : {}),
-    ...(extra.length ? { amazonPicks: SOCCER_AMAZON } : {}),
+    ...(SPORT_AMAZON[lg] ? { amazonPicks: SPORT_AMAZON[lg] } : {}),
     require: [...new Set([...teamSpellings(full), ...(Array.isArray(t) ? t.slice(1) : [])])],
     exclude: ["gift card", "replica toy gun", "for dogs", "pet ", ...(L.exclude || [])],
     notes: `officially licensed ${full} gear for a ${LEAGUE[lg].sport} fan; every product must be ${full} merchandise` +
@@ -1146,10 +1187,10 @@ export function amazonMore(p, cards) {
 // The owner's own favorites at the top of a guide. Each name links to an Amazon search when the Associates tag is set.
 // Hand-picked Amazon products (`amazonPicks`): name, our note, tagged product link. Shown only when the Associates tag is set.
 export function amazonPicks(p) {
-  const list = p && Array.isArray(p.amazonPicks) ? p.amazonPicks : [];
+  const a = p && p.amazonPicks, list = Array.isArray(a) ? a : (a && Array.isArray(a.items) ? a.items : []), label = (a && a.label) || "soccer";
   if (!AMAZON_TAG || !list.length) return "";
   const li = it => `<li style="margin:0 0 8px"><b>${esc(it.name)}</b>${it.note ? ` - ${esc(it.note)}` : ""} <a href="https://www.amazon.com/dp/${encodeURIComponent(it.asin)}?tag=${AMAZON_TAG}" target="_blank" rel="noopener sponsored nofollow" data-m="Amazon" style="white-space:nowrap">View on Amazon</a></li>`;
-  return `<section style="margin:22px 0"><h2 style="font-family:Georgia,serif;margin:0 0 4px">For any soccer fan, on Amazon</h2><p class="muted" style="margin:0 0 10px">Picked by hand; check Amazon for the current price.</p><ul style="padding-left:20px;margin:0">${list.map(li).join("")}</ul></section>`;
+  return `<section style="margin:22px 0"><h2 style="font-family:Georgia,serif;margin:0 0 4px">For any ${esc(label)} fan, on Amazon</h2><p class="muted" style="margin:0 0 10px">Picked by hand; check Amazon for the current price.</p><ul style="padding-left:20px;margin:0">${list.map(li).join("")}</ul></section>`;
 }
 export function ownerPicks(p) {
   const o = p && p.ownerPicks; if (!o || !Array.isArray(o.groups)) return "";
