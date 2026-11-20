@@ -16,6 +16,7 @@ import { pickAlternates } from "./more.js";
 import { addAlert, addedPage, runAlerts } from "./alerts.js";
 import { countClick, clickReport } from "./clicks.js";
 import { indexNowDaily } from "./indexnow.js";
+import { seasonBox } from "./season.js";
 import { signupForm, subscribe, confirm, unsubscribe, sendWeekly, subscribedPage, confirmedPage, unsubscribedPage, weeklyEmail, pickItems } from "./newsletter.js";
 import { TEE, teePromo } from "./promo.js";
 import { REG_MAX_ITEMS, REG_POOL_MIN_CENTS, validateRegistry, registrySlug, validateRegItem, publicRegistry, REG_AI_SYSTEM, regAiPrompt, parseRegAi, poolTarget, reminderSendOn, validateReminder, reminderEmail } from "./registry.js";
@@ -593,12 +594,14 @@ async function withBoot(resP, bootP) {
   return new Response(out.body, { status: out.status, headers: h });
 }
 // The platform's home page gets a short "On sale now" strip (nothing is added when no sale is confirmed).
-// The weekly-email signup goes right under that strip, whether or not the strip has anything in it.
+// The weekly-email signup and the "This season" guides go right under that strip, whether or not the strip has anything in it.
 async function withSales(resP, db, signup = "") {
-  const [res, deals, promos] = await Promise.all([resP, listedDeals(db, { limit: 4 }).catch(() => []), listedPromos(db).catch(() => [])]);
-  if (!res.ok || !/text\/html/.test(res.headers.get("content-type") || "") || (!deals.length && !promos.length && !signup)) return res;
-  const strip = deals.length || promos.length ? salesStrip(deals, promos) : "";
-  return new HTMLRewriter().on("#sales-strip", { element(el) { if (strip) el.setInnerContent(strip, { html: true }); if (signup) el.after(signup, { html: true }); } }).transform(res);
+  const [res, deals, promos, listed] = await Promise.all([resP, listedDeals(db, { limit: 4 }).catch(() => []), listedPromos(db).catch(() => []),
+    db.prepare("SELECT slug FROM seo_pages WHERE json_array_length(cards_json) >= ?").bind(MIN_LISTED).all().then(r => new Set(r.results.map(x => x.slug))).catch(() => null)]);
+  if (!res.ok || !/text\/html/.test(res.headers.get("content-type") || "")) return res;
+  const strip = deals.length || promos.length ? salesStrip(deals, promos) : "", after = seasonBox(Date.now(), listed) + signup;
+  if (!strip && !after) return res;
+  return new HTMLRewriter().on("#sales-strip", { element(el) { if (strip) el.setInnerContent(strip, { html: true }); if (after) el.after(after, { html: true }); } }).transform(res);
 }
 function withCookie(resP, cookie) {
   if (!cookie) return resP;
@@ -764,7 +767,7 @@ export default {
             ...idx.map(r => ({ loc: `https://${ROOT}/gifts/${r.slug}`, lastmod: r.updated_at })),
             ...stores.map(s => ({ loc: `https://${s.slug}.${ROOT}/`, lastmod: s.updated_at }))]), { headers: { "content-type": "application/xml" } });
         }
-        if (!parts[1]) return html(renderHub(new Set(rows.map(r => r.slug)), adSlot(env), REVIEW_INDEX));
+        if (!parts[1]) { const listed = new Set(rows.map(r => r.slug)); return html(renderHub(listed, adSlot(env), REVIEW_INDEX, seasonBox(Date.now(), listed))); }
         if (parts[1] === "topic") { const t = topicBySlug(parts[2] || ""); const tIdx = t && PAGES.some(q => q.topic === t && idx.some(r => r.slug === q.slug)); return t ? html((tIdx ? (x => x) : noindexed)(renderTopic(t, new Set(rows.map(r => r.slug)), adSlot(env)))) : html(`<!doctype html><title>Not found</title><p>No such topic. <a href="/gifts">All gift guides</a></p>`, 404); }
         const p = pageBySlug(parts[1]);
         const row = p && await db.prepare("SELECT * FROM seo_pages WHERE slug=?").bind(p.slug).first();

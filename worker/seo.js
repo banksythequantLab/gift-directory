@@ -1290,11 +1290,11 @@ export const topicBySlug = s => [...new Set(PAGES.map(p => p.topic))].find(t => 
 const byTopicBuilt = built => { const m = {}; for (const p of PAGES) if (built.has(p.slug)) (m[p.topic] ||= []).push(p); return m; };
 const HUB_PREVIEW = 12;
 // reviews: [{ slug, title }] from reviews.js, passed in by the worker (reviews.js imports this file).
-export function renderHub(built, ad = "", reviews = []) {
+export function renderHub(built, ad = "", reviews = [], season = "") {
   const byTopic = byTopicBuilt(built);
   const body = `<h1 style="font-family:Georgia,serif">Gift guides</h1><p class="muted">Real, in-stock gifts picked by AI for the people on your list — with live prices, and group gifts paid through PayPal.</p>
 <p><a href="/sales"><b>Gifts on sale now: checked markdowns and coupon codes →</b></a></p>
-<p><a href="/christmas-shipping-deadlines">Christmas shipping deadlines 2026: when to order →</a></p>
+${season}<p><a href="/christmas-shipping-deadlines">Christmas shipping deadlines 2026: when to order →</a></p>
 ${reviews.length ? `<h2 style="font-family:Georgia,serif">Gift reviews</h2><nav class="rel" aria-label="Gift reviews">${reviews.map(r => `<a href="/reviews/${esc(r.slug)}">${esc(r.title)}</a>`).join("")}</nav>` : ""}
 <nav class="rel" aria-label="Topics" style="margin:6px 0 10px">${Object.entries(byTopic).map(([t, ps]) => `<a href="/gifts/topic/${topicSlug(t)}">${esc(t)} (${ps.length})</a>`).join("")}</nav>
 ${Object.entries(byTopic).map(([t, ps]) => `<h2 style="font-family:Georgia,serif"><a href="/gifts/topic/${topicSlug(t)}" style="color:inherit">${esc(t)}</a></h2><nav class="rel" aria-label="${esc(t)} guides">${ps.slice(0, HUB_PREVIEW).map(p => `<a href="/gifts/${p.slug}">${esc(p.keyword)}</a>`).join("")}${ps.length > HUB_PREVIEW ? `<a href="/gifts/topic/${topicSlug(t)}"><b>All ${ps.length} ${esc(t)} guides →</b></a>` : ""}</nav>`).join("")}`;
