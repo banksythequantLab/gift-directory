@@ -1,6 +1,6 @@
 // IndexNow: tell Bing, Yandex and the other IndexNow engines which pages changed, so they recrawl them within hours.
 // The key is public by design (it is served at /<key>.txt); only URLs on gift.directory itself are sent.
-import { pageBySlug, MIN_LISTED } from "./seo.js";
+import { pageBySlug, indexable } from "./seo.js";
 import { SALE_BUDGETS } from "./deals.js";
 
 export const INDEXNOW_ENDPOINT = "https://api.indexnow.org/indexnow", BING_ENDPOINT = "https://www.bing.com/indexnow";
@@ -26,7 +26,7 @@ export async function changedUrls(db, { nowMs = Date.now(), hours = 26, all = fa
   const since = new Date(nowMs - hours * 3600e3).toISOString();
   const rows = (await db.prepare("SELECT slug, json_array_length(cards_json) AS n, updated_at FROM seo_pages" + (all ? "" : " WHERE updated_at > ?"))
     .bind(...(all ? [] : [since])).all()).results;
-  const guides = rows.filter(r => { const p = pageBySlug(r.slug); return p && (r.n >= MIN_LISTED || p.ownerPicks); }).map(r => `${ROOT}/gifts/${r.slug}`);
+  const guides = rows.filter(r => { const p = pageBySlug(r.slug); return indexable(p, r.n); }).map(r => `${ROOT}/gifts/${r.slug}`);
   return [`${ROOT}/`, `${ROOT}/sales`, `${ROOT}/black-friday`, ...SALE_BUDGETS.map(b => `${ROOT}/sales/under-${b}`), ...guides];
 }
 

@@ -3,7 +3,7 @@ import { paypalFetch, link, paypalMode, paypalFor, isSandboxEmail, ensureStorePl
 import { validateBrief, findGifts, browseGifts, channel3Search, toCard, mergeCards } from "./finder.js";
 import { validatePool, contributionError, buildContributionOrder, readCapture, applyCapture, publicPool } from "./pools.js";
 import { ROOT, DRAFT_SYSTEM, parseDraft, validateStore, storePlanSystem, subscriptionBody, storeStatusFor, hostKey, publicStore, darkEnough } from "./stores.js";
-import { PAGES, pageBySlug, GUIDE_SYSTEM, guidePrompt, parseGuide, pageBrief, renderGuide, renderHub, MIN_LISTED, noindexed, renderTopic, topicSlug, topicBySlug, related, teamNav, TEAM_PAGES, THEME_PAGES, sitemap, adSlot, configureAds, diversify, allowed, NOVELTY_ADVERTISER } from "./seo.js";
+import { PAGES, pageBySlug, GUIDE_SYSTEM, guidePrompt, parseGuide, pageBrief, renderGuide, renderHub, MIN_LISTED, noindexed, indexable, renderTopic, topicSlug, topicBySlug, related, teamNav, TEAM_PAGES, THEME_PAGES, sitemap, adSlot, configureAds, diversify, allowed, NOVELTY_ADVERTISER } from "./seo.js";
 import { LEGAL_SLUGS, renderLegal } from "./legal.js";
 import { REVIEW_SLUGS, REVIEW_INDEX, renderReview, reviewBox } from "./reviews.js";
 import { authorizeUrl, paypalWebBase, parseUserinfo, ownsStore, validateSettings, validateItem, shelves, withoutHidden } from "./owners.js";
@@ -756,15 +756,16 @@ export default {
         // Listed guides only: one with too few picks stays reachable by its link but is not shown or indexed.
         const allRows = (await db.prepare("SELECT slug, updated_at, json_array_length(cards_json) AS n FROM seo_pages").all()).results;
         const rows = allRows.filter(r => r.n >= MIN_LISTED || (pageBySlug(r.slug) || {}).ownerPicks);
+        const idx = rows.filter(r => indexable(pageBySlug(r.slug), r.n));
         if (url.pathname === "/sitemap.xml") {
           const stores = (await db.prepare("SELECT slug, updated_at FROM stores WHERE status='active'").all()).results;
           return new Response(sitemap([{ loc: `https://${ROOT}/` }, { loc: `https://${ROOT}/gifts` }, { loc: `https://${ROOT}/sales` }, { loc: `https://${ROOT}/black-friday` }, ...SALE_BUDGETS.map(b => ({ loc: `https://${ROOT}/sales/under-${b}` })), { loc: `https://${ROOT}/registry` }, ...LEGAL_SLUGS.map(s => ({ loc: `https://${ROOT}/${s}` })), ...REVIEW_SLUGS.map(s => ({ loc: `https://${ROOT}/reviews/${s}` })),
-            ...[...new Set(PAGES.filter(p => rows.some(r => r.slug === p.slug)).map(p => p.topic))].map(t => ({ loc: `https://${ROOT}/gifts/topic/${topicSlug(t)}` })),
-            ...rows.map(r => ({ loc: `https://${ROOT}/gifts/${r.slug}`, lastmod: r.updated_at })),
+            ...[...new Set(PAGES.filter(p => idx.some(r => r.slug === p.slug)).map(p => p.topic))].map(t => ({ loc: `https://${ROOT}/gifts/topic/${topicSlug(t)}` })),
+            ...idx.map(r => ({ loc: `https://${ROOT}/gifts/${r.slug}`, lastmod: r.updated_at })),
             ...stores.map(s => ({ loc: `https://${s.slug}.${ROOT}/`, lastmod: s.updated_at }))]), { headers: { "content-type": "application/xml" } });
         }
         if (!parts[1]) return html(renderHub(new Set(rows.map(r => r.slug)), adSlot(env), REVIEW_INDEX));
-        if (parts[1] === "topic") { const t = topicBySlug(parts[2] || ""); return t ? html(renderTopic(t, new Set(rows.map(r => r.slug)), adSlot(env))) : html(`<!doctype html><title>Not found</title><p>No such topic. <a href="/gifts">All gift guides</a></p>`, 404); }
+        if (parts[1] === "topic") { const t = topicBySlug(parts[2] || ""); const tIdx = t && PAGES.some(q => q.topic === t && idx.some(r => r.slug === q.slug)); return t ? html((tIdx ? (x => x) : noindexed)(renderTopic(t, new Set(rows.map(r => r.slug)), adSlot(env)))) : html(`<!doctype html><title>Not found</title><p>No such topic. <a href="/gifts">All gift guides</a></p>`, 404); }
         const p = pageBySlug(parts[1]);
         const row = p && await db.prepare("SELECT * FROM seo_pages WHERE slug=?").bind(p.slug).first();
         if (!row) return html(`<!doctype html><title>Not found</title><p>No such guide. <a href="/gifts">All gift guides</a></p>`, 404);
@@ -789,7 +790,7 @@ export default {
         const guideHtml = renderGuide(p, row, related(p, built), st ? `https://${st.slug}.${ROOT}/` : null, adSlot(env), teamNav(p, built),
           // A guide that shows AbracadabraNYC products also shows that store's current coupon codes.
           ownBox + reviewBox(p.slug) + (env.EMAIL && env.MAIL_ADDRESS ? signupForm({ onSales: false }) : "") + (String(row.cards_json || "").includes('"cj:7889430:') ? reviewOffers("magic-kits-and-costume-gifts", await listedPromos(db).catch(() => [])) : ""));
-        if (built.has(p.slug)) return html(guideHtml);
+        if (idx.some(r => r.slug === p.slug)) return html(guideHtml);
         const thin = html(noindexed(guideHtml)); thin.headers.set("x-robots-tag", "noindex, follow"); return thin;
       }
       // One-time: find or create the live $19/month plan with the live keys the worker holds. Needs the build token.

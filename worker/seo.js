@@ -1278,6 +1278,11 @@ ${g.faq.length ? `<h2 style="font-family:Georgia,serif">Questions people ask</h2
 // A guide needs at least this many picks to be listed (hub, topics, related links, sitemap) and indexed.
 // A thinner one still opens for anyone who has the link, but tells search engines not to index it.
 export const MIN_LISTED = 6;
+// Team-fan guides (one template across NFL, MLB, NBA, NHL, WNBA, MLS, college, club and national teams) stay open and
+// linked for visitors but are kept out of search indexes, sitemap and IndexNow, so search engines judge the site on its
+// distinct guides. Set INDEX_TEAM_PAGES to true to put them back.
+export const INDEX_TEAM_PAGES = false;
+export const indexable = (p, n) => !!p && (INDEX_TEAM_PAGES || !p.team) && (n >= MIN_LISTED || !!p.ownerPicks);
 export const noindexed = html => html.replace('<link rel="canonical"', '<meta name="robots" content="noindex,follow"><link rel="canonical"');
 // Topic pages (/gifts/topic/<slug>): the hub shows a preview of each topic and links to the full list.
 export const topicSlug = t => String(t).toLowerCase().replace(/&/g, "and").replace(/'/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
