@@ -15,6 +15,7 @@ import { RECS_SYSTEM, recsPrompt, recsStyle, parseRecs } from "./recs.js";
 import { pickAlternates } from "./more.js";
 import { addAlert, addedPage, runAlerts } from "./alerts.js";
 import { countClick, clickReport } from "./clicks.js";
+import { indexNowDaily } from "./indexnow.js";
 import { signupForm, subscribe, confirm, unsubscribe, sendWeekly, subscribedPage, confirmedPage, unsubscribedPage, weeklyEmail, pickItems } from "./newsletter.js";
 import { TEE, teePromo } from "./promo.js";
 import { REG_MAX_ITEMS, REG_POOL_MIN_CENTS, validateRegistry, registrySlug, validateRegItem, publicRegistry, REG_AI_SYSTEM, regAiPrompt, parseRegAi, poolTarget, reminderSendOn, validateReminder, reminderEmail } from "./registry.js";
@@ -708,6 +709,22 @@ export default {
         return addedPage(await addAlert(db, { email: f.get("email"), product_id: String(f.get("p") || ""), slug: String(f.get("s") || ""), website: f.get("website") })
           .catch(() => ({ ok: false, error: "Something went wrong on our side. Please try again later." })));
       }
+      // ---------- Black Friday: the checked markdowns and coupon codes, with that season's dates and questions ----------
+      if (url.pathname === "/black-friday") {
+        if (url.hostname !== ROOT && !isWorkersDev(url.hostname)) return Response.redirect(`https://${ROOT}/black-friday`, 301);
+        configureAds(env);
+        const [deals, promos] = await Promise.all([listedDeals(db).catch(() => []), listedPromos(db).catch(() => [])]);
+        const pg = renderSales({ deals, promos, ad: adSlot(env), bf: true, signup: env.EMAIL && env.MAIL_ADDRESS ? signupForm({ onSales: false }) : "" });
+        const res = new Response(pg.empty ? noindexed(pg.html) : pg.html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=900" } });
+        if (pg.empty) res.headers.set("x-robots-tag", "noindex, follow");
+        return res;
+      }
+      // Operator: tell IndexNow engines about changed pages now (body {all:true} sends every listed guide). Needs the build token.
+      if (url.pathname === "/api/seo/indexnow" && request.method === "POST") {
+        if (!env.BUILD_TOKEN || request.headers.get("x-build-token") !== env.BUILD_TOKEN) return new Response(JSON.stringify({ error: "not allowed" }), { status: 403 });
+        const b = await request.json().catch(() => ({}));
+        return new Response(JSON.stringify(await indexNowDaily(db, env, { all: !!b.all, hours: Number(b.hours) || 26 }).catch(e => ({ ok: false, error: String(e) }))), { headers: { "content-type": "application/json" } });
+      }
       // ---------- Sales: markdowns with a freshly checked price, and the stores' own coupon codes and sales ----------
       const saleUnder = (/^\/sales\/under-(\d+)$/.exec(url.pathname) || [])[1];
       if (url.pathname === "/sales" || (saleUnder && SALE_BUDGETS.includes(Number(saleUnder)))) {
@@ -741,7 +758,7 @@ export default {
         const rows = allRows.filter(r => r.n >= MIN_LISTED || (pageBySlug(r.slug) || {}).ownerPicks);
         if (url.pathname === "/sitemap.xml") {
           const stores = (await db.prepare("SELECT slug, updated_at FROM stores WHERE status='active'").all()).results;
-          return new Response(sitemap([{ loc: `https://${ROOT}/` }, { loc: `https://${ROOT}/gifts` }, { loc: `https://${ROOT}/sales` }, ...SALE_BUDGETS.map(b => ({ loc: `https://${ROOT}/sales/under-${b}` })), { loc: `https://${ROOT}/registry` }, ...LEGAL_SLUGS.map(s => ({ loc: `https://${ROOT}/${s}` })), ...REVIEW_SLUGS.map(s => ({ loc: `https://${ROOT}/reviews/${s}` })),
+          return new Response(sitemap([{ loc: `https://${ROOT}/` }, { loc: `https://${ROOT}/gifts` }, { loc: `https://${ROOT}/sales` }, { loc: `https://${ROOT}/black-friday` }, ...SALE_BUDGETS.map(b => ({ loc: `https://${ROOT}/sales/under-${b}` })), { loc: `https://${ROOT}/registry` }, ...LEGAL_SLUGS.map(s => ({ loc: `https://${ROOT}/${s}` })), ...REVIEW_SLUGS.map(s => ({ loc: `https://${ROOT}/reviews/${s}` })),
             ...[...new Set(PAGES.filter(p => rows.some(r => r.slug === p.slug)).map(p => p.topic))].map(t => ({ loc: `https://${ROOT}/gifts/topic/${topicSlug(t)}` })),
             ...rows.map(r => ({ loc: `https://${ROOT}/gifts/${r.slug}`, lastmod: r.updated_at })),
             ...stores.map(s => ({ loc: `https://${s.slug}.${ROOT}/`, lastmod: s.updated_at }))]), { headers: { "content-type": "application/xml" } });
@@ -1457,6 +1474,8 @@ export default {
     for (const src of due) ctx.waitUntil(syncSource(env, db, src));
     // Mondays: retry team, fandom, breed and other themed pages that had too little stock to build (they go live once stock shows up).
     if (new Date(controller.scheduledTime || Date.now()).getUTCDay() === 1) ctx.waitUntil(retryTeamPages(db, env));
+    // Tell IndexNow engines (Bing and others) which pages changed in the last day.
+    ctx.waitUntil(indexNowDaily(db, env).then(r => console.log("indexnow", JSON.stringify(r))).catch(e => console.log("indexnow failed", String(e))));
     // Registry reminders that are due today.
     ctx.waitUntil(sendReminders(env, db, new Date(controller.scheduledTime || Date.now()).toISOString().slice(0, 10)).catch(() => {}));
   },

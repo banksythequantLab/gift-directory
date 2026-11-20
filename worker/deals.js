@@ -196,33 +196,50 @@ ${c.checked_at ? `<p class="chk">Price checked ${esc(day(c.checked_at))}</p>` : 
 }
 const TOP_N = 12, PER_TOPIC = 8;
 // `under` (dollars): the same page limited to gifts at or under that price, at /sales/under-NN, without the coupon section.
-export function renderSales({ deals = [], promos = [], ad = "", nowMs = Date.now(), under = null, signup = "" } = {}) {
+// The US shopping days around Thanksgiving (the fourth Thursday of November) for a given year.
+export function blackFridayDates(year) {
+  const nov1 = new Date(Date.UTC(year, 10, 1)).getUTCDay(), thanks = 1 + ((4 - nov1 + 7) % 7) + 21;
+  const d = n => new Date(Date.UTC(year, 10, n)).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" });
+  const md = n => new Date(Date.UTC(year, 10, n)).toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: "UTC" });
+  // The weekday is in the names of the last two days already, so they get the plain date.
+  return { year, thanksgiving: d(thanks), blackFriday: d(thanks + 1), smallBusiness: md(thanks + 2), cyberMonday: md(thanks + 4) };
+}
+// bf: the same checked markdowns, presented as the Black Friday page (/black-friday) with that season's dates and questions.
+export function renderSales({ deals = [], promos = [], ad = "", nowMs = Date.now(), under = null, signup = "", bf = false } = {}) {
+  if (bf) under = null;
   if (under) promos = [];
   const et = new Date(new Date(nowMs).toLocaleString("en-US", { timeZone: "America/New_York" })), week = (et.getMonth() === 10 && et.getDate() >= 20) || (et.getMonth() === 11 && et.getDate() <= 1);
-  const h1 = under ? `Gift deals under $${under}` : "Gifts on sale now";
+  const h1 = bf ? "Black Friday gift deals" : under ? `Gift deals under ${under}` : "Gifts on sale now";
+  const bfd = blackFridayDates(et.getMonth() === 11 && et.getDate() > 2 ? et.getFullYear() + 1 : et.getFullYear());
+  const bfFaq = [
+    { q: `When is Black Friday ${bfd.year}?`, a: `Black Friday ${bfd.year} is ${bfd.blackFriday}, the day after Thanksgiving (${bfd.thanksgiving}). Small Business Saturday is ${bfd.smallBusiness} and Cyber Monday is ${bfd.cyberMonday}.` },
+    { q: "Are Black Friday prices really lower?", a: "Sometimes. A markdown only means something against the price the store normally charges, so every gift on this page shows the store's own regular price next to today's price, and the date we last checked it." },
+    { q: "Should I wait for Cyber Monday?", a: "For most gifts the two days carry similar prices. If a gift on your list is already marked down here and in stock, waiting risks it selling out; stores restock less often in December." },
+  ];
   const budgets = `<nav class="rel" aria-label="Sales by budget" style="margin:0 0 12px">${under ? `<a href="/sales">All sales</a>` : ""}${SALE_BUDGETS.filter(b => b !== under).map(b => `<a href="/sales/under-${b}">Under $${b}</a>`).join("")}</nav>`;
-  const url = "https://gift.directory/sales" + (under ? `/under-${under}` : ""), today = new Date(nowMs).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "America/New_York" });
+  const url = bf ? "https://gift.directory/black-friday" : "https://gift.directory/sales" + (under ? `/under-${under}` : ""), today = new Date(nowMs).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "America/New_York" });
   const top = deals.slice(0, TOP_N), rest = deals.slice(TOP_N), byTopic = new Map();
   for (const c of rest) { const g = pageBySlug(c.slug), t = (g && g.topic) || "More gifts"; if (!byTopic.has(t)) byTopic.set(t, []); if (byTopic.get(t).length < PER_TOPIC) byTopic.get(t).push(c); }
   const topics = [...byTopic.entries()].filter(([, cs]) => cs.length >= 3).sort((a, b) => b[1].length - a[1].length);
   const shown = [...top, ...topics.flatMap(([, cs]) => cs)];
-  const body = `${SALE_CSS}<div class="crumbs"><a href="/">gift.directory</a> › Sales</div>
+  const body = `${SALE_CSS}<div class="crumbs"><a href="/">gift.directory</a> › ${bf ? `<a href="/sales">Sales</a> › Black Friday` : "Sales"}</div>
 <h1 style="font-family:Georgia,serif;margin:4px 0 6px">${h1}</h1>
 <p class="muted" style="margin:0 0 12px">Updated ${esc(today)} · ${week ? "Black Friday and Cyber Monday week · " : ""}${shown.length} marked-down gifts${under ? "" : ` · ${promos.length} offers from ${groupPromos(promos).length} stores`}</p>
-${budgets}<section class="guide"><p>Every gift below comes from one of our <a href="/gifts">gift guides</a>${under ? `, costs $${under} or less today,` : ""} and is selling for less than the retailer's own regular price right now. We ask the retailer catalog for each price again before listing it, and the date of that check is on the card.${under ? "" : " Coupon codes and sale events come straight from the stores we work with, with the end date each store gave."}</p></section>
+${budgets}${bf ? `<section class="guide"><p><b>Black Friday ${bfd.year}</b> is ${esc(bfd.blackFriday)}. Thanksgiving is ${esc(bfd.thanksgiving)}, Small Business Saturday is ${esc(bfd.smallBusiness)} and Cyber Monday is ${esc(bfd.cyberMonday)}. Many stores start their Black Friday prices a week or more early, so the markdowns below are live now and re-checked through the season.</p></section>` : (week ? `<p><a href="/black-friday"><b>Black Friday ${bfd.year}: dates and gift deals →</b></a></p>` : "")}<section class="guide"><p>Every gift below comes from one of our <a href="/gifts">gift guides</a>${under ? `, costs $${under} or less today,` : ""} and is selling for less than the retailer's own regular price right now. We ask the retailer catalog for each price again before listing it, and the date of that check is on the card.${under ? "" : " Coupon codes and sale events come straight from the stores we work with, with the end date each store gave."}</p></section>
 ${top.length ? `<h2 style="font-family:Georgia,serif">Biggest markdowns</h2><div class="grid">${top.map(c => dealCard(c)).join("")}</div>` : ""}
 ${topics.map(([t, cs]) => `<h2 style="font-family:Georgia,serif">${esc(t)} on sale</h2><div class="grid">${cs.map(c => dealCard(c)).join("")}</div>`).join("")}
 ${promos.length ? `<h2 style="font-family:Georgia,serif">Coupon codes and store sales</h2><div class="promo">${groupPromos(promos).map(storeCard).join("")}</div>` : ""}
 ${!shown.length && !promos.length ? `<p>No sales have been confirmed in the last two days. <a href="/gifts">Browse the gift guides</a> in the meantime.</p>` : ""}
-${signup}<h2 style="font-family:Georgia,serif">How this page works</h2>
+${signup}${bf ? `<h2 style="font-family:Georgia,serif">Black Friday questions</h2>${bfFaq.map(f => `<h3>${esc(f.q)}</h3><p>${esc(f.a)}</p>`).join("")}` : ""}<h2 style="font-family:Georgia,serif">How this page works</h2>
 <section class="guide"><p><b>What counts as a sale.</b> The "was" price is the regular price the retailer itself lists next to its current price. We show a markdown only when the difference is at least ${DEAL_MIN_PCT}%, and we leave out anything showing more than ${DEAL_MAX_PCT}% off, because discounts that large are usually a mistake in a store's listing.</p>
 <p><b>How fresh the prices are.</b> A markdown stays on this page only while its price has been re-checked within the last ${DEAL_FRESH_HOURS} hours. Sales end without notice, so the retailer's page always has the final price.</p>
 <p><b>What we have not done.</b> We have not handled or tested these products. Each card links to the gift guide the product was chosen for, where the reason for choosing it is given. We may earn a commission when you buy through a link, at no extra cost to you; that does not change which prices are shown.</p></section>
 <h2 style="font-family:Georgia,serif">More ways to save on a gift</h2><nav class="rel" aria-label="Gift guides by budget"><a href="/gifts/christmas-gifts-under-10">Christmas gifts under $10</a><a href="/gifts/christmas-gifts-under-20">Christmas gifts under $20</a><a href="/gifts/secret-santa-gifts-under-25">Secret Santa gifts under $25</a><a href="/gifts/unique-gifts-under-25">Unique gifts under $25</a><a href="/gifts/tech-gifts-under-50">Tech gifts under $50</a><a href="/gifts/black-friday-gift-ideas">Black Friday gift ideas</a><a href="/gifts">All gift guides →</a></nav>`;
   const ld = [...(shown.length ? [{ "@context": "https://schema.org", "@type": "ItemList", name: "Gifts on sale now", url, numberOfItems: shown.length,
     itemListElement: shown.map((c, i) => ({ "@type": "ListItem", position: i + 1, item: productLd(c) })) }] : []),
-    { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [{ "@type": "ListItem", position: 1, name: "Sales", item: url }] }];
-  const html = shell(under ? `Gift deals under $${under}: price-checked markdowns | gift.directory` : "Gifts on sale now: checked markdowns and coupon codes | gift.directory",
+    ...(bf ? [{ "@context": "https://schema.org", "@type": "FAQPage", mainEntity: bfFaq.map(f => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })) }] : []),
+    { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [{ "@type": "ListItem", position: 1, name: "Sales", item: "https://gift.directory/sales" }, ...(bf ? [{ "@type": "ListItem", position: 2, name: "Black Friday", item: url }] : [])] }];
+  const html = bf ? shell(`Black Friday Gift Deals ${bfd.year}: Price-Checked Markdowns | gift.directory`, `Black Friday ${bfd.year} is ${bfd.blackFriday}. Gifts from our guides marked down now, each with the store's regular price and the date we checked it, plus coupon codes.`.slice(0, 160), url, body, ld, ad, (shown.find(c => c.image) || {}).image) : shell(under ? `Gift deals under $${under}: price-checked markdowns | gift.directory` : "Gifts on sale now: checked markdowns and coupon codes | gift.directory",
     under ? `Gifts from our guides that cost $${under} or less and are marked down right now, each with the date its price was checked.` : "Gifts from our guides that are marked down right now, with the date each price was checked, plus current coupon codes and sales from the stores we work with.", url, body, ld, ad, (shown.find(c => c.image) || {}).image);
   return { html, empty: !shown.length && !promos.length, markdowns: shown.length };
 }
