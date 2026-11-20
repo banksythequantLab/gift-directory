@@ -128,6 +128,16 @@ const slotWords = s => { const k = Object.keys(SLOT_WORDS).filter(w => s.toLower
 // gear for many clubs is thin in the catalog. These slots skip the team-name rule (`openSlots`).
 const SOCCER_EXTRA = [["soccer stadium wall art print", ["wall art", "print", "poster", "canvas"]], ["soccer tactics coaching board", ["tactic", "coach"]], ["soccer history book", ["book"]]];
 const SOCCER_LEAGUES = new Set(["MLS", "Clubs", "National"]);
+// Hand-picked Amazon products for any soccer fan (checked in stock, Nov 2026). Shown with our own one-line note and a
+// tagged product link, never a price or an Amazon image: the Associates rules allow those only from Amazon's API.
+const SOCCER_AMAZON = [
+  { asin: "B07PK3CFW9", name: "Foldable magnetic soccer tactics board", note: "For the fan who argues formations: fold it out and draw up the lineup." },
+  { asin: "1645030520", name: "Inverting the Pyramid, by Jonathan Wilson", note: "The history of soccer tactics that serious fans pass around." },
+  { asin: "1594482969", name: "The Ball Is Round, by David Goldblatt", note: "A global history of the game, from its beginnings to the modern era." },
+  { asin: "B088YMPZR1", name: "Jersey display frame case", note: "Turns a favorite or signed jersey into wall art." },
+  { asin: "B0C1XKQZRZ", name: "adidas Starlancer Club soccer ball", note: "A sturdy everyday ball for the park or the backyard." },
+  { asin: "B002OMD4DM", name: "Baden mini gold trophy soccer ball", note: "A small gold ball for the shelf or for collecting autographs." },
+];
 export const TEAM_PAGES = Object.entries(TEAMS).flatMap(([lg, teams]) => teams.map(t => {
   const full = teamName(t), nick = teamNick(full), L = LEAGUE[lg], name = L.label ? L.label(full) : full;
   const extra = SOCCER_LEAGUES.has(lg) ? SOCCER_EXTRA : [], n = L.slots.length;
@@ -136,6 +146,7 @@ export const TEAM_PAGES = Object.entries(TEAMS).flatMap(([lg, teams]) => teams.m
     slots: [...L.slots.map(s => `${full} ${s}`), ...extra.map(x => x[0])],
     ...(L.strict ? { slotMust: [...L.slots.map(slotWords), ...extra.map(x => x[1])] } : {}),
     ...(extra.length ? { openSlots: extra.map((_, k) => n + k), slotGroups: [...L.slots.map(() => `${name} gear`), ...extra.map(() => "For any soccer fan")] } : {}),
+    ...(extra.length ? { amazonPicks: SOCCER_AMAZON } : {}),
     require: [...new Set([...teamSpellings(full), ...(Array.isArray(t) ? t.slice(1) : [])])],
     exclude: ["gift card", "replica toy gun", "for dogs", "pet ", ...(L.exclude || [])],
     notes: `officially licensed ${full} gear for a ${LEAGUE[lg].sport} fan; every product must be ${full} merchandise` +
@@ -1133,6 +1144,13 @@ export function amazonMore(p, cards) {
 <ul style="margin:0;padding-left:20px;columns:2;column-gap:32px">${miss.map(s => `<li style="margin:0 0 8px;break-inside:avoid"><a href="https://www.amazon.com/s?k=${encodeURIComponent(p.topic === "Dog breeds" ? s + " dog" : s)}&amp;tag=${AMAZON_TAG}" target="_blank" rel="noopener sponsored nofollow" data-m="Amazon">${esc(cap(s))}</a></li>`).join("")}</ul></section>`;
 }
 // The owner's own favorites at the top of a guide. Each name links to an Amazon search when the Associates tag is set.
+// Hand-picked Amazon products (`amazonPicks`): name, our note, tagged product link. Shown only when the Associates tag is set.
+export function amazonPicks(p) {
+  const list = p && Array.isArray(p.amazonPicks) ? p.amazonPicks : [];
+  if (!AMAZON_TAG || !list.length) return "";
+  const li = it => `<li style="margin:0 0 8px"><b>${esc(it.name)}</b>${it.note ? ` - ${esc(it.note)}` : ""} <a href="https://www.amazon.com/dp/${encodeURIComponent(it.asin)}?tag=${AMAZON_TAG}" target="_blank" rel="noopener sponsored nofollow" data-m="Amazon" style="white-space:nowrap">View on Amazon</a></li>`;
+  return `<section style="margin:22px 0"><h2 style="font-family:Georgia,serif;margin:0 0 4px">For any soccer fan, on Amazon</h2><p class="muted" style="margin:0 0 10px">Picked by hand; check Amazon for the current price.</p><ul style="padding-left:20px;margin:0">${list.map(li).join("")}</ul></section>`;
+}
 export function ownerPicks(p) {
   const o = p && p.ownerPicks; if (!o || !Array.isArray(o.groups)) return "";
   const item = it => { const u = AMAZON_TAG && it.q ? `https://www.amazon.com/s?k=${encodeURIComponent(it.q)}&amp;tag=${AMAZON_TAG}` : "";
@@ -1198,7 +1216,7 @@ export function renderGuide(p, row, related, storeUrl, ad = "", teams = "", extr
 ${expertNote(p.slug)}
 ${related.length >= 3 ? `<p class="muted see">See also: ${related.slice(0, 3).map(r => `<a href="/gifts/${r.slug}">${esc(r.keyword.charAt(0).toLowerCase() + r.keyword.slice(1))}</a>`).join(", ").replace(/, ([^,]*)$/, " and $1")}.</p>` : ""}
 ${p.anniversary ? `<p class="muted" style="font-size:1.02rem"><b>Traditional gift:</b> ${esc(p.anniversary.traditional.replace(/\s*\(ivory-colored, never real ivory\)/, " (ivory-colored)"))} · <b>Modern gift:</b> ${esc(p.anniversary.modern)}</p>` : ""}
-${ownerPicks(p)}${renderRecs(recs, saveBadge)}${cards.length ? (cards.some(c => c.group)
+${ownerPicks(p)}${amazonPicks(p)}${renderRecs(recs, saveBadge)}${cards.length ? (cards.some(c => c.group)
   ? groupCards(cards).map(([label, cs]) => `<h2 style="font-family:Georgia,serif">${esc(label)}</h2><div class="grid">${cs.map(c => card(c, p.slug)).join("")}</div>`).join("")
   : `<h2 style="font-family:Georgia,serif">${recs ? `All ${cards.length} picks` : "Our picks"}</h2><div class="grid">${cards.map(c => card(c, p.slug)).join("")}</div>`) : ""}${onSale ? `<p class="muted">${onSale} of these ${onSale === 1 ? "is" : "are"} marked down from the retailer's regular price as of ${esc(updated)}. <a href="/sales">See every gift on sale now →</a></p>` : ""}${p.ownerPicks ? "" : amazonMore(p, cards)}${cards.length ? howWeChose(p, cards.length, updated, !!AMAZON_TAG) : ""}
 <div class="cta"><b style="font-size:1.1rem">Going in together?</b><br>${storeUrl
