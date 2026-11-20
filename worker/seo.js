@@ -1248,7 +1248,8 @@ export const houseAd = (topic, slug) => HOUSE_ADS[topic] ? HOUSE_ADS[topic](slug
 export function renderGuide(p, row, related, storeUrl, ad = "", teams = "", extra = "") {
   const g = JSON.parse(row.guide_json), cards = JSON.parse(row.cards_json || "[]");
   const url = `${ROOT}/gifts/${p.slug}`, updated = new Date(row.updated_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
-  const title = cards.length ? `${p.keyword} (${new Date(row.updated_at).getUTCFullYear()}) — real gifts in stock | gift.directory` : `${p.keyword} | gift.directory`;
+  // The count leads the reader to what the page holds: "Gifts for nurses: 16 picks in stock (2026)".
+  const title = cards.length ? `${p.keyword}: ${cards.length} picks in stock (${new Date(row.updated_at).getUTCFullYear()}) | gift.directory` : `${p.keyword} | gift.directory`;
   const recs = liveRecs(g.recs, cards), onSale = cards.filter(c => saveBadge(c)).length;
   const body = `<div class="crumbs"><a href="/">gift.directory</a> › <a href="/gifts">Gift guides</a> › <a href="/gifts/topic/${topicSlug(p.topic)}">${esc(p.topic)}</a></div>
 <h1 style="font-family:Georgia,serif;margin:4px 0 6px">${esc(p.keyword)}</h1>
