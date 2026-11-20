@@ -55,6 +55,7 @@ ok("Friday 10am to 8pm Eastern is an issue; other times are not", issueFor(FRI) 
 eq("pickItems keeps two per store at most", pickItems([{ merchant: "a" }, { merchant: "a" }, { merchant: "a" }, { merchant: "b" }]).length, 3);
 ok("the confirmation email promises nothing more without the click", /will not email this address again/.test(confirmEmail("t").text));
 ok("the sign-up box posts to the right place and has the trap", signupForm().includes('action="/api/subscribe"') && signupForm().includes('name="website"'));
+ok("off the sales page the box points to the sales page instead of 'this page'", signupForm({ onSales: false }).includes('href="/sales"') && !signupForm({ onSales: false }).includes("from this page") && signupForm().includes("from this page"));
 ok("the sales page shows the box only when it is given one", renderSales({ deals: [], signup: signupForm() }).html.includes('action="/api/subscribe"') && !renderSales({ deals: [] }).html.includes('action="/api/subscribe"'));
 eq("a refusal is a 400", subscribedPage({ ok: false, error: "x" }).status, 400);
 ok("a batch is bounded", NEWS_BATCH <= 50);

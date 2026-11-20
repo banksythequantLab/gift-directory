@@ -11,9 +11,10 @@ const money = c => "$" + (c / 100).toLocaleString("en-US", { minimumFractionDigi
 const ROOT = "https://gift.directory";
 
 // On the sales pages. A plain form; `website` is a trap for form-filling bots.
-export function signupForm() {
+// onSales: the form sits on /sales itself; elsewhere it says where the list comes from.
+export function signupForm({ onSales = true } = {}) {
   return `<section class="guide" style="margin:22px 0"><b style="font-family:Georgia,serif;font-size:1.1rem">The ten best markdowns, every Friday</b>
-<p style="margin:6px 0 10px">One short email a week with the biggest price-checked markdowns from this page. No other email, and one click to stop.</p>
+<p style="margin:6px 0 10px">One short email a week with the biggest price-checked markdowns ${onSales ? "from this page" : `from <a href="/sales">our sales page</a>`}. No other email, and one click to stop.</p>
 <form method="post" action="/api/subscribe" style="display:flex;gap:8px;flex-wrap:wrap;max-width:520px">
 <input type="text" name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
 <input type="email" name="email" required placeholder="you@example.com" aria-label="Your email" style="flex:1 1 220px;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font:inherit">

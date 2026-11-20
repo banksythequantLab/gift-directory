@@ -592,11 +592,12 @@ async function withBoot(resP, bootP) {
   return new Response(out.body, { status: out.status, headers: h });
 }
 // The platform's home page gets a short "On sale now" strip (nothing is added when no sale is confirmed).
-async function withSales(resP, db) {
+// The weekly-email signup goes right under that strip, whether or not the strip has anything in it.
+async function withSales(resP, db, signup = "") {
   const [res, deals, promos] = await Promise.all([resP, listedDeals(db, { limit: 4 }).catch(() => []), listedPromos(db).catch(() => [])]);
-  if (!res.ok || !/text\/html/.test(res.headers.get("content-type") || "") || (!deals.length && !promos.length)) return res;
-  const strip = salesStrip(deals, promos);
-  return new HTMLRewriter().on("#sales-strip", { element(el) { el.setInnerContent(strip, { html: true }); } }).transform(res);
+  if (!res.ok || !/text\/html/.test(res.headers.get("content-type") || "") || (!deals.length && !promos.length && !signup)) return res;
+  const strip = deals.length || promos.length ? salesStrip(deals, promos) : "";
+  return new HTMLRewriter().on("#sales-strip", { element(el) { if (strip) el.setInnerContent(strip, { html: true }); if (signup) el.after(signup, { html: true }); } }).transform(res);
 }
 function withCookie(resP, cookie) {
   if (!cookie) return resP;
@@ -770,7 +771,7 @@ export default {
 <p style="margin:10px 0 0"><a href="https://${st.slug}.${ROOT}/">See everything in the store →</a></p></section>` : "";
         const guideHtml = renderGuide(p, row, related(p, built), st ? `https://${st.slug}.${ROOT}/` : null, adSlot(env), teamNav(p, built),
           // A guide that shows AbracadabraNYC products also shows that store's current coupon codes.
-          ownBox + reviewBox(p.slug) + (String(row.cards_json || "").includes('"cj:7889430:') ? reviewOffers("magic-kits-and-costume-gifts", await listedPromos(db).catch(() => [])) : ""));
+          ownBox + reviewBox(p.slug) + (env.EMAIL && env.MAIL_ADDRESS ? signupForm({ onSales: false }) : "") + (String(row.cards_json || "").includes('"cj:7889430:') ? reviewOffers("magic-kits-and-costume-gifts", await listedPromos(db).catch(() => [])) : ""));
         if (built.has(p.slug)) return html(guideHtml);
         const thin = html(noindexed(guideHtml)); thin.headers.set("x-robots-tag", "noindex, follow"); return thin;
       }
@@ -889,7 +890,7 @@ export default {
           if (url.hostname !== ROOT && !isWorkersDev(url.hostname) && url.hostname.endsWith("." + ROOT)) return Response.redirect(`https://${ROOT}/admin`, 302);
           return page("/admin");
         }
-        if (platform && (parts.length === 0 || parts[0] === "new")) return withSales(withPreview(page("/platform"), PLATFORM_META), db);
+        if (platform && (parts.length === 0 || parts[0] === "new")) return withSales(withPreview(page("/platform"), PLATFORM_META), db, env.EMAIL && env.MAIL_ADDRESS ? signupForm({ onSales: false }) : "");
         if (parts.length === 0) {
           if (!store || store.status !== "active") return withPreview(page("/"), null);
           // Always the whole page (never "not modified"): the data built into it changes with the store and the visitor.
